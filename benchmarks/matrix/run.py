@@ -437,6 +437,19 @@ def _load(name):
     return json.load(open(p)) if os.path.exists(p) else None
 
 
+def _load_at(runs_dir, name):
+    p = os.path.join(runs_dir, f"{name}.json")
+    return json.load(open(p)) if os.path.exists(p) else None
+
+
+def _table_runs(a) -> list:
+    """The nights this table covers. Measurement always writes ONE night (RUNS); the
+    table may be asked for several, and `_runs` means every `repN*` under it. Imported
+    lazily so a night's run never depends on the reporting side."""
+    from scorecard import run_dirs
+    return run_dirs(getattr(a, "runs", None) or [RUNS])
+
+
 def _gguf():
     local = os.environ.get("STOCK_GGUF")
     if local:
@@ -944,6 +957,19 @@ def run_one(arm: str, task: str, rep: int, a) -> dict:
     wall = time.time() - t0
     tail = "TIMEOUT\n" if timed_out else ""
     tail += (out or "")[-2000:] + (err or "")[-2000:]
+    if not on_llama:
+        # The in-process arm's whole stdout (streamed think + answer text), beside its
+        # trace. Not committed (model output); it is what tells a killed cell apart:
+        # a step still streaming tokens at the cap is a runaway generation, a stream
+        # that stopped long before the cap is a hang.
+        try:
+            with open(os.path.join(trace_dir, "stdout.log"), "w") as f:
+                f.write(f"# launched {time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(t0))}"
+                        f" wall {wall:.1f}s{' TIMEOUT' if timed_out else ''}\n")
+                f.write(out or "")
+                f.write(err or "")
+        except OSError:
+            pass
     quiet_after = _drain() if on_llama else True
     if on_llama:
         after, counts_source = _metrics(), "llama-server /metrics"
@@ -1166,15 +1192,26 @@ def smoke(a) -> None:
 
 
 def table(a) -> None:
-    rows = _load("grid") or []
+    dirs = _table_runs(a)
+    rows = []
+    for rep, d in enumerate(dirs):
+        # Each night numbers its own reps from 0, so they are re-keyed to the night's
+        # index before being pooled — otherwise two nights of the same cell collide.
+        rows += [{**r, "rep": rep} for r in (_load_at(d, "grid") or [])]
     if not rows:
         print("no rows yet")
         return
+    reps = len(dirs)
     # The first version of this grid printed a clean-looking table whose arms had been
     # sampling differently the whole night. A table is not a report of what happened
     # unless the sampler was the same for everyone, so the check is a precondition of
     # printing rather than a note underneath it.
-    forced = _load("sampler_audit_summary")
+    summaries = [_load_at(d, "sampler_audit_summary") for d in dirs]
+    forced = summaries[0] if summaries and all(summaries) else None
+    if forced and any(x != forced for x in summaries):
+        # Two nights that sampled differently are not two reps of one grid.
+        sys.exit("the nights under --runs did not force the same sampler: "
+                 + "; ".join(f"{os.path.basename(d)} {x}" for d, x in zip(dirs, summaries)))
     if not forced and not a.unverified:
         sys.exit("no sampler_audit_summary.json — this grid's sampling was never "
                  "verified. Re-run the llama phase, or pass --unverified to print "
@@ -1188,7 +1225,9 @@ def table(a) -> None:
     denom = {}
     for r in rows:
         denom[r["task"]] = max(denom.get(r["task"], 0), r.get("tests_total", 0))
-    print("\n### Harness x engine — same tasks, same weights, same laptop\n")
+    nights = ("" if reps == 1 else
+              f" — {reps} nights, {', '.join(os.path.basename(d.rstrip('/')) for d in dirs)}")
+    print(f"\n### Harness x engine — same tasks, same weights, same laptop{nights}\n")
     hdr = ["Arm", "Passed", "Tests", "Median wall (passed)", "Total prefill",
            "Total generated", "Timeouts"]
     out = []
@@ -1235,7 +1274,8 @@ def table(a) -> None:
         print("\n**UNVERIFIED SAMPLER** — arms may not have sampled alike. Do not "
               "publish this table.")
     print("\n### Per task (wall seconds if passed; otherwise tests passed, "
-          "`T` = timed out)\n")
+          "`T` = timed out"
+          + ("" if reps == 1 else "; one entry per night, in order") + ")\n")
     hdr2 = ["Task"] + arms
     out2 = []
     for task in a.tasks:
@@ -1245,15 +1285,20 @@ def table(a) -> None:
             if not rs:
                 row.append("-")
             else:
-                r = rs[-1]
-                if r["passed"]:
-                    row.append(f"{r['wall_s']:.0f}")
-                else:
-                    # A failed cell carries how far it got. "T 29/31" and "T 0/31" are
-                    # the same zero on the metric and nothing like each other.
-                    n = denom.get(task, 0)
-                    tally = f"{r.get('tests_passed', 0)}/{n}" if n else "0/?"
-                    row.append(("T " if r["timed_out"] else "x ") + tally)
+                # One entry per night, in night order. A cell that passed one night and
+                # timed out the next is the single most useful thing this grid can say,
+                # and printing only the last rep would hide it.
+                cells = []
+                for r in sorted(rs, key=lambda x: x.get("rep", 0)):
+                    if r["passed"]:
+                        cells.append(f"{r['wall_s']:.0f}")
+                    else:
+                        # A failed cell carries how far it got. "T 29/31" and "T 0/31"
+                        # are the same zero on the metric and nothing like each other.
+                        n = denom.get(task, 0)
+                        tally = f"{r.get('tests_passed', 0)}/{n}" if n else "0/?"
+                        cells.append(("T " if r["timed_out"] else "x ") + tally)
+                row.append(" · ".join(cells))
         out2.append(row)
     w = [max(len(str(r[i])) for r in [hdr2] + out2) for i in range(len(hdr2))]
     print("| " + " | ".join(h.ljust(w[i]) for i, h in enumerate(hdr2)) + " |")
@@ -1272,6 +1317,9 @@ def main(argv=None) -> int:
                     help="llama: run only the arms _runs/smoke_verdict.json cleared")
     ap.add_argument("--unverified", action="store_true",
                     help="print a table whose sampler agreement was never verified")
+    ap.add_argument("--runs", nargs="+", default=None,
+                    help="table: the nights to pool, one rep each; a directory holding "
+                         "repN* dirs means all of them (default: $MATRIX_RUNS or _runs)")
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--timeout", type=int, default=1200,
                     help="per-task wall cap; a hung harness must not eat the night")

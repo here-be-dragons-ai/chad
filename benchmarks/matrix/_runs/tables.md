@@ -1,19 +1,19 @@
 
-### Harness x engine — same tasks, same weights, same laptop
+### Harness x engine — same tasks, same weights, same laptop — 2 nights, rep1-20260901, rep2-20260906
 
 | Arm                 | Passed | Tests   | Median wall (passed) | Total prefill | Total generated | Timeouts |
 |---------------------|--------|---------|----------------------|---------------|-----------------|----------|
-| pi+llama            | 7/8    | 128/148 | 388s                 | 41,631        | 42,322          | 3        |
-| opencode+llama      | 3/8    | 82/148  | 446s                 | 176,499       | 42,857          | 5        |
-| chad+llama          | 7/8    | 141/148 | 375s                 | 44,226        | 28,682          | 1        |
-| chad+mlx *          | 8/8    | 148/148 | 589s                 | 35,998        | 49,265          | 1        |
-| chad+mlx-nodflash * | 6/8    | 97/148  | 310s                 | 18,142        | 20,132          | 2        |
-| dsh+llama           | 6/8    | 105/148 | 528s                 | 93,566        | 40,526          | 0        |
-| goose+llama         | 6/8    | 92/148  | 1200s                | 184,138?      | 39,114?         | 4        |
-| mini+llama          | 4/8    | 87/148  | 745s                 | 66,235?       | 42,368?         | 4        |
-| crush+llama         | 5/8    | 88/148  | 580s                 | 178,677?      | 63,901?         | 3        |
-| cline+llama         | 6/8    | 116/148 | 1073s                | 95,514        | 51,789          | 0        |
-| codex+llama         | 6/8    | 97/148  | 379s                 | 88,613        | 36,522          | 2        |
+| pi+llama            | 13/16  | 225/296 | 388s                 | 75,668        | 91,025          | 5        |
+| opencode+llama      | 9/16   | 179/296 | 577s                 | 371,163?      | 81,897?         | 9        |
+| chad+llama          | 15/16  | 289/296 | 280s                 | 93,869?       | 51,496?         | 1        |
+| chad+mlx *          | 15/16  | 292/296 | 297s                 | 69,355        | 108,652         | 2        |
+| chad+mlx-nodflash * | 13/16  | 233/296 | 310s                 | 46,633        | 52,175          | 3        |
+| dsh+llama           | 12/16  | 221/296 | 528s                 | 183,154       | 84,396          | 0        |
+| goose+llama         | 9/16   | 141/296 | 587s                 | 320,124?      | 74,193?         | 4        |
+| mini+llama          | 7/16   | 144/296 | 745s                 | 122,130?      | 92,176?         | 9        |
+| crush+llama         | 13/16  | 236/296 | 580s                 | 383,680?      | 122,591?        | 5        |
+| cline+llama         | 11/16  | 222/296 | 549s                 | 200,619?      | 102,492?        | 0        |
+| codex+llama         | 13/16  | 225/296 | 379s                 | 175,448       | 67,153          | 3        |
 
 `*` token counts are the harness's own, not llama-server's: the MLX arm is in-process
 and no server sees it. Cached tokens are subtracted so both columns mean the same thing.
@@ -22,15 +22,15 @@ and no server sees it. Cached tokens are subtracted so both columns mean the sam
 Sampler, forced identically on every arm (proxy for the llama arms, `CHAD_*` for the
 MLX arms, cross-checked): min_p 0.05, presence_penalty 0.0, repeat_penalty 1.0, temperature 1.0, top_k 20, top_p 0.95
 
-### Per task (wall seconds if passed; otherwise tests passed, `T` = timed out)
+### Per task (wall seconds if passed; otherwise tests passed, `T` = timed out; one entry per night, in order)
 
-| Task          | pi+llama | opencode+llama | chad+llama | chad+mlx | chad+mlx-nodflash | dsh+llama | goose+llama | mini+llama | crush+llama | cline+llama | codex+llama |
-|---------------|----------|----------------|------------|----------|-------------------|-----------|-------------|------------|-------------|-------------|-------------|
-| bowling       | 1200     | T 9/31         | 825        | 955      | T 0/31            | x 0/31    | x 0/31      | T 0/31     | T 0/31      | 1171        | T 0/31      |
-| grade-school  | 141      | 408            | 111        | 70       | 97                | 289       | 395         | 398        | 349         | 339         | 247         |
-| affine-cipher | 148      | 446            | 110        | 90       | 256               | 463       | 587         | 818        | 453         | 462         | 274         |
-| transpose     | 1200     | T 0/12         | 736        | 589      | 401               | x 0/12    | 1200        | T 9/12     | T 8/12      | x 0/12      | 1021        |
-| wordy         | 655      | T 24/25        | 375        | 124      | 316               | 1086      | x 0/25      | 725        | T 0/25      | 1073        | 645         |
-| book-store    | T 0/20   | T 0/20         | T 13/20    | 852      | T 0/20            | 955       | 1200        | T 0/20     | 1124        | x 0/20      | T 0/20      |
-| dominoes      | 326      | 596            | 284        | 297      | 300               | 390       | 1200        | T 6/13     | 580         | 1171        | 341         |
-| go-counting   | 388      | T 0/11         | 419        | 1200     | 310               | 528       | 1200        | 745        | 591         | 549         | 379         |
+| Task          | pi+llama        | opencode+llama  | chad+llama    | chad+mlx      | chad+mlx-nodflash | dsh+llama       | goose+llama     | mini+llama      | crush+llama   | cline+llama     | codex+llama     |
+|---------------|-----------------|-----------------|---------------|---------------|-------------------|-----------------|-----------------|-----------------|---------------|-----------------|-----------------|
+| bowling       | 1200 · T 0/31   | T 9/31 · T 0/31 | 825 · 932     | 955 · T 27/31 | T 0/31 · 912      | x 0/31 · 975    | x 0/31 · x 0/31 | T 0/31 · T 0/31 | T 0/31 · 1200 | 1171 · 1171     | T 0/31 · 645    |
+| grade-school  | 141 · 152       | 408 · 577       | 111 · 127     | 70 · 78       | 97 · 85           | 289 · 310       | 395 · 461       | 398 · 209       | 349 · 448     | 339 · 252       | 247 · 228       |
+| affine-cipher | 148 · 147       | 446 · 378       | 110 · 185     | 90 · 92       | 256 · 123         | 463 · 260       | 587 · 400       | 818 · 964       | 453 · 372     | 462 · 256       | 274 · 254       |
+| transpose     | 1200 · 882      | T 0/12 · 1200   | 736 · 777     | 589 · 485     | 401 · T 0/12      | x 0/12 · x 0/12 | 1200 · x 0/12   | T 9/12 · T 0/12 | T 8/12 · 1200 | x 0/12 · 1171   | 1021 · 643      |
+| wordy         | 655 · 712       | T 24/25 · 1200  | 375 · 280     | 124 · 382     | 316 · 437         | 1086 · 1035     | x 0/25 · x 0/25 | 725 · T 0/25    | T 0/25 · 889  | 1073 · x 11/25  | 645 · 606       |
+| book-store    | T 0/20 · T 0/20 | T 0/20 · T 0/20 | T 13/20 · 239 | 852 · 895     | T 0/20 · 349      | 955 · x 0/20    | 1200 · x 0/20   | T 0/20 · T 0/20 | 1124 · 626    | x 0/20 · x 3/20 | T 0/20 · T 0/20 |
+| dominoes      | 326 · 958       | 596 · 513       | 284 · 192     | 297 · 158     | 300 · 516         | 390 · 410       | 1200 · 408      | T 6/13 · 778    | 580 · 370     | 1171 · 390      | 341 · 272       |
+| go-counting   | 388 · 282       | T 0/11 · 589    | 419 · 163     | 1200 · 148    | 310 · 178         | 528 · 759       | 1200 · x 0/11   | 745 · T 8/11    | 591 · 428     | 549 · x 0/11    | 379 · 469       |

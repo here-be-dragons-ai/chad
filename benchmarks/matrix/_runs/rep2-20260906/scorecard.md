@@ -4,17 +4,17 @@
 
 | Arm                 | tax: turn-1 prompt (tok) | wait before 1st token, turn 1 | uncached tok / later turn (med) | wait / later turn (med · p90) | cache reuse | prefill s / task (med) | exp. tok/s | pass (gate) |
 |---------------------|--------------------------|-------------------------------|---------------------------------|-------------------------------|-------------|------------------------|------------|-------------|
-| pi+llama            | 2,008                    | 21.6 s                        | 74                              | 1.5 s · 21 s                  | 99%         | 45                     | 8.2        | 13/16 T5    |
-| opencode+llama      | 18,050                   | 227.7 s                       | 109                             | 2.2 s · 44 s                  | 99%         | 378                    | 5.8        | 9/16 T9     |
-| chad+llama          | 2,562                    | 26.8 s                        | 57                              | 1.1 s · 13 s                  | 99%         | 52                     | 7.2        | 15/16 T1    |
-| dsh+llama           | 8,052                    | 93.9 s                        | 93                              | 1.9 s · 34 s                  | 99%         | 133                    | 7.0        | 12/16       |
-| goose+llama         | 9,576                    | 113.4 s                       | 2,214                           | 28.3 s · 70 s                 | 81%         | 239                    | 5.9        | 9/16 T4     |
-| mini+llama          | 1,171                    | 12.1 s                        | 300                             | 4.1 s · 22 s                  | 95%         | 47                     | 7.9        | 7/16 T9     |
-| crush+llama         | 16,263                   | 199.7 s                       | 87                              | 1.8 s · 41 s                  | 100%        | 298                    | 5.5        | 13/16 T5    |
-| cline+llama         | 5,875                    | 63.3 s                        | 1,014                           | 12.3 s · 53 s                 | 93%         | 129                    | 7.3        | 11/16       |
-| codex+llama         | 7,804                    | 88.0 s                        | 690                             | 9.6 s · 24 s                  | 94%         | 118                    | 6.6        | 13/16 T3    |
-| chad+mlx *          | 2,562                    | 25.3 s †                      | 50                              | 1.2 s · 20 s                  | 99%         | 51                     | 16.0       | 15/16 T2    |
-| chad+mlx-nodflash * | 2,565                    | 25.3 s †                      | 41                              | 1.0 s · 17 s                  | 99%         | 53                     | 12.0       | 13/16 T3    |
+| pi+llama            | 2,008                    | 21.0 s                        | 36                              | 0.9 s · 21 s                  | 99%         | 43                     | 8.7        | 6/8 T2      |
+| opencode+llama      | 18,046                   | 222.1 s                       | 36                              | 0.9 s · 35 s                  | 100%        | 359                    | 5.4        | 6/8 T4      |
+| chad+llama          | 2,562                    | 26.5 s                        | 59                              | 1.1 s · 13 s                  | 99%         | 51                     | 7.2        | 8/8         |
+| dsh+llama           | 8,052                    | 92.5 s                        | 93                              | 1.6 s · 31 s                  | 99%         | 126                    | 7.8        | 6/8         |
+| goose+llama         | 9,576                    | 108.5 s                       | 1,945                           | 24.4 s · 48 s                 | 83%         | 190                    | 7.3        | 3/8         |
+| mini+llama          | 1,171                    | 12.0 s                        | 539                             | 6.7 s · 27 s                  | 88%         | 32                     | 8.2        | 3/8 T5      |
+| crush+llama         | 16,264                   | 195.1 s                       | 86                              | 1.7 s · 37 s                  | 100%        | 296                    | 5.3        | 8/8 T2      |
+| cline+llama         | 5,875                    | 62.3 s                        | 1,129                           | 14.3 s · 53 s                 | 92%         | 118                    | 7.4        | 5/8         |
+| codex+llama         | 7,803                    | 84.3 s                        | 545                             | 7.4 s · 24 s                  | 95%         | 114                    | 6.7        | 7/8 T1      |
+| chad+mlx *          | 2,562                    | 25.3 s †                      | 112                             | 1.6 s · 22 s                  | 99%         | 51                     | 16.9       | 7/8 T1      |
+| chad+mlx-nodflash * | 2,564                    | 25.3 s †                      | 48                              | 1.0 s · 18 s                  | 99%         | 53                     | 12.1       | 7/8 T1      |
 
 Every column but the last two is llama-server's own accounting, read through the proxy
 (`_runs/turns.jsonl`), never a harness's self-report. **tax** = prompt tokens of the
@@ -26,23 +26,23 @@ turns, median and p90; **cache reuse** = `cache_n / (cache_n + prompt_n)` on tho
 **exp. tok/s** = generated tokens / wall clock. Side requests (title / summary calls with
 no tool schemas) are excluded from the per-turn columns and counted in the next table.
 The pass column is a gate, not a ranking.
-`*` in-process arm: the same fields from chad's own prefill trace, self-reported — no server saw it. `†` includes the system-prompt prefix chad prefills before its first step when its disk checkpoint misses, or restores when it hits (chad+mlx: miss, 24.1 s of it; chad+mlx-nodflash: miss, 24.1 s of it). A miss is the cold prefill of the same prompt the chad+llama row pays; a hit is a disk restore. The turn-1 wait and prefill columns of those rows are over the cells whose trace recorded the prefix (chad+mlx 8/16; chad+mlx-nodflash 8/16); the rest of the row, and the pass gate, are over every cell.
+`*` in-process arm: the same fields from chad's own prefill trace, self-reported — no server saw it. `†` includes the system-prompt prefix chad prefills before its first step when its disk checkpoint misses, or restores when it hits (chad+mlx: miss, 24.1 s of it; chad+mlx-nodflash: miss, 24.1 s of it). A miss is the cold prefill of the same prompt the chad+llama row pays; a hit is a disk restore.
 
 #### Shape of the harness
 
 | Arm                 | tools | system prompt (chars) | prefix churn | side requests (concurrent · abandoned) | round trips / task | model busy | prefill share | ctx at exit |
 |---------------------|-------|-----------------------|--------------|----------------------------------------|--------------------|------------|---------------|-------------|
-| pi+llama            | 4     | 4,052                 | 0/55         | 0                                      | 5                  | 98%        | 16%           | 6,270       |
-| opencode+llama      | 10    | 49,086                | 0/37         | 20 (16 · 2)                            | 4                  | 117%       | 46%           | 23,105      |
-| chad+llama          | –     | –                     | –            | 0                                      | 6                  | 97%        | 18%           | 7,244       |
-| dsh+llama           | 25    | 4,188                 | 0/59         | 16 (16 · 16)                           | 5                  | 99%        | 16%           | 17,008      |
-| goose+llama         | 18    | 23,829                | 0/52         | 16 (16 · 0)                            | 4                  | 83%        | 62%           | 13,024      |
-| mini+llama          | 1     | 62                    | 0/69         | 0                                      | 4                  | 49%        | 15%           | 6,684       |
-| crush+llama         | 26    | 37,456                | 0/64         | 33 (32 · 1)                            | 6                  | 114%       | 51%           | 21,792      |
-| cline+llama         | 26    | 4,326                 | 0/55         | 0                                      | 5                  | 98%        | 21%           | 15,161      |
-| codex+llama         | 10    | 20,751                | 0/41         | 0                                      | 4                  | 98%        | 41%           | 11,952      |
-| chad+mlx *          | –     | –                     | –            | 0                                      | 6                  | 94%        | 33%           | 8,310       |
-| chad+mlx-nodflash * | –     | –                     | –            | 0                                      | 6                  | 95%        | 26%           | 8,538       |
+| pi+llama            | 4     | 4,052                 | 0/26         | 0                                      | 4                  | 98%        | 23%           | 5,664       |
+| opencode+llama      | 10    | 49,078                | 0/20         | 10 (8 · 0)                             | 4                  | 117%       | 46%           | 23,296      |
+| chad+llama          | –     | –                     | –            | 0                                      | 6                  | 97%        | 23%           | 6,000       |
+| dsh+llama           | 25    | 4,188                 | 0/25         | 8 (8 · 8)                              | 4                  | 100%       | 16%           | 17,436      |
+| goose+llama         | 18    | 23,829                | 0/23         | 8 (8 · 0)                              | 4                  | 43%        | 65%           | 11,772      |
+| mini+llama          | 1     | 62                    | 0/26         | 0                                      | 4                  | 27%        | 34%           | 3,793       |
+| crush+llama         | 26    | 37,456                | 0/34         | 17 (16 · 1)                            | 5                  | 115%       | 53%           | 21,660      |
+| cline+llama         | 26    | 4,326                 | 0/27         | 0                                      | 5                  | 98%        | 16%           | 17,126      |
+| codex+llama         | 10    | 20,751                | 0/22         | 0                                      | 4                  | 99%        | 35%           | 12,454      |
+| chad+mlx *          | –     | –                     | –            | 0                                      | 6                  | 94%        | 33%           | 9,650       |
+| chad+mlx-nodflash * | –     | –                     | –            | 0                                      | 6                  | 95%        | 26%           | 7,888       |
 
 **tools** / **system prompt** as the harness sent them on its first agent request;
 **prefix churn** = agent turns whose system-message or tool-list hash changed since the
@@ -56,7 +56,7 @@ wall over measured requests — above 100% means two were in flight at once; **r
 trips** = agent turns per task; **ctx at exit** = tokens in context at the last agent
 turn.
 
-Instrument check: the proxy's own first-byte stamp came back earlier than the server's `prompt_ms` on 210 of 742 requests (llama-server streams a first chunk before a long prefill finishes), so no time-to-first-byte column is printed; the server's prefill time is the wait.
+Instrument check: the proxy's own first-byte stamp came back earlier than the server's `prompt_ms` on 97 of 363 requests (llama-server streams a first chunk before a long prefill finishes), so no time-to-first-byte column is printed; the server's prefill time is the wait.
 
 #### Per task — cache reuse (median, agent turns 2+) · wait / later turn (median) · experienced tok/s
 

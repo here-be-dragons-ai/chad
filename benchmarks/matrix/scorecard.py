@@ -63,15 +63,22 @@ MLX arms have no server to observe. Their rows come from chad's own prefill trac
 (`CHAD_PREFILL_TRACE`, same field definitions) and are marked self-reported; their turn-1
 wait is a warm prefix loaded from disk, not a cold prefill, and is marked as such.
 
+Each measured night is one run directory. `_runs/` holds one per night
+(`repN-YYYYMMDD/`), and the default run is all of them: night k becomes rep k of the same
+(arm, task) cell, so the medians below are over reps as well as tasks. The `pass` column
+prints the cell count, so a two-night grid reads `13/16`, not `13/8`.
+
 Run:
     uv run python benchmarks/matrix/scorecard.py               # -> _runs/scorecard.md + .json
-    uv run python benchmarks/matrix/scorecard.py --runs DIR    # another run's artifacts
+                                                               #    over every _runs/repN*/
+    uv run python benchmarks/matrix/scorecard.py --runs DIR    # one night, or several
     uv run python benchmarks/matrix/scorecard.py --legacy      # grid.json + sampler_audit.jsonl
                                                                # only (runs before turns.jsonl)
 """
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import math
 import os
@@ -100,12 +107,44 @@ def _jsonl(path: str) -> list:
     return out
 
 
-def load(runs: str) -> tuple:
-    grid = os.path.join(runs, "grid.json")
-    rows = json.load(open(grid)) if os.path.exists(grid) else []
-    turns = [t for t in _jsonl(os.path.join(runs, "turns.jsonl"))
-             if isinstance(t.get("rep"), int) and t["rep"] >= 0]
-    audit = _jsonl(os.path.join(runs, "sampler_audit.jsonl"))
+def _rel(p: str) -> str:
+    """A run directory as it goes into the committed JSON: relative to the repo, never
+    the absolute path of whoever's laptop ran it."""
+    try:
+        return os.path.relpath(os.path.abspath(p), ROOT)
+    except ValueError:
+        return os.path.basename(p.rstrip("/"))
+
+
+def run_dirs(runs) -> list:
+    """The run directories behind `runs`: a path that has a grid.json is one itself,
+    anything else is scanned for `repN*` children that do, in name order. So `_runs`
+    means every night measured so far, and a single night is still addressable."""
+    out = []
+    for p in ([runs] if isinstance(runs, str) else list(runs)):
+        if os.path.exists(os.path.join(p, "grid.json")):
+            out.append(p)
+            continue
+        out += sorted(d for d in glob.glob(os.path.join(p, "rep[0-9]*"))
+                      if os.path.exists(os.path.join(d, "grid.json")))
+    return out
+
+
+def load(runs) -> tuple:
+    """Rows, turn records and sampler audit across the run directories behind `runs`.
+
+    Each directory is one rep of the same grid: its rows and turns are re-keyed to its
+    index, since every night numbers its own reps from 0 and the (arm, task, rep) key
+    would otherwise collide between nights. The row keeps the directory it came from and
+    the rep it was written with, which is what its trace is filed under on disk."""
+    rows, turns, audit = [], [], []
+    for rep, d in enumerate(run_dirs(runs)):
+        grid = os.path.join(d, "grid.json")
+        for r in (json.load(open(grid)) if os.path.exists(grid) else []):
+            rows.append({**r, "rep": rep, "src_rep": r.get("rep", 0), "src_dir": d})
+        turns += [{**t, "rep": rep} for t in _jsonl(os.path.join(d, "turns.jsonl"))
+                  if isinstance(t.get("rep"), int) and t["rep"] >= 0]
+        audit += _jsonl(os.path.join(d, "sampler_audit.jsonl"))
     return rows, turns, audit
 
 
@@ -194,13 +233,40 @@ def _overlaps(a: dict, b: dict) -> bool:
     return a["t"] < b_end and b["t"] < a_end
 
 
-def run_metrics(row: dict, turns: list) -> dict:
-    """Derived numbers for one run. `turns` is normalised, ordered and classified."""
+def run_metrics(row: dict, turns: list, warm: dict | None = None) -> dict:
+    """Derived numbers for one run. `turns` is normalised, ordered and classified.
+    `warm` is the in-process arm's warm-prefix row, if its trace recorded one: the
+    system-prompt prefix chad prefills (miss) or restores from disk (hit) before step 1.
+    A miss is prefill the user waits through before the first token, so it is added to
+    the turn-1 wait and to the run's prefill total; a hit costs the load time only."""
+    m = _run_metrics(row, turns)
+    if warm is None:
+        m["warm_status"] = None
+        return m
+    warm_s = float(warm.get("prefill_s") or 0.0)
+    m["warm_status"] = warm.get("status")
+    m["warm_s"] = warm_s
+    m["warm_tokens"] = warm.get("prefix_tokens")
+    if warm.get("status") == "miss":
+        m["wait_first"] = (m.get("wait_first") or 0.0) + warm_s
+        m["prefill_s"] = (m.get("prefill_s") or 0.0) + warm_s
+        wall = row.get("wall_s") or 0
+        pm = sum(t["prompt_ms"] for t in turns if t.get("measured") and t["prompt_ms"] is not None) / 1000.0 + warm_s
+        gm = sum(t["predicted_ms"] for t in turns if t.get("measured") and t["predicted_ms"] is not None) / 1000.0
+        if pm + gm > 0:
+            m["prefill_share"] = pm / (pm + gm)
+            m["model_busy"] = (pm + gm) / wall if wall else None
+    return m
+
+
+def _run_metrics(row: dict, turns: list) -> dict:
+    rep = row.get("rep", 0)
     wall = row.get("wall_s") or 0
     gen = row.get("generated") or 0
     side_all = [t for t in turns if t.get("side")]
     main_all = [t for t in turns if not t.get("side")]
-    out = {"arm": row["arm"], "task": row["task"], "passed": bool(row.get("passed")),
+    out = {"arm": row["arm"], "task": row["task"], "rep": rep,
+           "passed": bool(row.get("passed")),
            "timed_out": bool(row.get("timed_out")), "wall_s": wall,
            "tests": f"{row.get('tests_passed', 0)}/{row.get('tests_total', 0)}",
            "exp_toks": gen / wall if wall else None,
@@ -271,14 +337,19 @@ def run_metrics(row: dict, turns: list) -> dict:
 
 def _trace_path(row: dict, runs_dir: str) -> str:
     """The MLX arm's prefill trace: the row's own path (relative to the repo root, or
-    absolute from an older run), else the deterministic per-run location."""
+    absolute from an older run), else the deterministic location inside the night the
+    row came from. That location is keyed by the rep the night WROTE, not the rep this
+    scorecard re-keyed it to, and a night whose directory has since been renamed no
+    longer matches its recorded path — so the fallback is the normal case, not the
+    exception."""
+    d = row.get("src_dir") or runs_dir
     p = row.get("prefill_trace")
     if p:
-        for cand in (p, os.path.join(ROOT, p), os.path.join(runs_dir, p)):
+        for cand in (p, os.path.join(ROOT, p), os.path.join(d, p)):
             if os.path.exists(cand):
                 return cand
-    return os.path.join(runs_dir, "traces",
-                        f"{row['arm']}-{row['task']}-{row.get('rep', 0)}",
+    return os.path.join(d, "traces",
+                        f"{row['arm']}-{row['task']}-{row.get('src_rep', row.get('rep', 0))}",
                         "prefill_trace.jsonl")
 
 
@@ -291,12 +362,17 @@ def per_run(rows: list, turns: list, runs_dir: str) -> list:
     out = []
     for row in rows:
         key = (row["arm"], row["task"], row.get("rep", 0))
+        warm = None
         if row["arm"] in MLX_ARMS:
-            ts = [norm_trace(r) for r in _jsonl(_trace_path(row, runs_dir))]
+            raw = _jsonl(_trace_path(row, runs_dir))
+            # The warm-prefix row (seq 0) is chad prefilling / restoring its system
+            # prompt BEFORE step 1. It is not a turn; it is part of the turn-1 wait.
+            warm = next((r for r in raw if r.get("kind") == "warm_prefix"), None)
+            ts = [norm_trace(r) for r in raw if r.get("kind") != "warm_prefix"]
         else:
             ts = sorted(by_key.get(key, []), key=lambda t: t["t"] or 0)
         classify(ts)
-        out.append(run_metrics(row, ts))
+        out.append(run_metrics(row, ts, warm))
     return out
 
 
@@ -310,6 +386,15 @@ def aggregate(per: list) -> list:
     arms = []
     for arm in dict.fromkeys(r["arm"] for r in per):
         rs = [r for r in per if r["arm"] == arm]
+        # A cell whose trace predates the warm-prefix row cannot say what the turn-1
+        # wait was. It is not a different quantity measured differently; it is the same
+        # quantity measured without the part that dominates it, and taking a median
+        # across both would average a known-short number with a right one. The columns
+        # the warm prefix enters are therefore taken over the cells that recorded it,
+        # and the footnote prints how many of the arm's cells that was.
+        wrs = rs
+        if any(r.get("warm_status") for r in rs):
+            wrs = [r for r in rs if r.get("warm_status")]
         churn = sum(r.get("churn", 0) for r in rs if "churn" in r)
         churn_of = sum(r.get("churn_of", 0) for r in rs if "churn" in r)
         wait_later = _pool(rs, "wait_later")
@@ -318,12 +403,12 @@ def aggregate(per: list) -> list:
             "passed": sum(1 for r in rs if r["passed"]),
             "timeouts": sum(1 for r in rs if r["timed_out"]),
             "tax": _med([r.get("tax") for r in rs]),
-            "wait_first": _med([r.get("wait_first") for r in rs]),
+            "wait_first": _med([r.get("wait_first") for r in wrs]),
             "uncached_later": _med(_pool(rs, "uncached_later")),
             "wait_later": _med(wait_later), "wait_later_p90": _p90(wait_later),
             "later_n": len(wait_later),
             "reuse": _med(_pool(rs, "reuse")),
-            "prefill_s": _med([r.get("prefill_s") for r in rs]),
+            "prefill_s": _med([r.get("prefill_s") for r in wrs]),
             "exp_toks": _med([r["exp_toks"] for r in rs]),
             "n_tools": _med([r.get("n_tools") for r in rs]),
             "sys_chars": _med([r.get("sys_chars") for r in rs]),
@@ -333,8 +418,8 @@ def aggregate(per: list) -> list:
             "side_abandoned": sum(r.get("side_abandoned", 0) for r in rs),
             "uncached_after_side": _med(_pool(rs, "uncached_after_side")),
             "uncached_after_main": _med(_pool(rs, "uncached_after_main")),
-            "prefill_share": _med([r.get("prefill_share") for r in rs]),
-            "model_busy": _med([r.get("model_busy") for r in rs]),
+            "prefill_share": _med([r.get("prefill_share") for r in wrs]),
+            "model_busy": _med([r.get("model_busy") for r in wrs]),
             "round_trips": _med([r["round_trips"] for r in rs if r["round_trips"]]),
             "ctx_exit": _med([r.get("ctx_exit") for r in rs]),
             "proxy_ttft_cold": _med([r.get("proxy_ttft_cold") for r in rs]),
@@ -342,6 +427,11 @@ def aggregate(per: list) -> list:
             "ttft_lt_prefill": sum(r.get("ttft_lt_prefill", 0) for r in rs),
             "ttft_checked": sum(r.get("ttft_checked", 0) for r in rs),
             "self_reported": arm in MLX_ARMS,
+            "warm_status": sorted({r.get("warm_status") for r in rs
+                                   if r.get("warm_status")}),
+            "warm_unrecorded": sum(1 for r in rs if r.get("warm_status") is None),
+            "warm_n": len(wrs),
+            "warm_s": _med([r.get("warm_s") for r in rs if r.get("warm_status") == "miss"]),
         })
     return arms
 
@@ -367,6 +457,39 @@ def _table(hdr: list, rows: list) -> str:
 
 def _gate(a: dict) -> str:
     return f"{a['passed']}/{a['n']}" + (f" T{a['timeouts']}" if a["timeouts"] else "")
+
+
+def _warm_note(arms: list) -> str:
+    """The `†` footnote for the in-process rows. chad prefills (or restores from disk)
+    its system-prompt prefix BEFORE its first step, where a per-step trace cannot see
+    it. Say exactly what the trace recorded: a miss is a cold prefill of the whole
+    prefix and is included in the turn-1 wait; a hit is a disk restore; an older trace
+    that has no warm-prefix row understates the wait by that prefill."""
+    sr = [a for a in arms if a["self_reported"]]
+    if not any(a["warm_status"] for a in sr):
+        return ("`†` the trace this run was made with did not record the system-prompt "
+                "prefix chad prefills (or restores from disk) before its first step, so "
+                "the turn-1 wait shown is the first step's own prefill only and "
+                "UNDERSTATES the cold wait by that prefix; the chad+llama row is the cold "
+                "number for the same prompt.")
+    parts = []
+    for a in sr:
+        st = "/".join(a["warm_status"]) or "unrecorded"
+        miss = f", {a['warm_s']:.1f} s of it" if a["warm_s"] is not None else ""
+        parts.append(f"{a['arm']}: {st}{miss}")
+    note = ("`†` includes the system-prompt prefix chad prefills before its first step "
+            "when its disk checkpoint misses, or restores when it hits (" + "; ".join(parts)
+            + "). A miss is the cold prefill of the same prompt the chad+llama row pays; "
+            "a hit is a disk restore.")
+    # Say it when the arm's cells are not all instrumented, and say which columns that
+    # narrows: the alternative is a table that looks like n cells everywhere and is not.
+    mixed = [a for a in sr if a["warm_unrecorded"] and a["warm_n"] < a["n"]]
+    if mixed:
+        w = "; ".join(f"{a['arm']} {a['warm_n']}/{a['n']}" for a in mixed)
+        note += (" The turn-1 wait and prefill columns of those rows are over the cells "
+                 f"whose trace recorded the prefix ({w}); the rest of the row, and the "
+                 "pass gate, are over every cell.")
+    return note
 
 
 def render(arms: list, per: list, tasks: list) -> str:
@@ -399,9 +522,7 @@ no tool schemas) are excluded from the per-turn columns and counted in the next 
 The pass column is a gate, not a ranking.""")
     if any(a["self_reported"] for a in arms):
         out.append("`*` in-process arm: the same fields from chad's own prefill trace, "
-                   "self-reported — no server saw it. `†` its turn-1 wait is a system-prompt "
-                   "prefix restored from disk, not a cold prefill; the chad+llama row is "
-                   "the cold number for the same prompt.")
+                   "self-reported — no server saw it. " + _warm_note(arms))
 
     out.append("\n#### Shape of the harness\n")
     hdr = ["Arm", "tools", "system prompt (chars)", "prefix churn",
@@ -517,38 +638,48 @@ def legacy(rows: list, audit: list, tasks: list) -> str:
     return "\n".join(out) + "\n"
 
 
-def build(runs_dir: str) -> tuple:
-    """(markdown, json-able dict) for a run directory, or (None, None) without rows."""
+def build(runs_dir) -> tuple:
+    """(markdown, json-able dict) for one or more run directories, or (None, None)
+    without rows."""
     rows, turns, _ = load(runs_dir)
     if not rows:
         return None, None
+    dirs = run_dirs(runs_dir)
     tasks = list(dict.fromkeys(r["task"] for r in rows))
-    per = per_run(rows, turns, runs_dir)
+    # Every row carries the night it came from, so the directory here is only the
+    # fallback for a row that does not (an older grid.json).
+    per = per_run(rows, turns, dirs[0] if dirs else "")
     arms = aggregate(per)
-    return render(arms, per, tasks), {"arms": arms, "per_run": per}
+    return render(arms, per, tasks), {"arms": arms, "per_run": per,
+                                      "runs": [_rel(d) for d in dirs]}
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--runs", default=RUNS_DEFAULT)
+    ap.add_argument("--runs", nargs="+", default=[RUNS_DEFAULT],
+                    help="run directories, one per rep; a directory holding repN* dirs "
+                         "means all of them (default: _runs)")
     ap.add_argument("--legacy", action="store_true")
     ap.add_argument("--out", default=None, help="markdown path (default: <runs>/scorecard.md)")
     a = ap.parse_args(argv)
     rows, turns, audit = load(a.runs)
     if not rows:
-        print(f"no grid.json under {a.runs}")
+        print(f"no grid.json under {' '.join(a.runs)}")
         return 1
+    dirs = run_dirs(a.runs)
+    print(f"{len(dirs)} run(s), {len(rows)} cells: "
+          + ", ".join(os.path.basename(d.rstrip("/")) for d in dirs), file=sys.stderr)
     tasks = list(dict.fromkeys(r["task"] for r in rows))
     if a.legacy:
         text = legacy(rows, audit, tasks)
-        out = a.out or os.path.join(a.runs, "scorecard-legacy.md")
+        out = a.out or os.path.join(a.runs[0], "scorecard-legacy.md")
     else:
         if not turns and not any(r["arm"] in MLX_ARMS for r in rows):
             print("no turns.jsonl — this run predates the proxy's turn records; "
                   "use --legacy", file=sys.stderr)
             return 1
         text, data = build(a.runs)
-        out = a.out or os.path.join(a.runs, "scorecard.md")
+        out = a.out or os.path.join(a.runs[0], "scorecard.md")
         with open(os.path.splitext(out)[0] + ".json", "w") as f:
             json.dump(data, f, indent=1)
     with open(out, "w") as f:
