@@ -3,8 +3,8 @@
 Same weights, same MacBook, same eight tasks, same sampler: what does each coding agent
 make a local model *read*, and what does that cost the person waiting? This directory is
 the whole instrument — the runner, the forcing proxy, the scorecard, the tasks — and the
-two nights it produced (`_runs/rep1-20260901/`, `_runs/rep2-20260906/`), so every number
-in the write-up can be traced to a row.
+three nights it produced (`_runs/rep1-20260901/`, `rep2-20260906/`, `rep3-20260907/`), so
+every number in the write-up can be traced to a row.
 
 The question it answers is not "which harness passes more tasks" (the model is the same
 in every arm, so that is mostly the weights talking) but **what the harness costs on a
@@ -16,28 +16,28 @@ prefix cache cannot serve on every later turn, and how many seconds each of thos
 Qwen3.8-27B `UD-Q3_K_XL` on an M4 Pro with 24 GB, one `llama-server` shared by every
 harness, 8 Exercism tasks, 1,200 s cap, every harness in its own auto-approve mode.
 
-The same 88-cell grid was measured twice, on 2026-09-01 and 2026-09-06: 88 of 88 cells
-ran both nights, 18.0 h and 16.2 h of cell wall clock (34.2 h, 944 generation requests).
-Each night is a directory under `_runs/`; the scorecard pools them as rep 0 and rep 1 of
-every cell, so each number below is a median over 16 cells per arm and the `pass` column
-counts out of 16. The second night also carries the warm-prefix instrument the first
-night lacked ("got wrong" item 4) — the one column where the two nights are not
-interchangeable. What the second night changed, and what it did not, is item 6.
-From `_runs/scorecard.md`:
+The same 88-cell grid was measured three times, on 2026-09-01, 09-06 and 09-07: 88 of 88
+cells ran every night, 18.0 h + 16.2 h + 17.1 h of cell wall clock (51.3 h, 1,423
+generation requests). Each night is a directory under `_runs/`; the scorecard pools them
+as reps 0–2 of every cell, so each number below is a median over 24 cells per arm and the
+`pass` column counts out of 24. The first night predates the warm-prefix instrument
+("got wrong" item 4), which is the one column where it is not interchangeable with the
+other two. What repetition changed, and what it did not, is item 6 — and it is the most
+useful thing in this file. From `_runs/scorecard.md`:
 
 | Arm                 | tax: turn-1 prompt (tok) | wait before 1st token, turn 1 | uncached tok / later turn (med) | wait / later turn (med · p90) | cache reuse | prefill s / task (med) | exp. tok/s | pass (gate) |
 |---------------------|--------------------------|-------------------------------|---------------------------------|-------------------------------|-------------|------------------------|------------|-------------|
-| pi+llama            | 2,008                    | 21.6 s                        | 74                              | 1.5 s · 21 s                  | 99%         | 45                     | 8.2        | 13/16 T5    |
-| opencode+llama      | 18,050                   | 227.7 s                       | 109                             | 2.2 s · 44 s                  | 99%         | 378                    | 5.8        | 9/16 T9     |
-| chad+llama          | 2,562                    | 26.8 s                        | 57                              | 1.1 s · 13 s                  | 99%         | 52                     | 7.2        | 15/16 T1    |
-| dsh+llama           | 8,052                    | 93.9 s                        | 93                              | 1.9 s · 34 s                  | 99%         | 133                    | 7.0        | 12/16       |
-| goose+llama         | 9,576                    | 113.4 s                       | 2,214                           | 28.3 s · 70 s                 | 81%         | 239                    | 5.9        | 9/16 T4     |
-| mini+llama          | 1,171                    | 12.1 s                        | 300                             | 4.1 s · 22 s                  | 95%         | 47                     | 7.9        | 7/16 T9     |
-| crush+llama         | 16,263                   | 199.7 s                       | 87                              | 1.8 s · 41 s                  | 100%        | 298                    | 5.5        | 13/16 T5    |
-| cline+llama         | 5,875                    | 63.3 s                        | 1,014                           | 12.3 s · 53 s                 | 93%         | 129                    | 7.3        | 11/16       |
-| codex+llama         | 7,804                    | 88.0 s                        | 690                             | 9.6 s · 24 s                  | 94%         | 118                    | 6.6        | 13/16 T3    |
-| chad+mlx *          | 2,562                    | 25.3 s †                      | 50                              | 1.2 s · 20 s                  | 99%         | 51                     | 16.0       | 15/16 T2    |
-| chad+mlx-nodflash * | 2,565                    | 25.3 s †                      | 41                              | 1.0 s · 17 s                  | 99%         | 53                     | 12.0       | 13/16 T3    |
+| pi+llama            | 2,008                    | 21.6 s                        | 64                              | 1.3 s · 22 s                  | 99%         | 45                     | 8.1        | 19/24 T7    |
+| opencode+llama      | 18,046                   | 225.7 s                       | 305                             | 4.6 s · 44 s                  | 99%         | 383                    | 5.7        | 15/24 T13   |
+| chad+llama          | 2,562                    | 27.2 s                        | 54                              | 1.1 s · 20 s                  | 99%         | 52                     | 6.9        | 22/24 T2    |
+| dsh+llama           | 8,052                    | 94.4 s                        | 110                             | 2.2 s · 34 s                  | 99%         | 133                    | 7.2        | 18/24       |
+| goose+llama         | 9,576                    | 112.7 s                       | 2,537                           | 33.2 s · 78 s                 | 78%         | 300                    | 5.0        | 13/24 T5    |
+| mini+llama          | 1,171                    | 12.2 s                        | 248                             | 3.6 s · 21 s                  | 96%         | 46                     | 8.0        | 11/24 T14   |
+| crush+llama         | 16,263                   | 199.8 s                       | 87                              | 1.8 s · 40 s                  | 100%        | 306                    | 5.8        | 18/24 T8    |
+| cline+llama         | 5,876                    | 64.1 s                        | 789                             | 9.9 s · 52 s                  | 94%         | 137                    | 7.3        | 17/24       |
+| codex+llama         | 7,804                    | 87.8 s                        | 690                             | 9.6 s · 28 s                  | 94%         | 118                    | 6.9        | 19/24 T5    |
+| chad+mlx *          | 2,562                    | 25.3 s †                      | 44                              | 1.0 s · 21 s                  | 99%         | 51                     | 16.0       | 21/24 T4    |
+| chad+mlx-nodflash * | 2,564                    | 25.3 s †                      | 48                              | 1.1 s · 18 s                  | 99%         | 53                     | 12.1       | 20/24 T4    |
 
 - **tax** is the first agent request: system prompt + tool schemas + task, in tokens. It is
   paid at least once, and it is how much of a 32k window is gone before you have typed.
@@ -49,19 +49,20 @@ From `_runs/scorecard.md`:
   a tool result landing and the model starting to think.
 - **cache reuse** is `cache_n / (cache_n + prompt_n)` on those turns.
 - **prefill s / task** counts every request of the task, side requests included.
-- **exp. tok/s** is generated tokens over wall clock. Two nights moved this column by
-  −9% to +17% for every arm but one (goose, +48%), so nothing between pi, chad, mini,
-  cline and codex here is a finding. The 10–40x gaps in the wait columns are.
-- **pass** is a gate, not a ranking, `T` counts timeouts, and at 16 cells it is still the
-  least reproducible column in the table — three arms moved by 3 of 8 between the two
-  nights (item 6). Read it as "did this harness function", not as a score.
+- **exp. tok/s** is generated tokens over wall clock. Across three nights an arm's own
+  value spreads by 10% at the median and 51% at the worst, so nothing between pi, chad,
+  mini, cline and codex here is a finding. The 10–40x gaps in the wait columns are.
+- **pass** is a gate, not a ranking, `T` counts timeouts, and even at 24 cells it is the
+  least trustworthy column here — 33 of the 88 (arm, task) cells did not give the same
+  verdict on all three nights, and three arms moved by 3 of 8 (item 6). Read it as "did
+  this harness function", not as a score.
 - `*` the two MLX rows are chad on its own in-process engine, self-reported from its
   prefill trace with the same definitions — there is no server to observe. `†` their
   turn-1 wait includes the system-prompt prefix chad prefills *before* its first step
   when its disk checkpoint misses — and on a fresh directory it always misses (item 4
-  below). Only the second night's trace records that prefix, so those two cells' turn-1
-  wait and prefill columns are over 8 cells, not 16; the scorecard says so in its own
-  footnote rather than averaging an instrumented night with a blind one. The chad+llama
+  below). Only the second and third nights' traces record that prefix, so those two rows'
+  turn-1 wait and prefill columns are over 16 cells, not 24; the scorecard says so in its
+  own footnote rather than averaging instrumented nights with a blind one. The chad+llama
   row is the cold prefill of the same prompt through llama-server; the two should agree,
   and they do.
 
@@ -77,9 +78,8 @@ on the record:
 
 1. **The proxy's time-to-first-byte is not the wait.** llama-server emits a first streamed
    chunk before a long prefill finishes, so the proxy's stamp sat at ~30 s for every
-   request over ~3k tokens; across both nights it was earlier than the server's own
-   `prompt_ms` on 210 of 742 requests. The scorecard prints that count and uses
-   `prompt_ms` everywhere.
+   request over ~3k tokens; across the three nights it was earlier than the server's own
+   `prompt_ms` on 331 of 1,130 requests. The scorecard prints that count and uses `prompt_ms` everywhere.
 2. **Side requests polluted the per-turn columns.** opencode, goose and crush fire a
    no-tools title/summary call beside the agent loop, and for opencode and crush it is
    the *first* request of the session. Treating it as turn 1 gave opencode a 657-token
@@ -117,17 +117,19 @@ on the record:
    trajectory's first step timestamp, minus the "ready in" model load) at 27.5–28.8 s,
    median 28.1 s. chad now writes a `warm_prefix` row (seq 0: hit/miss, prefix tokens,
    seconds) into the trace itself, the scorecard adds a miss to the turn-1 wait and the
-   prefill total and prints what it found in the `†` footnote, and the second night ran
-   the whole grid with it. Measured directly, all 16 in-process cells missed and the
-   hidden prefill was 24.102–24.126 s — a 24 ms spread across 16 cells, for a prefix that
-   itself varied 2,483–2,493 tokens, which is what a fixed number of full prefill chunks
-   on an idle GPU looks like. That is 14% under the reconstruction and just below the
-   chad+llama row's cold prefill of the same prompt, so the reconstruction was the right
-   size and slightly generous, and the conclusion is unchanged: the engine cell had *no*
-   prefill advantage in the grid; its whole gain over chad+llama is decode (and the
-   drafter). The first night's MLX cells stay committed and keep counting toward the
-   pass gate and every column the prefix does not enter; they are excluded from the two
-   it does. The checkpoint keying itself is a chad bug of the goose kind — a
+   prefill total and prints what it found in the `†` footnote, and the second and third
+   nights ran the whole grid with it. Measured directly, all 32 of their in-process cells
+   missed, and the hidden prefill was 24.10–24.55 s — a spread of under half a second
+   across 32 cells on two different nights, for a prefix that itself varied 2,483–2,493
+   tokens, which is what a fixed number of full prefill chunks on an idle GPU looks like.
+   That is 14% under the reconstruction and just below the chad+llama row's cold prefill
+   of the same prompt, so the reconstruction was the right size and slightly generous,
+   and the conclusion is unchanged: the engine cell had *no* prefill advantage in the
+   grid; its whole gain over chad+llama is decode (and the drafter). It is also the most
+   reproducible number in this directory that is not simply a prompt — which is what a
+   cold prefill of a fixed prefix on an idle machine ought to be. The first night's MLX
+   cells stay committed and keep counting toward the pass gate and every column the
+   prefix does not enter; they are excluded from the two it does. The checkpoint keying itself is a chad bug of the goose kind — a
    volatile string inside the cached prefix — and is not fixed in the version measured
    here. The obvious rejoinder, "llama-server can checkpoint a slot too", was tried
    once on the same build and model (single slot, `--slot-save-path`, chad's real
@@ -135,11 +137,11 @@ on the record:
    reported 2,438 tokens back in 0.02 s, but the next byte-identical request still
    prefilled all 2,438 tokens (`cache_n` 0, 25.0 s) — the same-process prefix cache
    served it in 0.3 s. One attempt, not pursued; noted so nobody repeats it blind.
-5. **The in-process timeouts were not engine hangs.** Five of the 32 in-process cells
-   hit the 1,200 s cap with one step still running — chad+mlx go-counting and
-   chad+mlx-nodflash bowling / book-store the first night, chad+mlx bowling and
-   chad+mlx-nodflash transpose the second, and no cell timed out on both nights. Which
-   task runs away is not a property of the task. Re-running one of them with the full
+5. **The in-process timeouts were not engine hangs.** Eight of the 48 in-process cells
+   hit the 1,200 s cap with one step still running, spread over all three nights and
+   over six different tasks; only two cells ran away twice (chad+mlx bowling, and
+   chad+mlx-nodflash book-store), and neither did it three times. Which task runs away
+   is mostly not a property of the task. Re-running one of them with the full
    stdout kept showed the step streaming coherent reasoning at ~16 tok/s the whole time:
    a single `<think>` that outlasts the cap. That is a property of this model at
    temperature 1.0, not of the harness — in the same run pi, opencode, codex and cline
@@ -150,34 +152,42 @@ on the record:
    each in-process cell's stdout beside its trace so a killed cell can be told apart:
    tokens still streaming at the cap is a long generation; a stream that stopped early
    is a hang.
-6. **A second night says which columns are worth reading.** The grid was run again,
-   unchanged, five days later. Nothing about the two nights was byte-identical: 0 of the
-   88 cells produced the same row twice. What reproduced, and what did not, splits the
-   table cleanly in three.
+6. **Three nights say which columns are worth reading.** The grid was run again,
+   unchanged, on 09-06 and 09-07. No cell ever produced the same row twice. Taking each
+   arm's own spread across the three nights — `(max − min) / median` — the table splits
+   into three tiers that are nothing like each other:
 
-   | column | night-to-night change (llama arms) | what it is |
+   | column | spread across 3 nights (median · worst) | what it is |
    |---|---|---|
-   | tax, system-prompt chars, tool count | median 0.00%, worst 0.06% | the harness's prompt |
-   | cache reuse | median +0.1%, worst 9.4% | the harness's prompt discipline |
-   | wait before 1st token | median −6.5%, worst 9.8% | the box, that night |
-   | uncached / later turn, wait / later turn, prefill s/task, exp. tok/s | median −10% to +6%, worst 182% | how much the model thought |
-   | pass | 24 of 88 cells changed state | mostly the same |
+   | tax, system-prompt chars, tool count | 0.0% · 0.4% | the harness's prompt |
+   | wait before 1st token | 6.8% · 10.7% | a cold prefill of that prompt |
+   | cache reuse | 4.2% · 16.2% | the harness's prompt discipline |
+   | prefill s / task, exp. tok/s | 10–12% · 51–55% | how much the model thought |
+   | uncached / later turn, wait / later turn | 61–95% · 790–1277% | how much the model thought |
+   | pass | 33 of 88 cells disagreed across the three nights | mostly the model |
 
-   The top two rows are not measurements that happened to repeat; they are what the
-   harness sends, which is the same thing every time it starts. That is why the tax
-   column carries the argument of this directory and the pass column does not. The
-   turn-1 wait moved one way for every arm at once — night 2 was 4–10% quicker on a
-   byte-identical prompt — which is the box, not the harnesses, and is the reason to
-   compare arms within a night rather than across nights.
+   The top tier is not a measurement that happened to repeat; it is what the harness
+   sends, which is the same thing every time it starts. That is why the tax column
+   carries the argument of this directory: opencode really does prepend 9x what pi does,
+   every night, to within a rounding error. The turn-1 wait is the same prompt going
+   through a cold prefill, and it holds to ~10%.
 
-   The bottom two rows are the model at temperature 1.0 deciding how much to think.
-   cline's uncached tokens per later turn went 400 → 1,129 and goose's 3,009 → 1,945, so
-   goose's "cache dies every turn" finding survives (81% reuse pooled, the only arm under
-   93%) while its *size* does not. And **pass moved by 3 of 8 for three separate arms** —
-   goose 6→3, crush 5→8, opencode 3→6 — in both directions, with 27% of all cells
-   flipping. Any ranking of these harnesses by task completion at n=1, this directory's
-   first table included, was reading noise. Two nights is enough to know that; it is not
-   enough to rank them.
+   The bottom tiers are the model at temperature 1.0 deciding how much to think, and they
+   are close to unusable per-arm at this many reps. opencode's uncached tokens per later
+   turn read 113, 36, 1,479 on the three nights; goose's read 3,009, 1,945, 3,846. The
+   *finding* survives all three — goose is the only arm whose cache dies every turn (78%
+   pooled reuse against 94–99.6% for everyone else, a gap no night narrows), and
+   opencode's later turns were cheap on two of the three — but the *size* of either is
+   not a number to quote to one significant figure.
+
+   `pass` deserves its own warning, because it is the column a reader instinctively ranks
+   on. The per-night totals are stable — 64, 66, 63 of 88 — so the grid measures how hard
+   these tasks are for this model quite reliably. What it does not measure reliably is
+   *which* arm passed *which* task: **33 of the 88 cells disagreed across the three
+   nights**, and three arms swung by 3 of 8 (opencode 3/6/6, goose 6/3/4, crush 5/8/5).
+   An aggregate that is steady while its parts are not is exactly the shape that invites
+   a false ranking. Three nights is enough to know the ordering is noise; it is not
+   enough to fix one.
 
 ## Setup, exactly
 
@@ -186,16 +196,16 @@ on the record:
 | machine | Apple M4 Pro, 24 GB unified memory, macOS 26.6.2, nothing else running |
 | weights | `unsloth/Qwen3.8-27B-GGUF` · `Qwen3.8-27B-UD-Q3_K_XL.gguf` (llama arms); chad's MLX conversion of the same recipe (MLX arms) |
 | engine | llama.cpp build 10470 (Homebrew), `llama-server -c 32768 -ngl 999 --jinja --metrics`, default 4 slots on a unified KV pool |
-| sampler | temp 1.0 · top_k 20 · top_p 0.95 · min_p 0.05 · penalties off — **forced on every request by `sampler_proxy.py`**, audited: one parameter set across all 944 requests of both nights, and the two nights' summaries are identical (`repN-*/sampler_audit_summary.json`; `run.py table` refuses to pool nights that sampled differently) |
+| sampler | temp 1.0 · top_k 20 · top_p 0.95 · min_p 0.05 · penalties off — **forced on every request by `sampler_proxy.py`**, audited: one parameter set across all 1,423 requests of the three nights, whose summaries are identical (`repN-*/sampler_audit_summary.json`; `run.py table` refuses to pool nights that sampled differently) |
 | tasks | `tasks/` — 8 Exercism Python exercises, stub + tests + instructions, pristine from git |
 | prompt | one sentence, identical for every arm (`PROMPT` in `run.py`) |
 | cap | 1,200 s per (arm, task); the process *group* is killed at the cap |
 | pass | `pytest -q` on the task's own test file after the harness exits |
-| reps | 2 — the whole grid twice, 2026-09-01 and 2026-09-06 |
+| reps | 3 — the whole grid three times, 2026-09-01, 09-06 and 09-07 |
 
 Harness versions as run (`repN-*/provenance.json`), and how each is installed. Every arm
-ran the same version both nights except cline, which upgraded itself between them (3.0.60
-→ 3.0.61); its pooled rows are that mixture:
+ran the same version all three nights except cline, which upgraded itself after the first
+(3.0.60, then 3.0.61 twice); its pooled rows are that mixture:
 
 | arm | version | install |
 |---|---|---|
@@ -206,7 +216,7 @@ ran the same version both nights except cline, which upgraded itself between the
 | goose | 1.39.0 | Block's installer |
 | mini-swe-agent | 2.4.6 | `uv tool install mini-swe-agent` |
 | crush | 0.92.0 | `npm i -g @charmland/crush` |
-| cline | 3.0.60 / 3.0.61 | `npm i -g cline` |
+| cline | 3.0.60, then 3.0.61 | `npm i -g cline` |
 | codex | 0.151.0 | `npm i -g @openai/codex` |
 
 Three more were installed and dropped at smoke, with the reason in
@@ -308,18 +318,18 @@ miss was pinned to a minute-resolution timestamp in its first user message (abov
 
 ## Caveats, all of them
 
-- n=2 reps, 8 tasks, one machine. What that buys is in "got wrong" item 6: the prompt
-  columns repeat to within 0.06%, the per-turn and throughput columns move by up to
-  180%, and 24 of 88 cells changed pass state between the two nights. Read the tax and
+- n=3 reps, 8 tasks, one machine. What that buys is in "got wrong" item 6: the prompt
+  columns repeat to within 0.4%, the per-turn columns spread by 61–95% at the median,
+  and 33 of 88 cells did not give the same verdict on all three nights. Read the tax and
   the 10–40x wait gaps; do not read the ordering of the pass column.
-- Two nights on the same box are two samples of one machine, not of the population of
-  machines. The second night was 4–10% quicker on turn-1 prefill for every arm at once,
-  so even a within-column comparison across nights carries a few percent of drift.
+- Three nights on the same box are three samples of one machine, not of the population of
+  machines. Nothing here says what this grid would look like on another laptop, and the
+  per-arm ordering is not stable enough to be worth carrying to one.
 - The two MLX rows are self-reported and in-process. Their turn-1 wait includes the
   prefix prefill chad does before its first step (a disk-checkpoint miss on every fresh
   directory — see "got wrong" item 4); it is a cold number, like the chad+llama row.
-  Only the second night recorded that prefix, so those two cells' turn-1 wait and
-  prefill columns rest on 8 cells rather than 16.
+  Only the second and third nights recorded that prefix, so those two rows' turn-1 wait
+  and prefill columns rest on 16 cells rather than 24.
 - The server ran 4 slots on a unified KV pool. The side-request findings are for that
   configuration; a single-slot server would queue them instead, which is a different
   failure, not the absence of one.
