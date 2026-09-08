@@ -880,11 +880,23 @@ class Agent:
         # ~3.2k-token stable prefix every session. Cheap no-op on a warm cache.
         if self.engine.cache_dir and not self.engine._cached_ids:
             try:
+                t_warm = time.time()
                 status, n = self.engine.warm_prefix(self._stable_prefix_ids(),
                                                      should_stop=self._should_stop)
-                log.info("CACHE warm-start %s: %d prefix tokens (disk KV cache)", status, n)
+                warm_s = time.time() - t_warm
+                log.info("CACHE warm-start %s: %d prefix tokens (disk KV cache, %.1fs)",
+                         status, n, warm_s)
                 if status == "hit":
                     self._emit("info", f"  [warm start: {n:,} prefix tokens from disk cache]")
+                # The prefix prefill happens BEFORE step 1, so a per-step trace would
+                # never see it: a miss is the whole cold prefill of the system prompt,
+                # paid while the user is already waiting. Recorded as its own row (seq 0)
+                # so an offline reader can add it to the first step's wait; step rows
+                # are untouched (their cached_tokens already count the prefix).
+                if _PREFILL_TRACE and status != "skip":
+                    _trace_prefill({"seq": 0, "step": -1, "kind": "warm_prefix",
+                                    "status": status, "prefix_tokens": n,
+                                    "prefill_s": round(warm_s, 4)})
             except Exception as e:  # never let cache warming break a turn
                 log.warning("warm_prefix failed: %s", e)
         # @file mentions: inline any referenced files so the model has them without a

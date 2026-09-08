@@ -13,8 +13,10 @@ Stdlib only; runs on the Linux CI matrix, where there is no MLX and no model.
 from __future__ import annotations
 
 import contextlib
+import glob
 import importlib.util
 import io
+import json
 import os
 import re
 import socket
@@ -26,6 +28,13 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MATRIX = os.path.join(ROOT, "benchmarks", "matrix")
 RUNS = os.path.join(MATRIX, "_runs")
+
+
+def _committed_nights() -> list:
+    """The measured nights committed under `_runs/`, one directory each. Evaluated at
+    collection time, so it cannot use the `sc` fixture's copy of `run_dirs`."""
+    return sorted(d for d in glob.glob(os.path.join(RUNS, "rep[0-9]*"))
+                  if os.path.exists(os.path.join(d, "grid.json")))
 
 
 def _load(name):
@@ -177,26 +186,122 @@ def test_usage_fallback_and_mlx_trace(sc, tmp_path):
     assert abs(r["model_busy"] - 14.2 / 50.0) < 1e-9
     text = sc.render(sc.aggregate([r]), [r], ["t"])
     assert "1.2 s †" in text
+    # No warm-prefix row: the footnote must say the wait is understated, not claim a
+    # disk restore.
+    assert "did not record" in text and "UNDERSTATES" in text
+
+
+def test_mlx_warm_prefix_row_is_part_of_the_first_wait(sc, tmp_path):
+    """chad prefills its system-prompt prefix BEFORE step 1 (or restores it from
+    disk). A per-step trace cannot see that prefill; the seq-0 warm_prefix row can.
+    A miss is added to the turn-1 wait and the run's prefill total; a hit is not."""
+    def run(status):
+        trace = tmp_path / f"{status}.jsonl"
+        trace.write_text(
+            '{"seq":0,"step":-1,"kind":"warm_prefix","status":"%s",'
+            '"prefix_tokens":2488,"prefill_s":28.0}\n'
+            '{"seq":1,"step":1,"prompt_tokens":73,"cached_tokens":2488,"prefill_s":1.2,'
+            '"gen_tokens":100,"gen_s":5.0}\n'
+            '{"seq":2,"step":2,"prompt_tokens":300,"cached_tokens":2661,"prefill_s":3.0,'
+            '"gen_tokens":100,"gen_s":5.0}\n' % status)
+        rows = [{"arm": "chad+mlx", "task": "t", "rep": 0, "wall_s": 100.0,
+                 "passed": True, "timed_out": False, "generated": 200, "prefill": 373,
+                 "prefill_trace": str(trace)}]
+        return sc.per_run(rows, [], str(tmp_path))[0]
+    miss = run("miss")
+    assert miss["round_trips"] == 2                    # the warm row is not a turn
+    assert abs(miss["wait_first"] - 29.2) < 1e-9
+    assert abs(miss["prefill_s"] - 32.2) < 1e-9
+    assert abs(miss["model_busy"] - 42.2 / 100.0) < 1e-9
+    assert miss["warm_status"] == "miss" and miss["warm_tokens"] == 2488
+    hit = run("hit")
+    assert abs(hit["wait_first"] - 1.2) < 1e-9 and abs(hit["prefill_s"] - 4.2) < 1e-9
+    assert hit["warm_status"] == "hit"
+    text = sc.render(sc.aggregate([miss]), [miss], ["t"])
+    assert "29.2 s †" in text and "chad+mlx: miss, 28.0 s of it" in text
+    text = sc.render(sc.aggregate([hit]), [hit], ["t"])
+    assert "1.2 s †" in text and "chad+mlx: hit" in text
 
 
 # -- 2. the committed tables are what the scripts print --------------------------
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(RUNS, "grid.json")),
-                    reason="no committed run")
+def _nights(sc):
+    return sc.run_dirs(RUNS)
+
+
+@pytest.mark.skipif(not _committed_nights(), reason="no committed run")
 def test_committed_scorecard_is_reproducible(sc):
+    nights = _nights(sc)
     text, data = sc.build(RUNS)
     with open(os.path.join(RUNS, "scorecard.md")) as f:
         assert f.read() == text
     arms = {a["arm"]: a for a in data["arms"]}
-    # The sampler was verified for this run, and the grid is complete.
-    assert os.path.exists(os.path.join(RUNS, "sampler_audit_summary.json"))
-    assert sum(a["n"] for a in arms.values()) == 88
+    # Every night is a complete, sampler-verified 88-cell grid, and the scorecard
+    # pools them: 88 cells per night, not 88 in total.
+    for d in nights:
+        assert os.path.exists(os.path.join(d, "sampler_audit_summary.json")), d
+        assert len(json.load(open(os.path.join(d, "grid.json")))) == 88, d
+    assert sum(a["n"] for a in arms.values()) == 88 * len(nights)
+    assert data["runs"] == [os.path.relpath(d, ROOT) for d in nights]
     # The instrument caveat the post rests on: llama-server's early first byte.
     assert sum(a["ttft_lt_prefill"] for a in arms.values()) > 50
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(RUNS, "grid.json")),
-                    reason="no committed run")
+@pytest.mark.skipif(not _committed_nights(), reason="no committed run")
+def test_pooled_nights_are_distinct_reps(sc):
+    """Two nights of the same grid must land as two reps of each cell, not overwrite
+    each other — the failure that would silently halve the run."""
+    nights = _nights(sc)
+    rows, turns, _ = sc.load(RUNS)
+    assert len(rows) == 88 * len(nights)
+    keys = [(r["arm"], r["task"], r["rep"]) for r in rows]
+    assert len(set(keys)) == len(keys), "two nights collided on one (arm, task, rep)"
+    assert {r["rep"] for r in rows} == set(range(len(nights)))
+    # Each row still points at the night it was measured in, which is where its trace
+    # is filed — under the rep THAT night wrote, not the one it was re-keyed to.
+    for r in rows:
+        if r["arm"] in sc.MLX_ARMS:
+            assert os.path.exists(sc._trace_path(r, RUNS)), r["arm"] + "/" + r["task"]
+    if len(nights) > 1:
+        # Independent measurements: no two nights produced an identical cell.
+        import json as _json
+        def body(x):
+            return _json.dumps({k: v for k, v in x.items()
+                                if k not in ("rep", "src_rep", "src_dir", "workdir")},
+                               sort_keys=True)
+        by_cell = {}
+        for r in rows:
+            by_cell.setdefault((r["arm"], r["task"]), []).append(body(r))
+        assert not [c for c, v in by_cell.items() if len(set(v)) < len(v)]
+
+
+@pytest.mark.skipif(len(_committed_nights()) < 2, reason="needs two committed nights")
+def test_convergence_report_matches_the_grids(sc):
+    """The README argues from `--convergence` (why the grid stopped at three nights), so
+    the numbers it prints have to come from the rows like every other published table."""
+    nights = _nights(sc)
+    text = sc.convergence(RUNS)
+    # Its own header names the nights it read.
+    for d in nights:
+        assert os.path.basename(d) in text
+    # The pass line is checkable straight off the grids.
+    rows, _, _ = sc.load(RUNS)
+    cells = {}
+    for r in rows:
+        cells.setdefault((r["arm"], r["task"]), []).append(bool(r["passed"]))
+    split = sum(1 for v in cells.values() if len(set(v)) > 1)
+    totals = [sum(1 for r in rows if r["rep"] == i and r["passed"])
+              for i in range(len(nights))]
+    assert f"per-night totals {', '.join(map(str, totals))} of {len(cells)}" in text
+    assert f"{split} of {len(cells)} (arm, task) cells did not agree" in text
+    # A column whose value IS the harness's prompt cannot wobble; one that is the model
+    # deciding how much to think always does. That contrast is the point of the table.
+    tax = next(l for l in text.splitlines() if l.startswith("| tax "))
+    assert tax.split("|")[2].strip().startswith("0.0%")
+    assert "| n_tools" in text and "| uncached_later" in text
+
+
+@pytest.mark.skipif(not _committed_nights(), reason="no committed run")
 def test_committed_tables_md_is_reproducible():
     run = _load("run")
     buf = io.StringIO()
