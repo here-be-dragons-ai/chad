@@ -160,11 +160,15 @@ on the record:
    | column | spread across 3 nights (median · worst) | what it is |
    |---|---|---|
    | tax, system-prompt chars, tool count | 0.0% · 0.4% | the harness's prompt |
-   | wait before 1st token | 6.8% · 10.7% | a cold prefill of that prompt |
+   | wait before 1st token | 6.8% · 10.6% | a cold prefill of that prompt |
    | cache reuse | 4.2% · 16.2% | the harness's prompt discipline |
-   | prefill s / task, exp. tok/s | 10–12% · 51–55% | how much the model thought |
+   | prefill s / task, exp. tok/s | 9–12% · 51–55% | how much the model thought |
    | uncached / later turn, wait / later turn | 61–95% · 790–1277% | how much the model thought |
    | pass | 33 of 88 cells disagreed across the three nights | mostly the model |
+
+   (`uv run python benchmarks/matrix/scorecard.py --convergence` prints this table and
+   the one below from the committed nights; llama arms only, since the in-process arms'
+   turn-1 wait is not comparable across a night the instrument predates.)
 
    The top tier is not a measurement that happened to repeat; it is what the harness
    sends, which is the same thing every time it starts. That is why the tax column
@@ -188,6 +192,27 @@ on the record:
    An aggregate that is steady while its parts are not is exactly the shape that invites
    a false ranking. Three nights is enough to know the ordering is noise; it is not
    enough to fix one.
+
+   **Why it stops at three.** The same command answers whether a fourth night would earn
+   its 17 hours, by asking how much adding the third one moved the *pooled* number
+   already published:
+
+   | column | move on adding night 3 (median · worst) |
+   |---|---|
+   | tax, system-prompt chars, tool count | 0.00% · 0.03% |
+   | wait before 1st token | 0.57% · 1.36% |
+   | cache reuse | 0.19% · 3.82% |
+   | prefill s / task, exp. tok/s | 1.2–2.5% · 15–26% |
+   | uncached / later turn, wait / later turn | 13–15% · 105–180% |
+
+   The columns this directory argues from are converged: the third night moved every
+   arm's tax by 0.00% and the turn-1 wait by half a percent. Another night cannot make
+   "opencode prepends 9x what pi does" more true. The columns that are still moving are
+   moving by 15% and would keep moving — a per-arm spread near 100% is not closed by one
+   more rep but by dozens, which is a different project. So a fourth night would change
+   only the numbers already labelled unquotable, and change them enough to need
+   rewriting. The honest limit of this grid is not its rep count: it is one machine, one
+   model, eight tasks, and no number of nights on this box touches that.
 
 ## Setup, exactly
 
@@ -255,6 +280,7 @@ Both reporting commands take several nights and pool them, one rep each, and a b
 ```bash
 uv run python benchmarks/matrix/run.py table > benchmarks/matrix/_runs/tables.md
 uv run python benchmarks/matrix/scorecard.py            # -> _runs/scorecard.md + .json
+uv run python benchmarks/matrix/scorecard.py --convergence   # is another night worth a night?
 ```
 
 `overnight.sh` is the unattended version of the same sequence (smoke → llama → MLX one

@@ -72,6 +72,9 @@ Run:
     uv run python benchmarks/matrix/scorecard.py               # -> _runs/scorecard.md + .json
                                                                #    over every _runs/repN*/
     uv run python benchmarks/matrix/scorecard.py --runs DIR    # one night, or several
+    uv run python benchmarks/matrix/scorecard.py --convergence # per-column wobble between
+                                                               # nights, and whether the
+                                                               # last one still moved it
     uv run python benchmarks/matrix/scorecard.py --legacy      # grid.json + sampler_audit.jsonl
                                                                # only (runs before turns.jsonl)
 """
@@ -654,12 +657,84 @@ def build(runs_dir) -> tuple:
                                       "runs": [_rel(d) for d in dirs]}
 
 
+# -- convergence: is another night worth a night? ------------------------------
+
+# The columns, in the order the scorecard prints them, with how to format one.
+_CONV_COLS = [("tax", "{:,.0f}"), ("sys_chars", "{:,.0f}"), ("n_tools", "{:.0f}"),
+              ("wait_first", "{:.1f}"), ("reuse", "{:.3f}"), ("uncached_later", "{:.0f}"),
+              ("wait_later", "{:.1f}"), ("prefill_s", "{:.0f}"), ("exp_toks", "{:.1f}")]
+
+
+def _pooled_by_night(dirs: list) -> list:
+    """The pooled per-arm numbers after each night is added: [n=1, n=1..2, n=1..3, ...]."""
+    out = []
+    for n in range(1, len(dirs) + 1):
+        rows, turns, _ = load(dirs[:n])
+        out.append({a["arm"]: a for a in aggregate(per_run(rows, turns, dirs[0]))})
+    return out
+
+
+def convergence(runs) -> str:
+    """Two questions a reader is entitled to ask of a repeated benchmark: how much does a
+    column wobble between nights, and does adding another night still move the published
+    number? Both are computed over the llama arms only — the in-process arms' turn-1 wait
+    and prefill are not comparable across nights the warm-prefix instrument predates
+    (item 4 of the README), and pooling them here would report that gap as noise."""
+    dirs = run_dirs(runs)
+    if len(dirs) < 2:
+        return "convergence needs at least two nights\n"
+    per_night = []
+    for d in dirs:
+        r, t, _ = load([d])
+        per_night.append({a["arm"]: a for a in aggregate(per_run(r, t, d))})
+    pooled = _pooled_by_night(dirs)
+    arms = [a for a in per_night[0] if a not in MLX_ARMS]
+
+    out = [f"### Convergence over {len(dirs)} nights "
+           f"({', '.join(os.path.basename(d.rstrip('/')) for d in dirs)})\n",
+           "Spread = each arm's own `(max - min) / median` across the nights. Move = how "
+           "much\nadding the last night changed the pooled number. llama arms only.\n"]
+    hdr = ["column", "spread (med · worst)", f"move on adding night {len(dirs)} (med · worst)"]
+    body = []
+    for col, _fmt in _CONV_COLS:
+        sp, mv = [], []
+        for a in arms:
+            v = [p[a].get(col) for p in per_night]
+            if not any(x is None for x in v) and statistics.median(v):
+                sp.append((max(v) - min(v)) / statistics.median(v))
+            b, c = pooled[-2][a].get(col), pooled[-1][a].get(col)
+            if b and c is not None:
+                mv.append(abs(c - b) / b)
+        if not sp:
+            continue
+        body.append([col,
+                     f"{100 * statistics.median(sp):.1f}% · {100 * max(sp):.1f}%",
+                     f"{100 * statistics.median(mv):.2f}% · {100 * max(mv):.2f}%"])
+    out.append(_table(hdr, body))
+
+    # The pass column is a per-cell verdict, so it gets a per-cell answer.
+    rows, _, _ = load(dirs)
+    cells = defaultdict(list)
+    for r in rows:
+        cells[(r["arm"], r["task"])].append(bool(r.get("passed")))
+    split = [c for c, v in cells.items() if len(set(v)) > 1]
+    totals = [sum(1 for r in rows if r["rep"] == i and r.get("passed"))
+              for i in range(len(dirs))]
+    out.append(f"\npass: per-night totals {', '.join(map(str, totals))} of "
+               f"{len(cells)}, but {len(split)} of {len(cells)} (arm, task) cells did not "
+               f"agree on all {len(dirs)} nights.\n")
+    return "\n".join(out)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--runs", nargs="+", default=[RUNS_DEFAULT],
                     help="run directories, one per rep; a directory holding repN* dirs "
                          "means all of them (default: _runs)")
     ap.add_argument("--legacy", action="store_true")
+    ap.add_argument("--convergence", action="store_true",
+                    help="how much each column wobbles between nights, and whether the "
+                         "last night still moved the pooled number")
     ap.add_argument("--out", default=None, help="markdown path (default: <runs>/scorecard.md)")
     a = ap.parse_args(argv)
     rows, turns, audit = load(a.runs)
@@ -669,6 +744,9 @@ def main(argv=None) -> int:
     dirs = run_dirs(a.runs)
     print(f"{len(dirs)} run(s), {len(rows)} cells: "
           + ", ".join(os.path.basename(d.rstrip("/")) for d in dirs), file=sys.stderr)
+    if a.convergence:
+        print(convergence(a.runs))
+        return 0
     tasks = list(dict.fromkeys(r["task"] for r in rows))
     if a.legacy:
         text = legacy(rows, audit, tasks)

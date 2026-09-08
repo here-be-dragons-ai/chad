@@ -275,6 +275,32 @@ def test_pooled_nights_are_distinct_reps(sc):
         assert not [c for c, v in by_cell.items() if len(set(v)) < len(v)]
 
 
+@pytest.mark.skipif(len(_committed_nights()) < 2, reason="needs two committed nights")
+def test_convergence_report_matches_the_grids(sc):
+    """The README argues from `--convergence` (why the grid stopped at three nights), so
+    the numbers it prints have to come from the rows like every other published table."""
+    nights = _nights(sc)
+    text = sc.convergence(RUNS)
+    # Its own header names the nights it read.
+    for d in nights:
+        assert os.path.basename(d) in text
+    # The pass line is checkable straight off the grids.
+    rows, _, _ = sc.load(RUNS)
+    cells = {}
+    for r in rows:
+        cells.setdefault((r["arm"], r["task"]), []).append(bool(r["passed"]))
+    split = sum(1 for v in cells.values() if len(set(v)) > 1)
+    totals = [sum(1 for r in rows if r["rep"] == i and r["passed"])
+              for i in range(len(nights))]
+    assert f"per-night totals {', '.join(map(str, totals))} of {len(cells)}" in text
+    assert f"{split} of {len(cells)} (arm, task) cells did not agree" in text
+    # A column whose value IS the harness's prompt cannot wobble; one that is the model
+    # deciding how much to think always does. That contrast is the point of the table.
+    tax = next(l for l in text.splitlines() if l.startswith("| tax "))
+    assert tax.split("|")[2].strip().startswith("0.0%")
+    assert "| n_tools" in text and "| uncached_later" in text
+
+
 @pytest.mark.skipif(not _committed_nights(), reason="no committed run")
 def test_committed_tables_md_is_reproducible():
     run = _load("run")
