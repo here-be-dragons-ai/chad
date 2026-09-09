@@ -2,6 +2,22 @@
 
 Notable, user-visible changes.
 
+## [2.0.3] — 2026-09-08
+
+**Fix: the on-disk warm start now hits in every directory.** The system-prompt KV
+checkpoint was keyed on the whole rendered prompt — working directory, workspace listing
+and project docs included — so only a restart in the *same* project could hit it, and a
+fresh directory paid the full ~2.5k-token cold prefill every time. `benchmarks/matrix`
+caught it: 32 of 32 fresh-directory cells missed, 24.1 s each, which is the same
+volatile-string-in-the-cached-prefix bug the grid found in goose 1.39. The engine now
+keeps two checkpoints: the full prefix (same project → zero prefill, as before) and its
+static head — the tool schemas and behavioral prompt, byte-identical in every project —
+which any directory restores before prefilling only its own few-hundred-token tail. The
+banner and the prefill trace report the new outcome as `partial`; `chad serve` accepts
+the head on `/warm`; the divergence rebuild falls back to the head when the full
+checkpoint has been evicted. `benchmarks/matrix/run.py smoke` now runs the in-process
+arm twice in fresh directories and drops it if the second one misses.
+
 ## [2.0.2] — 2026-08-27
 
 **Fix: a stray `<think>` no longer discards the turn it appears in.** A thinking turn is

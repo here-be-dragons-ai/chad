@@ -87,7 +87,7 @@ class ScriptedEngine:
     def reset(self):
         self._cached_ids = []
 
-    def warm_prefix(self, prefix_ids, should_stop=None):
+    def warm_prefix(self, prefix_ids, should_stop=None, head_ids=None):
         return "skip", 0
 
     def push_cache(self):

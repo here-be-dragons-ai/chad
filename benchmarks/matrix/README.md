@@ -131,7 +131,9 @@ on the record:
    cells stay committed and keep counting toward the pass gate and every column the
    prefix does not enter; they are excluded from the two it does. The checkpoint keying itself is a chad bug of the goose kind — a
    volatile string inside the cached prefix — and is not fixed in the version measured
-   here. The obvious rejoinder, "llama-server can checkpoint a slot too", was tried
+   here (2.0.2). chad 2.0.3 checkpoints the project-independent head separately, so a
+   fresh directory restores it and prefills only its own tail; `run.py smoke` now runs
+   the in-process arm twice in fresh directories and drops it if the second misses. The obvious rejoinder, "llama-server can checkpoint a slot too", was tried
    once on the same build and model (single slot, `--slot-save-path`, chad's real
    2,438-token system prompt): the save wrote 317 MB in 0.05 s and the restore
    reported 2,438 tokens back in 0.02 s, but the next byte-identical request still

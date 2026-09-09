@@ -155,11 +155,17 @@ Measured on the shipped 27B (M4 Pro, 24 GB), one fixture and one ask, cold vs. w
 | whole turn | ~103 s | **31.4 s** |
 
 The cold column is a real cost and worth stating plainly: the first turn in a *new* project
-spends over a minute reading a system prompt before it does anything you asked for. It is
-also a cost you pay once. The checkpoint is keyed on the whole system prompt, cwd and repo
-map included, so it survives restarts and is invalidated exactly when the prompt it caches
-actually changes. The session banner's `[warm start: N prefix tokens from disk cache]` line
-is chad telling you which of these two turns you are about to have.
+spends over a minute reading a system prompt before it does anything you asked for. Until
+2.0.3 every new directory paid it, because the checkpoint was keyed on the whole system
+prompt, cwd and workspace listing included, and a fresh directory could never hit it
+(`benchmarks/matrix` measured 32 of 32 fresh-directory cells missing, 24 s each). Now there
+are two checkpoints: the full prefix, which a restart in the same project restores outright,
+and its project-independent head (the tool schemas and behavioral prompt, most of the
+prefix), which any directory restores before prefilling only its own cwd/listing/docs tail.
+Both survive restarts and are invalidated exactly when the text they cache changes. The
+session banner's `[warm start: N prefix tokens from disk cache]` line — or
+`[…; M project tokens prefilled in S s]` for the head-only case — is chad telling you which
+of these turns you are about to have.
 
 ## Why decode sits where it does
 

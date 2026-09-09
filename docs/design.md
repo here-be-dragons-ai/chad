@@ -150,7 +150,12 @@ fast on an **append-only** cache, which chad does three ways:
    never changes turn to turn) is persisted to disk keyed by its rendered token ids, with
    the recurrent SSM state serialized (a fixed ~51 MB floor). On a cold start *or* a
    divergence that can't be reused in RAM, that base reloads with **zero prefill** instead
-   of being rebuilt from scratch.
+   of being rebuilt from scratch. Two checkpoints serve it: the full prefix, which a restart
+   in the same project restores outright, and its project-independent head (tool schemas +
+   behavioral prompt), which any directory restores before prefilling only its own
+   cwd/listing/docs tail. (Before 2.0.3 the key included that tail, so a new directory
+   never hit — the same volatile-string-in-the-prefix bug `benchmarks/matrix` found in
+   goose.)
 
 So where a trimmable model would lean on PLD and partial-prefix repair, chad leans on
 append-only reuse plus a warm on-disk base, and gets the responsive agentic loop anyway.
