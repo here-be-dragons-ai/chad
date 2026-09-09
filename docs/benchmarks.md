@@ -158,10 +158,12 @@ The cold column is a real cost and worth stating plainly: the first turn in a *n
 spends over a minute reading a system prompt before it does anything you asked for. Until
 2.0.3 every new directory paid it, because the checkpoint was keyed on the whole system
 prompt, cwd and workspace listing included, and a fresh directory could never hit it
-(`benchmarks/matrix` measured 32 of 32 fresh-directory cells missing, 24 s each). Now there
-are two checkpoints: the full prefix, which a restart in the same project restores outright,
-and its project-independent head (the tool schemas and behavioral prompt, most of the
-prefix), which any directory restores before prefilling only its own cwd/listing/docs tail.
+(`benchmarks/matrix` measured 32 of 32 fresh-directory cells missing, 24 s each; on 2.0.3
+the same grid has 15 of 16 restoring the head and prefilling a ~320-token tail in
+3.2–3.6 s). Now there are two checkpoints: the full prefix, which a restart in the same
+project restores outright, and its project-independent head (the tool schemas and
+behavioral prompt, most of the prefix), which any directory restores before prefilling
+only its own cwd/listing/docs tail.
 Both survive restarts and are invalidated exactly when the text they cache changes. The
 session banner's `[warm start: N prefix tokens from disk cache]` line — or
 `[…; M project tokens prefilled in S s]` for the head-only case — is chad telling you which

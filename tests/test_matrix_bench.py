@@ -5,7 +5,8 @@ re-running 20 hours of model time:
 
   1. the derived columns mean what the docstring says (hand-built turns, every column);
   2. the tables committed under `_runs/` are exactly what `scorecard.py` and `run.py
-     table` print from the committed rows — no hand edits between the data and the post;
+     table` print from the committed rows — no hand edits between the data and the post,
+     for a side run addressed on its own as much as for the pooled nights;
   3. nothing committed under `benchmarks/matrix/` names the machine it ran on.
 
 Stdlib only; runs on the Linux CI matrix, where there is no MLX and no model.
@@ -309,6 +310,71 @@ def test_committed_tables_md_is_reproducible():
         run.main(["table"])
     with open(os.path.join(RUNS, "tables.md")) as f:
         assert f.read().strip() == buf.getvalue().strip()
+
+
+# -- 2b. the side runs: one arm or one version, committed the same way ------------
+
+def _side_runs() -> list:
+    """Runs committed under a name of their own instead of `repN-*`, because they measure
+    one version rather than one more rep of the grid: `<harness>-<version>-YYYYMMDD/`."""
+    return sorted(d for d in glob.glob(os.path.join(RUNS, "*-[0-9]*.[0-9]*-[0-9]*"))
+                  if os.path.exists(os.path.join(d, "grid.json")))
+
+
+@pytest.mark.skipif(not _side_runs(), reason="no side run committed")
+def test_side_runs_are_not_pooled_with_the_nights(sc):
+    """A side run is a different measurement, not a fourth night: it must not reach the
+    pooled tables, which is what naming it outside `repN-*` buys."""
+    pooled = _nights(sc)
+    for d in _side_runs():
+        assert d not in pooled, os.path.basename(d)
+
+
+@pytest.mark.skipif(not _side_runs(), reason="no side run committed")
+def test_side_runs_are_committed_whole(sc):
+    """Every accumulator under a side run describes cells the grid actually banked.
+
+    The accumulators (`turns.jsonl`, `sampler_audit.jsonl`) append as the run goes, so a
+    run killed mid-cell leaves records for a rep no grid row exists for — and the next
+    row written under that key would be counted twice. `grid.json` is the ledger; this
+    is the check that the rest of the directory agrees with it."""
+    for d in _side_runs():
+        rows = json.load(open(os.path.join(d, "grid.json")))
+        assert rows, d
+        keys = [(r["arm"], r["task"], r["rep"]) for r in rows]
+        assert len(set(keys)) == len(keys), f"{d}: two rows on one (arm, task, rep)"
+        arms = {r["arm"] for r in rows}
+        tasks = {r["task"] for r in rows}
+        assert len(rows) == len(arms) * len(tasks), f"{d}: not a complete grid"
+        banked = {(r["arm"], r["rep"]) for r in rows}
+        for name in ("turns.jsonl", "sampler_audit.jsonl"):
+            p = os.path.join(d, name)
+            if not os.path.exists(p):
+                continue
+            for line in open(p):
+                rec = json.loads(line)
+                # rep -1 is the smoke session, which runs before any cell is banked.
+                if rec.get("rep") == -1:
+                    continue
+                assert (rec["arm"], rec["rep"]) in banked, \
+                    f"{d}/{name}: orphan record for {rec['arm']} rep {rec['rep']}"
+        assert os.path.exists(os.path.join(d, "sampler_audit_summary.json")), d
+
+
+@pytest.mark.skipif(not _side_runs(), reason="no side run committed")
+def test_side_run_tables_are_reproducible(sc):
+    """Same rule as the pooled tables: what is committed is what the scripts print from
+    the committed rows, for a single directory addressed on its own."""
+    run = _load("run")
+    for d in _side_runs():
+        text, _ = sc.build(d)
+        with open(os.path.join(d, "scorecard.md")) as f:
+            assert f.read() == text, d
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run.main(["table", "--runs", d])
+        with open(os.path.join(d, "tables.md")) as f:
+            assert f.read().strip() == buf.getvalue().strip(), d
 
 
 def test_tasks_are_committed_pristine():
