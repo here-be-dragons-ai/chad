@@ -217,12 +217,24 @@ def _dynamic_context() -> list:
     return dynamic
 
 
+def static_system_prompt() -> str:
+    """The part of the system prompt that is byte-identical in every project and every
+    session: the behavioral prompt and the verify-first block. What the chat template
+    renders before it (the tool schemas) is static too, so the rendered prefix up to the
+    end of this text is the same token sequence in every working directory — which is
+    what lets the engine checkpoint it ONCE, globally, instead of once per directory
+    (`Agent._static_head_ids`, `Engine.warm_prefix`)."""
+    return _BASE_PROMPT + _verify_baseline_block()
+
+
 def build_system_prompt() -> str:
     # Cache-boundary trick (from the Claude Code teardown): everything above the
     # boundary is static behavioral text that stays identical across sessions, so the
-    # prefix KV cache reuses it. Volatile per-session context (cwd, project docs) goes
-    # below, where re-prefilling a few hundred tokens is cheap.
-    return (_BASE_PROMPT + _verify_baseline_block() + "\n".join(_dynamic_context()))
+    # prefix KV cache reuses it. Volatile per-session context (cwd, workspace listing,
+    # project docs) goes below, where re-prefilling a few hundred tokens is cheap. The
+    # boundary is load-bearing for the on-disk warm start: the static head above it is
+    # checkpointed once for every project, the full prompt once per project.
+    return static_system_prompt() + "\n".join(_dynamic_context())
 
 
 def _verify_baseline_block() -> str:

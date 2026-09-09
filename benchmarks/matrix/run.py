@@ -1148,15 +1148,46 @@ def _turns(rep: int | None = None) -> list:
     return out
 
 
+def _warm_row(row: dict) -> dict | None:
+    """The `warm_prefix` row of an in-process cell's prefill trace, or None."""
+    rel = row.get("prefill_trace")
+    if not rel:
+        return None
+    for base in ("", os.path.join(HERE, "..", ".."), os.getcwd()):
+        p = os.path.join(base, rel) if base else rel
+        if os.path.isfile(p):
+            try:
+                with open(p) as f:
+                    for line in f:
+                        r = json.loads(line)
+                        if r.get("kind") == "warm_prefix":
+                            return r
+            except (OSError, ValueError):
+                return None
+            return None
+    return None
+
+
 def smoke(a) -> None:
     """One short task per llama arm, then a verdict per arm: did it reach the server,
     did the server's `timings` come back through the proxy, did it touch the stub.
     Passing the task is NOT required — a harness can honestly fail grade-school — but
     an arm that never spoke to the model, or whose turns cannot be measured, is dropped
     here with its reason written down, rather than spending an hour of the night and
-    then being reported as a loss."""
+    then being reported as a loss.
+
+    The in-process arms get a different smoke, after the server is down: the same task
+    TWICE, each cell in its own fresh directory (run_one always mkdtemps), and the
+    verdict is whether the second cell's on-disk warm start hit — `partial` (the
+    project-independent head restored from disk, the per-project tail prefilled) or
+    `hit`. A `miss` on a second fresh directory is the 2.0.2 bug back: the checkpoint
+    keyed on the whole prompt, cwd and listing included, so a new directory could never
+    hit it and every cell paid the ~24 s cold prefill the grid found (README, "got
+    wrong" item 4)."""
+    mlx = [x for x in a.arms if x in MLX_ARMS]
     a.grid_name, a.rep_label, a.tasks = "smoke", -1, [SMOKE_TASK]
-    arm_llama(a)
+    if any(x in LLAMA_ARMS for x in a.arms):
+        arm_llama(a)
     rows = _load("smoke") or []
     turns = _turns(rep=-1)
     # Merge into whatever verdict is already banked: a re-smoke of the arms that
@@ -1188,6 +1219,39 @@ def smoke(a) -> None:
         print(f"  smoke {arm:20s} {'OK  ' if not why else 'DROP'} "
               f"turns {len(ts)} timed {len(timed)} "
               f"{'pass' if r['passed'] else 'fail'} {r['wall_s']:.0f}s {why}", flush=True)
+    if mlx:
+        if subprocess.run(["pgrep", "-f", "llama-server"],
+                          capture_output=True, text=True).stdout.strip():
+            sys.exit("llama-server is still running — one engine at a time")
+        a.grid_name, a.rep_label, a.reps, a.tasks = "smoke", -2, 2, [SMOKE_TASK]
+        _grid(mlx, a)
+        rows = _load("smoke") or []
+        for arm in mlx:
+            cells = {r["rep"]: r for r in rows
+                     if r["arm"] == arm and r["task"] == SMOKE_TASK}
+            first, second = cells.get(-2), cells.get(-1)
+            w1 = _warm_row(first) if first else None
+            w2 = _warm_row(second) if second else None
+            if not second:
+                why = "second fresh-directory cell did not run"
+            elif w2 is None:
+                why = "second cell recorded no warm_prefix row (trace too old?)"
+            elif w2.get("status") not in ("hit", "partial"):
+                why = (f"warm prefix `{w2.get('status')}` in a second fresh directory "
+                       f"({w2.get('prefill_s', 0):.1f} s cold) — the checkpoint is not "
+                       "keyed on the project-independent head")
+            else:
+                why = ""
+            verdict[arm] = {"ok": not why, "why": why,
+                            "passed": bool(second and second["passed"]),
+                            "wall_s": second["wall_s"] if second else None,
+                            "warm_first": w1, "warm_second": w2,
+                            "tail": (second or {}).get("tail", "")[-300:]}
+            desc = (f"warm {w2.get('status')} {w2.get('prefix_tokens')} tok from disk, "
+                    f"{w2.get('prefilled_tokens', '?')} prefilled in "
+                    f"{w2.get('prefill_s', 0):.1f}s" if w2 else "no warm row")
+            print(f"  smoke {arm:20s} {'OK  ' if not why else 'DROP'} "
+                  f"2nd fresh dir: {desc} {why}", flush=True)
     _save("smoke_verdict", verdict)
 
 

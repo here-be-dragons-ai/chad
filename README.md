@@ -83,7 +83,7 @@ one checkpoint it ships:
   cache, so a follow-up step prefills the ~16 tokens it appended instead of the 5,000 it
   already read: **~0.75 s per step instead of ~50 s**. Any server with prompt caching gets
   the easy case; the work is holding it true across compaction, truncated turns and restarts.
-  The system prefix is checkpointed to disk, so the second session in a project starts warm
+  The system prefix is checkpointed to disk, so the second session anywhere starts warm
   (75.6 s → 5.5 s to the first tool call).
 - **Fused Metal kernels.** Quantized-KV attention, a small-M matmul for speculative verify,
   and a compiled single-token layer step, chosen per machine at load time, no knobs.

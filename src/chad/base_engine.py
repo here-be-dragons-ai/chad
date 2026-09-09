@@ -207,10 +207,13 @@ class BaseEngine(Protocol):
         `_reset_cache`). Called on `/reset` and by the governor's fresh-turn relaunch."""
         ...
 
-    def warm_prefix(self, prefix_ids: list, should_stop: Optional[Callable[[], bool]] = None
-                    ) -> tuple[str, int]:
+    def warm_prefix(self, prefix_ids: list, should_stop: Optional[Callable[[], bool]] = None,
+                    head_ids: Optional[list] = None) -> tuple[str, int]:
         """Warm-start the stable system+tools prefix from disk (MLX) or no-op ('skip', 0)
-        on a stateless backend. Returns (status, n_tokens)."""
+        on a stateless backend. `head_ids`, if given, is the project-independent head
+        of `prefix_ids` (a proper prefix of it), checkpointed once for every project so
+        a fresh directory restores it and prefills only the tail. Returns
+        (status, n_tokens) with status 'hit' | 'partial' | 'miss' | 'skip'."""
         ...
 
     def push_cache(self) -> None:

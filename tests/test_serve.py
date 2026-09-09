@@ -87,7 +87,7 @@ class FakeEngine:
         self._note_thread()
         self.calls.append(("pop",))
 
-    def warm_prefix(self, prefix_ids, should_stop=None):
+    def warm_prefix(self, prefix_ids, should_stop=None, head_ids=None):
         self._note_thread()
         self.calls.append(("warm", list(prefix_ids)))
         self._cached_ids = list(prefix_ids)

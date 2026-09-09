@@ -236,7 +236,8 @@ class CompletionEngine:
     _reset_cache = reset   # cli/bench call the private spelling; keep it working
 
     def warm_prefix(self, prefix_ids: list,
-                    should_stop: Optional[Callable[[], bool]] = None) -> tuple[str, int]:
+                    should_stop: Optional[Callable[[], bool]] = None,
+                    head_ids: Optional[list] = None) -> tuple[str, int]:
         """Warm-start the stable prefix. Against stock llama.cpp there is nothing to do
         — the KV checkpoint would live on the SERVER's disk, which we can't reach — so
         this stays 'skip'. A `chad serve` server advertising `warm_prefix` does the
@@ -246,12 +247,15 @@ class CompletionEngine:
         self._ensure_caps()
         if CAP_WARM_PREFIX not in self._caps:
             return ("skip", 0)
-        resp = self._post_json("/warm", {"prefix": list(prefix_ids)})
+        body = {"prefix": list(prefix_ids)}
+        if head_ids:
+            body["head"] = list(head_ids)
+        resp = self._post_json("/warm", body)
         if not resp:
             return ("skip", 0)
         status = str(resp.get("status") or "skip")
         fed = int(resp.get("fed") or 0)
-        if status in ("hit", "miss") and fed:
+        if status in ("hit", "miss", "partial") and fed:
             # Mirror what the server now holds, so the first turn's prefill estimate
             # accounts for the prefix we just warmed instead of assuming a cold cache.
             self._cached_ids = list(prefix_ids[:fed])

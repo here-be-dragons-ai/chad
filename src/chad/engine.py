@@ -550,6 +550,9 @@ class Engine:
     _pld_hybrid: bool = field(init=False, default=False)
     _model_path: str = field(init=False, default="")  # resolved weights dir
     _warm_prefix_ids: Any = field(init=False, default=None)
+    # The project-independent head of that prefix (tool schemas + behavioral prompt),
+    # checkpointed once for every working directory; see warm_prefix.
+    _warm_head_ids: Any = field(init=False, default=None)
     kv_bytes_per_token: float = field(init=False, default=0.0)  # measured at load (036)
     # Model-shape facts read from config at load, for the adaptive prefill chunk.
     # MoE prefill amortizes routing with bigger chunks (+14% measured 512→2048 on
@@ -934,43 +937,92 @@ class Engine:
         kind = _CKPT_PUSH if tag == _CKPT_PUSH else _CKPT_WARM
         return os.path.join(self.cache_dir, f"{kind}-{h.hexdigest()}.safetensors")  # type: ignore[arg-type]
 
-    def warm_prefix(self, prefix_ids: list, should_stop=None):
-        """Make a cold session start warm. If a disk checkpoint for exactly these
-        prefix tokens exists, load it into the live cache (ZERO prefill); otherwise
-        prefill the prefix once and persist it for next time. Only valid on a cold
-        cache. Returns (status, n_tokens) where status is 'hit' | 'miss' | 'skip'."""
+    def warm_prefix(self, prefix_ids: list, should_stop=None, head_ids=None):
+        """Make a cold session start warm. Two checkpoints can serve it, longest first:
+
+        - the FULL prefix (tool schemas + system prompt, per-project tail included):
+          a hit is a restart in the same project — ZERO prefill;
+        - the static HEAD (`head_ids`: the part of the prefix that is byte-identical in
+          every project — tool schemas + behavioral prompt): a hit restores the head
+          and prefills only the per-project tail (cwd, workspace listing, project
+          docs — a few hundred tokens), so a fresh directory no longer pays the whole
+          ~2.5k-token cold prefill. Before this tier existed, the checkpoint was
+          keyed on the whole prompt and a new directory could never hit it.
+
+        A miss prefills the prefix once and persists BOTH checkpoints for next time.
+        Only valid on a cold cache. Returns (status, n_tokens): 'hit' (n = tokens
+        restored), 'partial' (head restored, n = its tokens; the rest was prefilled),
+        'miss' (n = tokens prefilled), 'skip'."""
         if not self.cache_dir or not prefix_ids:
             return ("skip", 0)
         if self._cached_ids:               # cache already populated this session
             return ("skip", 0)
+        prefix_ids = list(prefix_ids)
         path = self._ckpt_path(prefix_ids)
-        if os.path.isfile(path):
-            try:
-                loaded = cache_utils.load_prompt_cache(path)
-                # sanity: a loaded cache must have one entry per model layer
-                if len(loaded) == self._n_model_layers():
-                    self._cache = loaded
-                    self._cached_ids = list(prefix_ids)
-                    self._warm_prefix_ids = list(prefix_ids)
-                    self._set_cache_flags()
-                    return ("hit", len(prefix_ids))
-            except Exception:
-                pass                       # corrupt/incompatible -> recompute below
-        # miss: prefill the prefix into a fresh cache, then persist it.
+        if os.path.isfile(path) and self._load_ckpt(path, prefix_ids):
+            self._warm_prefix_ids = list(prefix_ids)
+            return ("hit", len(prefix_ids))
+        head = list(head_ids or [])
+        if not (head and len(head) < len(prefix_ids) and prefix_ids[: len(head)] == head):
+            head = []                      # not a proper prefix of this prefix: unusable
+        tail = prefix_ids[len(head):]
+        if head:
+            self._warm_head_ids = list(head)
+            hp = self._ckpt_path(head)
+            if os.path.isfile(hp) and self._load_ckpt(hp, head):
+                fed = self._prefill(tail, should_stop)
+                if fed < len(tail):        # interrupted -> don't persist a partial
+                    self._cached_ids = prefix_ids[: len(head) + fed]
+                    return ("partial", len(head))
+                self._cached_ids = list(prefix_ids)
+                self._warm_prefix_ids = list(prefix_ids)
+                self._save_ckpt(path)
+                return ("partial", len(head))
+        # miss: prefill into a fresh cache and persist — the head first (so the NEXT
+        # fresh directory gets a partial hit), then the whole prefix.
         self._reset_cache()
-        fed = self._prefill(list(prefix_ids), should_stop)
-        if fed < len(prefix_ids):          # interrupted -> don't persist a partial
-            self._cached_ids = list(prefix_ids[:fed])
-            return ("miss", fed)
+        if head:
+            fed = self._prefill(head, should_stop)
+            if fed < len(head):
+                self._cached_ids = head[:fed]
+                return ("miss", fed)
+            self._cached_ids = list(head)
+            self._save_ckpt(hp)
+        fed = self._prefill(tail, should_stop)
+        if fed < len(tail):
+            self._cached_ids = prefix_ids[: len(head) + fed]
+            return ("miss", len(head) + fed)
         self._cached_ids = list(prefix_ids)
         self._warm_prefix_ids = list(prefix_ids)
+        self._save_ckpt(path)
+        return ("miss", len(prefix_ids))
+
+    def _load_ckpt(self, path: str, ids: list) -> bool:
+        """Install a KV checkpoint as the live cache for exactly `ids`. False on
+        anything short of a clean load (unreadable, wrong layer count), leaving the
+        caller to recompute."""
+        try:
+            loaded = cache_utils.load_prompt_cache(path)
+        except Exception:
+            return False                   # corrupt/incompatible -> recompute
+        if len(loaded) != self._n_model_layers():
+            return False
+        self._cache = loaded
+        self._cached_ids = list(ids)
+        self._set_cache_flags()
+        return True
+
+    def _save_ckpt(self, path: str) -> None:
+        """Persist the live cache. Best-effort: a full or read-only disk skips the
+        checkpoint, never the turn."""
+        if not self.cache_dir:
+            return
         try:
             os.makedirs(self.cache_dir, exist_ok=True)
             cache_utils.save_prompt_cache(path, self._cache)
             self._enforce_kv_budget(path)
         except Exception:
-            pass                           # disk full / read-only -> just skip persist
-        return ("miss", len(prefix_ids))
+            pass
 
     def _n_model_layers(self) -> int:
         return len(self.model.layers)
@@ -1094,25 +1146,32 @@ class Engine:
     def _reload_warm_prefix(self, target_ids: list) -> int:
         """If a disk checkpoint of the warm system prefix exists and target_ids still
         begins with it, load it into the freshly-reset cache and return its length
-        (tokens we skip re-prefilling). Returns 0 if unavailable/inapplicable."""
+        (tokens we skip re-prefilling). Falls back to the static head checkpoint when
+        the full one is gone (evicted) or unreadable. Returns 0 if neither applies."""
         wp = self._warm_prefix_ids
-        if not (wp and self.cache_dir and len(target_ids) >= len(wp)
+        if (wp and self.cache_dir and len(target_ids) >= len(wp)
                 and target_ids[: len(wp)] == wp):
+            path = self._ckpt_path(wp)
+            if os.path.isfile(path):
+                if self._load_ckpt(path, wp):
+                    return len(wp)
+                self._reset_cache()        # corrupt/incompatible -> clean rebuild
+        return self._reload_warm_head(target_ids)
+
+    def _reload_warm_head(self, target_ids: list) -> int:
+        """Second tier of `_reload_warm_prefix`: the project-independent head (tool
+        schemas + behavioral prompt), when target_ids still begins with it."""
+        hd = getattr(self, "_warm_head_ids", None)
+        if not (hd and self.cache_dir and len(target_ids) >= len(hd)
+                and target_ids[: len(hd)] == hd):
             return 0
-        path = self._ckpt_path(wp)
+        path = self._ckpt_path(hd)
         if not os.path.isfile(path):
             return 0
-        try:
-            loaded = cache_utils.load_prompt_cache(path)
-            if len(loaded) != self._n_model_layers():
-                return 0
-            self._cache = loaded
-            self._cached_ids = list(wp)
-            self._set_cache_flags()
-            return len(wp)
-        except Exception:
-            self._reset_cache()            # corrupt/incompatible -> clean rebuild
-            return 0
+        if self._load_ckpt(path, hd):
+            return len(hd)
+        self._reset_cache()
+        return 0
 
     # -- one-deep cache quarantine -----------------------------
     # A subagent explores in a SEPARATE small context so the main transcript's warm
@@ -1228,6 +1287,9 @@ class Engine:
         protect = {just_written}
         if self._warm_prefix_ids:
             protect.add(self._ckpt_path(self._warm_prefix_ids))
+        hd = getattr(self, "_warm_head_ids", None)
+        if hd:
+            protect.add(self._ckpt_path(hd))
         enforce_cache_budget(self.cache_dir, self.kv_cache_max_bytes, protect)
 
     # -- generation -------------------------------------------------------

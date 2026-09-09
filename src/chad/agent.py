@@ -29,7 +29,7 @@ from . import (
 )
 from .base_engine import BaseEngine
 from .diag import args_preview, log, redact, result_preview
-from .prompt import build_system_prompt, classify_intent
+from .prompt import build_system_prompt, classify_intent, static_system_prompt
 from .render import (
     C_DIM,
     C_RED,
@@ -804,6 +804,36 @@ class Agent:
             n += 1
         return list(a[:n])
 
+    def _static_head_ids(self) -> list:
+        """The project-independent head of `_stable_prefix_ids`: everything the
+        template renders before the per-session tail of the system prompt (cwd,
+        workspace listing, project docs). Found the same way — two renders differenced,
+        one with the full system prompt and one with only its static text — so it is
+        exact under any template, wherever that template puts the tool schemas. The
+        engine checkpoints this ONCE for every project and the full prefix once per
+        project (`Engine.warm_prefix`). Empty when the system prompt is not chad's own
+        or has no per-session tail, in which case only the full prefix is used."""
+        sysm = self.messages[0]
+        static = static_system_prompt()
+        content = sysm.get("content") or ""
+        if not content.startswith(static) or content == static:
+            return []
+        schemas = self._active_schemas()
+        def render1(m):
+            return self._template_ids(self.engine.tok.apply_chat_template(
+                [m, {"role": "user", "content": "a"}], tools=schemas,
+                add_generation_prompt=True, enable_thinking=self.thinking))
+        a, b = render1({"role": "system", "content": static}), render1(sysm)
+        n = 0
+        for x, y in zip(a, b):
+            if x != y:
+                break
+            n += 1
+        head, full = list(b[:n]), self._stable_prefix_ids()
+        if len(head) >= len(full) or full[: len(head)] != head:
+            return []
+        return head
+
     def _confirm(self, name, args) -> bool:
         # Destructive-bash seatbelt: a catastrophic shell command (rm -rf ~, mkfs,
         # curl|sh, …) is screened even in --yolo mode, because the model acts on
@@ -877,25 +907,38 @@ class Agent:
                 pass
         # Warm start: on a cold cache, load the system+tools KV from disk
         # (or prefill+persist it once) so the first turn doesn't re-prefill the
-        # ~3.2k-token stable prefix every session. Cheap no-op on a warm cache.
+        # ~2.5k-token stable prefix every session. Two tiers: the full prefix (same
+        # project) and its static head (any project — only the per-project tail is
+        # prefilled). Cheap no-op on a warm cache.
         if self.engine.cache_dir and not self.engine._cached_ids:
             try:
                 t_warm = time.time()
-                status, n = self.engine.warm_prefix(self._stable_prefix_ids(),
-                                                     should_stop=self._should_stop)
+                full = self._stable_prefix_ids()
+                status, n = self.engine.warm_prefix(full, should_stop=self._should_stop,
+                                                     head_ids=self._static_head_ids())
                 warm_s = time.time() - t_warm
                 log.info("CACHE warm-start %s: %d prefix tokens (disk KV cache, %.1fs)",
                          status, n, warm_s)
                 if status == "hit":
                     self._emit("info", f"  [warm start: {n:,} prefix tokens from disk cache]")
+                elif status == "partial":
+                    self._emit("info", f"  [warm start: {n:,} prefix tokens from disk cache; "
+                                       f"{len(full) - n:,} project tokens prefilled "
+                                       f"in {warm_s:.1f}s]")
                 # The prefix prefill happens BEFORE step 1, so a per-step trace would
                 # never see it: a miss is the whole cold prefill of the system prompt,
                 # paid while the user is already waiting. Recorded as its own row (seq 0)
                 # so an offline reader can add it to the first step's wait; step rows
                 # are untouched (their cached_tokens already count the prefix).
                 if _PREFILL_TRACE and status != "skip":
+                    # prefix_tokens is what `status` refers to (hit/partial: restored,
+                    # miss: prefilled); prefilled_tokens is the cold part either way.
                     _trace_prefill({"seq": 0, "step": -1, "kind": "warm_prefix",
                                     "status": status, "prefix_tokens": n,
+                                    "total_prefix": len(full),
+                                    "prefilled_tokens": (0 if status == "hit"
+                                                         else len(full) - n
+                                                         if status == "partial" else n),
                                     "prefill_s": round(warm_s, 4)})
             except Exception as e:  # never let cache warming break a turn
                 log.warning("warm_prefix failed: %s", e)

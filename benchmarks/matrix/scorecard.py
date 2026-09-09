@@ -239,9 +239,11 @@ def _overlaps(a: dict, b: dict) -> bool:
 def run_metrics(row: dict, turns: list, warm: dict | None = None) -> dict:
     """Derived numbers for one run. `turns` is normalised, ordered and classified.
     `warm` is the in-process arm's warm-prefix row, if its trace recorded one: the
-    system-prompt prefix chad prefills (miss) or restores from disk (hit) before step 1.
-    A miss is prefill the user waits through before the first token, so it is added to
-    the turn-1 wait and to the run's prefill total; a hit costs the load time only."""
+    system-prompt prefix chad prefills (miss) or restores from disk (hit) before step 1,
+    or — from chad 2.0.3 — restores the project-independent head from disk and prefills
+    only the per-project tail (partial). A miss's or partial's `prefill_s` is prefill
+    the user waits through before the first token, so it is added to the turn-1 wait
+    and to the run's prefill total; a hit costs the load time only."""
     m = _run_metrics(row, turns)
     if warm is None:
         m["warm_status"] = None
@@ -250,7 +252,7 @@ def run_metrics(row: dict, turns: list, warm: dict | None = None) -> dict:
     m["warm_status"] = warm.get("status")
     m["warm_s"] = warm_s
     m["warm_tokens"] = warm.get("prefix_tokens")
-    if warm.get("status") == "miss":
+    if warm.get("status") in ("miss", "partial"):
         m["wait_first"] = (m.get("wait_first") or 0.0) + warm_s
         m["prefill_s"] = (m.get("prefill_s") or 0.0) + warm_s
         wall = row.get("wall_s") or 0
@@ -434,7 +436,8 @@ def aggregate(per: list) -> list:
                                    if r.get("warm_status")}),
             "warm_unrecorded": sum(1 for r in rs if r.get("warm_status") is None),
             "warm_n": len(wrs),
-            "warm_s": _med([r.get("warm_s") for r in rs if r.get("warm_status") == "miss"]),
+            "warm_s": _med([r.get("warm_s") for r in rs
+                            if r.get("warm_status") in ("miss", "partial")]),
         })
     return arms
 
@@ -483,7 +486,9 @@ def _warm_note(arms: list) -> str:
     note = ("`†` includes the system-prompt prefix chad prefills before its first step "
             "when its disk checkpoint misses, or restores when it hits (" + "; ".join(parts)
             + "). A miss is the cold prefill of the same prompt the chad+llama row pays; "
-            "a hit is a disk restore.")
+            "a hit is a disk restore; a partial restores the project-independent head "
+            "(tool schemas + behavioral prompt) from disk and prefills only the "
+            "per-project tail.")
     # Say it when the arm's cells are not all instrumented, and say which columns that
     # narrows: the alternative is a table that looks like n cells everywhere and is not.
     mixed = [a for a in sr if a["warm_unrecorded"] and a["warm_n"] < a["n"]]

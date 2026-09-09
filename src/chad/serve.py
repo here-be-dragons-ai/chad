@@ -37,7 +37,9 @@ forfeits come back:
   return trip re-prefills it. Here the sub-agent's excursion is bracketed by a real
   ``Engine.push_cache``/``pop_cache``, so the main transcript's KV survives it.
 - ``POST /warm`` — the on-disk KV warm-start of the stable system+tools prefix, which
-  a remote client cannot do because the checkpoint lives on the *server's* disk.
+  a remote client cannot do because the checkpoint lives on the *server's* disk. An
+  optional ``head`` (the project-independent part of ``prefix``) lets a client in a
+  fresh directory restore that head and prefill only its per-project tail.
 
 Both are latency, never correctness: a client that doesn't speak them, or a call that
 fails, degrades to the plain remote behavior.
@@ -704,6 +706,12 @@ def _make_handler(state: ServerState) -> type:
             if not isinstance(prefix, list) or not all(
                     isinstance(t, int) and not isinstance(t, bool) for t in prefix):
                 return self._error(400, "prefix must be an array of token ids")
+            # Optional second tier: the project-independent head of `prefix`, so a
+            # client in a fresh directory restores the head and prefills only its tail.
+            head = body.get("head")
+            if head is not None and (not isinstance(head, list) or not all(
+                    isinstance(t, int) and not isinstance(t, bool) for t in head)):
+                return self._error(400, "head must be an array of token ids")
             # Same wall as /completion: warming a prefix that cannot fit is a prefill
             # that cannot fit, and it reaches the allocator the same way.
             _, too_big = admit(len(prefix), 0, state.n_ctx(), state.safe_ctx())
@@ -711,7 +719,8 @@ def _make_handler(state: ServerState) -> type:
                 return self._error(400, too_big)
             state.busy = True
             try:
-                status, fed = state.call(state.eng.warm_prefix, list(prefix))
+                status, fed = state.call(state.eng.warm_prefix, list(prefix),
+                                         head_ids=list(head) if head else None)
             except Exception as e:  # noqa: BLE001 — same: degrade, don't fail a run
                 return self._send_json(200, {"status": "error", "fed": 0,
                                              "error": str(e)})

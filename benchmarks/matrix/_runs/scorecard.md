@@ -26,7 +26,7 @@ turns, median and p90; **cache reuse** = `cache_n / (cache_n + prompt_n)` on tho
 **exp. tok/s** = generated tokens / wall clock. Side requests (title / summary calls with
 no tool schemas) are excluded from the per-turn columns and counted in the next table.
 The pass column is a gate, not a ranking.
-`*` in-process arm: the same fields from chad's own prefill trace, self-reported — no server saw it. `†` includes the system-prompt prefix chad prefills before its first step when its disk checkpoint misses, or restores when it hits (chad+mlx: miss, 24.1 s of it; chad+mlx-nodflash: miss, 24.1 s of it). A miss is the cold prefill of the same prompt the chad+llama row pays; a hit is a disk restore. The turn-1 wait and prefill columns of those rows are over the cells whose trace recorded the prefix (chad+mlx 16/24; chad+mlx-nodflash 16/24); the rest of the row, and the pass gate, are over every cell.
+`*` in-process arm: the same fields from chad's own prefill trace, self-reported — no server saw it. `†` includes the system-prompt prefix chad prefills before its first step when its disk checkpoint misses, or restores when it hits (chad+mlx: miss, 24.1 s of it; chad+mlx-nodflash: miss, 24.1 s of it). A miss is the cold prefill of the same prompt the chad+llama row pays; a hit is a disk restore; a partial restores the project-independent head (tool schemas + behavioral prompt) from disk and prefills only the per-project tail. The turn-1 wait and prefill columns of those rows are over the cells whose trace recorded the prefix (chad+mlx 16/24; chad+mlx-nodflash 16/24); the rest of the row, and the pass gate, are over every cell.
 
 #### Shape of the harness
 
