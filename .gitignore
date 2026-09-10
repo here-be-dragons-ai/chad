@@ -37,6 +37,16 @@ benchmarks/matrix/_runs/*/
 !benchmarks/matrix/_runs/rep[0-9]*/traces/
 benchmarks/matrix/_runs/rep[0-9]*/traces/*/trajectory.json
 benchmarks/matrix/_runs/rep[0-9]*/bodies/
+# Side runs are committed the same way, under a name that says what they measured, so the
+# scorecard never pools them with the nights: `goose-<version>-*` and `chad-<version>-*`.
+!benchmarks/matrix/_runs/goose-[0-9]*/
+!benchmarks/matrix/_runs/goose-[0-9]*/traces/
+benchmarks/matrix/_runs/goose-[0-9]*/traces/*/trajectory.json
+benchmarks/matrix/_runs/goose-[0-9]*/bodies/
+!benchmarks/matrix/_runs/chad-[0-9]*/
+!benchmarks/matrix/_runs/chad-[0-9]*/traces/
+benchmarks/matrix/_runs/chad-[0-9]*/traces/*/trajectory.json
+benchmarks/matrix/_runs/chad-[0-9]*/bodies/
 benchmarks/matrix/_cfg/
 # Working notes for the write-up, not part of the kit
 benchmarks/matrix/SPARKNOTES.md

@@ -4,7 +4,10 @@ Same weights, same MacBook, same eight tasks, same sampler: what does each codin
 make a local model *read*, and what does that cost the person waiting? This directory is
 the whole instrument — the runner, the forcing proxy, the scorecard, the tasks — and the
 three nights it produced (`_runs/rep1-20260901/`, `rep2-20260906/`, `rep3-20260907/`), so
-every number in the write-up can be traced to a row.
+every number in the write-up can be traced to a row. Four later runs measure one
+version each instead of one more night of the grid, and are committed under their own
+names: `_runs/goose-1.50.0-20260908/`, and three nights of `_runs/chad-2.0.3-*/`
+("Side runs", below).
 
 The question it answers is not "which harness passes more tasks" (the model is the same
 in every arm, so that is mostly the weights talking) but **what the harness costs on a
@@ -99,6 +102,8 @@ on the record:
    rewrites message 1, so the server's prefix match ends at the system prompt; the one
    consecutive pair that stayed inside a minute appended cleanly and `cache_n` grew.
    It is a timestamp in the prompt after all — just not in the part the hashes watch.
+   Fixed upstream since: at goose 1.50.0 the block is written once per session and never
+   rewritten, and the per-turn miss is gone. Measured in "Side runs", below.
 3. An earlier note claimed a side request makes the *next* agent turn re-prefill
    thousands of tokens (dsh 2,443 vs 89). Every side request in this run sits beside
    turn 1, and turn 2 is every harness's read of the test file, so that comparison was
@@ -133,7 +138,12 @@ on the record:
    volatile string inside the cached prefix — and is not fixed in the version measured
    here (2.0.2). chad 2.0.3 checkpoints the project-independent head separately, so a
    fresh directory restores it and prefills only its own tail; `run.py smoke` now runs
-   the in-process arm twice in fresh directories and drops it if the second misses. The obvious rejoinder, "llama-server can checkpoint a slot too", was tried
+   the in-process arm twice in fresh directories and drops it if the second misses.
+   That fix is measured on 48 in-process cells over three nights in "Side runs",
+   below: 47 of them restore 2,166 of ~2,487 prefix tokens from disk and prefill the
+   ~320-token tail in 3.2–3.6 s, against 24.1 s of cold prefill for all 32 cells
+   measured here. The obvious rejoinder, "llama-server can checkpoint a slot too", was
+   tried
    once on the same build and model (single slot, `--slot-save-path`, chad's real
    2,438-token system prompt): the save wrote 317 MB in 0.05 s and the restore
    reported 2,438 tokens back in 0.02 s, but the next byte-identical request still
@@ -216,6 +226,193 @@ on the record:
    rewriting. The honest limit of this grid is not its rep count: it is one machine, one
    model, eight tasks, and no number of nights on this box touches that.
 
+## Side runs: the goose fix, and three nights of chad 2.0.3
+
+Two of the findings above are defects with owners — goose's per-turn cache miss (item 2)
+and chad's un-hittable disk checkpoint (item 4) — and both have since been fixed by the
+people who own them. Neither fix is a fourth night of the grid, so neither is pooled into
+the tables above: each run sits under a name that says what it measured, and the
+scorecard only pools `repN-*`.
+
+| run | what it measures | shape |
+|---|---|---|
+| `_runs/goose-1.50.0-20260908/` | goose 1.50.0 — the release that fixed item 2 | 1 arm x 8 tasks x 1 rep, 55 measured requests |
+| `_runs/chad-2.0.3-20260909/`, `-20260909b/`, `-20260910/` | chad 2.0.3 — the release that fixed item 4, the drafter beside its own control, and goose 1.50.0 a second time | 4 arms x 8 tasks x 3 nights, 96 cells |
+
+The four-arm night is `night-chad-2.0.3.sh`, committed beside `overnight.sh`: it asserts
+the version under test through `uv run` (the binary a subprocess will actually get, not
+the tree's `pyproject.toml`), refuses to start above 8 GB wired, and points the scorecard
+at its own directory, since a bare `scorecard.py` would have pooled the three 2.0.2
+nights into a 2.0.3 measurement. It was run three times, ~4.1 h each. Same weights, same
+tasks, same cap, and the same one sampler parameter set as the three grid nights
+(`sampler_audit_summary.json` is byte-identical to theirs in all three).
+
+The three nights pool the way the grid's do — one rep each, `scorecard.py --runs` over
+the three directories — into `_runs/scorecard-chad-2.0.3.md` and
+`_runs/tables-chad-2.0.3.md`, which are that pool and nothing else: they never reach the
+grid's own `_runs/scorecard.md`, and the grid's pooled files did not move when these
+nights landed. Night 1 ran on `4256c38` and nights 2–3 on `998db7f`, which touches only
+`benchmarks/`, so the chad under test is the same binary in all three.
+
+Reproducing the pool (note the explicit `--out`: the default would overwrite the first
+night's own `scorecard.md`, which is what its committed render is checked against):
+
+```sh
+R=(benchmarks/matrix/_runs/chad-2.0.3-2026090{9,9b} benchmarks/matrix/_runs/chad-2.0.3-20260910)
+uv run python benchmarks/matrix/scorecard.py --runs $R --out benchmarks/matrix/_runs/scorecard-chad-2.0.3.md
+uv run python benchmarks/matrix/run.py table --runs $R > benchmarks/matrix/_runs/tables-chad-2.0.3.md
+uv run python benchmarks/matrix/scorecard.py --runs $R --convergence
+```
+
+(`--runs` takes the directories as separate words. In `zsh`, `--runs $N` for a
+space-joined `N` passes one argument and the scripts report no `grid.json`; use an array,
+or `${=N}`.)
+
+### 1. goose's per-turn cache miss is fixed
+
+Item 2 was the one unambiguous harness defect the grid found. goose 1.50.0, on the same
+tasks, engine and sampler:
+
+| goose+llama | tax (tok) | uncached tok / later turn | cache reuse | wait / later turn (med · p90) | exp. tok/s | pass |
+|---|---|---|---|---|---|---|
+| 1.39.0, three nights pooled (24 cells) | 9,576 | 2,537 | 78% | 33.2 s · 78 s | 5.0 | 13/24 T5 |
+| 1.50.0, alone (8 cells) | 9,617 | 57 | 100% | 1.4 s · 22 s | 8.0 | 5/8 T3 |
+| 1.50.0, three nights beside chad (24 cells) | 9,617 | 41 | 100% | 1.0 s · 22 s | 8.0 | 22/24 T3 |
+
+Both pooled rows are 24 cells of the same eight tasks, so the comparison is like for
+like: the per-turn miss is gone at n=3, not just on the night that first showed it.
+
+The mechanism is visible in the request bodies, the same instrument that found the bug
+(`goose-1.50.0-20260908/body_diff.txt`, kept because `bodies/` itself is not committed):
+the `<turn-context>` block with `<current-time>` is still on the first user message, but
+its timestamp is now written once and left alone — all seven agent requests of the
+session carry the same one, to the second. Six consecutive agent pairs are
+byte-identical up to the point where the new turn appends (shared prefix 25,346 →
+40,727 characters, growing with the conversation), which is the shape every other arm
+already had.
+
+What that bought is the whole gap: goose was the slowest arm in the grid at 5.0
+experienced tok/s against 5.7–8.1 for everyone else, and it is now at parity with the
+field. What did not move is the tax — 9,576 → 9,617 tokens for the same 18 tools —
+which is item 6's top tier behaving as advertised: the prompt is the same measurement
+every time, and this fix was never about its size.
+
+What it did not buy is a pass rate. The same version on the same eight tasks went 5/8
+alone and then 8/8, 6/8 and 8/8 on the three nights beside chad, and the timeouts each
+generated 9.2–10.1k tokens at ~8 tok/s — they ran out of clock, not out of cache. That
+is item 6's warning in one paragraph: a rep cannot rank anything, including a fix. Three
+nights turn that from an assertion into a range — the same build, the same tasks, and a
+pass column that still moves by two.
+
+### 2. chad 2.0.3's warm start hits in a fresh directory
+
+Item 4: chad's disk checkpoint was keyed on the whole system message, working directory
+and workspace listing included, so a run in a temp directory could never hit it and every
+in-process cell prefilled its ~2.5k-token prefix from cold before step 1. 2.0.3
+checkpoints the project-independent head — tool schemas and behavioural prompt — on its
+own. Forty-eight in-process cells over three nights, each in a fresh temp directory:
+
+| | nights 2–3 (chad 2.0.2, 32 cells) | three nights (chad 2.0.3, 48 cells) |
+|---|---|---|
+| warm-prefix outcome | miss, 32 of 32 | partial hit, 47 of 48 |
+| restored from disk | nothing | 2,166 of 2,484–2,494 tokens (87%) |
+| prefilled before step 1 | 2,483–2,493 tok, 24.10–24.55 s | 318–328 tok, 3.20–3.63 s |
+| turn-1 wait, as the scorecard prints it | 25.3 s | 4.6 s (chad+mlx) · 4.7 s (nodflash) |
+
+The one miss is the *first* night's first in-process cell — chad+mlx bowling, 2,487
+tokens, 25.12 s — because the head has to be written by somebody. Every cell after it
+restored it: the rest of that night, and then all 32 cells of the two later nights,
+across reboots of the harness and directories no earlier arm ever saw. That is the part
+one night could not show — the checkpoint survives the run that wrote it, which is the
+whole claim. The ~320 tokens still prefilled are the per-project tail (working
+directory, file listing), which is the part that has to be prefilled; the ~1.2 s left in
+the turn-1 column after that is step 1's own append. This is the first grid whose
+in-process turn-1 numbers are not hiding a cold prefill behind a warm-looking
+checkpoint — and, per the next item, they are still not comparable to the nine-arm
+nights.
+
+### 3. Two arms share a prefix cache in a way nine arms do not
+
+The one column a small run gets wrong is the one item 4 was about. With nine arms
+alternating on one server, every arm's first request of every task is a cold prefill:
+`cache_n` is 0 on the first request of all 72 proxied cells, on all three nights. With
+one or two arms, the harness's own prefix is often still resident from the previous
+task, and the run dirs say so plainly:
+
+- goose's first request per task held 9,098–9,100 of its 9,617 tokens on **21 of 24**
+  cells across the three nights, waiting 8.7–10.3 s instead of ~117 s;
+- chad+llama's held 2,045–2,049 on **11 of 24**, waiting 5.5–5.9 s instead of 25.5–28.4 s;
+- the only genuinely cold goose first requests are bowling — the first task — on each of
+  the three nights: 9,614–9,616 tokens, 112.8–116.9 s, exactly what the committed nights
+  report (111–117 s).
+
+That last line is the tell, and three nights make it unambiguous: the column is cold
+exactly once per night, at the top, and warm from then on. So `tax` still means what it
+means, being a token count rather than a timing, and the per-turn columns are unaffected
+(they were always turns 2+). But **turn-1 wait in these runs is a mixture of cold and
+warm first requests and must not be read against the nine-arm nights, for any arm, in
+either direction** — including chad's 4.6 s, whose credit belongs to the disk checkpoint
+and whose comparison basis is the 25.12 s miss in the same run, not the 25.3 s in the
+pooled table. More reps do not fix this one; only more arms would.
+
+### 4. The drafter, paired across three nights
+
+chad+mlx and chad+mlx-nodflash are the same engine with DFlash2 on and off, run
+back-to-back on the same weights, so the pair isolates speculation. Decode rate measured
+inside generation, from the arms' own prefill traces (`gen_tokens / gen_s`, summed over
+all 24 cells per arm — no prefill, no harness overhead):
+
+| | pooled, 3 nights | per task |
+|---|---|---|
+| chad+mlx (DFlash2 on) | 23.3 tok/s | 21.8 – 29.5 |
+| chad+mlx-nodflash | 15.9 tok/s | 15.0 – 17.4 |
+| ratio | **1.47x** | 1.37x – 1.70x |
+
+Every one of the eight tasks is a win, which is what a mechanism looks like beside a pass
+column that swings by two on the same build. The first night alone read 1.55x over the
+seven tasks both arms finished; three nights read 1.47x, and the gap between those two
+numbers is the honest width of a one-night measurement of this pair.
+
+Experienced tok/s — generated tokens over wall clock, which is what a person feels — is
+17.4 against 12.4 (1.40x), because the same wall clock also holds prefill, tool execution
+and the harness. Neither number is a claim about any other machine, model or context
+depth: read the ratio, not the third digit.
+
+Two rows in that pair are worth reading before quoting the grid:
+
+- **chad+mlx bowling timed out *and* passed** (1,200.0 s, tests 31/31). The cap landed on
+  a step taken after the file was already correct. Nothing in the harness treats those two
+  columns as exclusive, and `tables.md` prints both.
+- **chad+mlx-nodflash transpose is item 5 again**, in its purest form: step 0 banked 74
+  generated tokens, and then one `<think>` ran until the cap, ~47k characters of coherent
+  reasoning with no tool call, in a step that never completed. Since the in-process counts
+  are banked per completed step, the row reads prefill 73 / generated 74 for a cell that
+  spent 20 minutes generating. A killed in-process cell's counts are a floor, and its
+  kept stdout is how you tell a long generation from a hang.
+
+### 5. Which of these columns survived three nights
+
+`scorecard.py --runs ... --convergence` on the three 2.0.3 nights, the same report the
+grid's own nights get — each arm's `(max - min) / median` across nights, and how much the
+third night moved the pooled number:
+
+| column | spread (med · worst) | move on adding night 3 (med · worst) |
+|---|---|---|
+| tax | 0.0% · 0.1% | 0.01% · 0.02% |
+| wait, turn 1 | 32.0% · 62.6% | 0.01% · 0.02% |
+| cache reuse | 0.1% · 0.1% | 0.04% · 0.06% |
+| uncached / later turn | 17.8% · 35.6% | 7.73% · 15.46% |
+| wait / later turn | 29.1% · 54.1% | 5.75% · 10.40% |
+| prefill s / task | 16.2% · 22.5% | 3.36% · 5.93% |
+| exp. tok/s | 5.4% · 8.0% | 1.15% · 1.29% |
+
+Same verdict as the grid's three nights, on a different harness set: the prompt columns
+(tax, tools, system prompt) reproduce to a rounding error, throughput is stable within
+~5%, and everything keyed on what the model chose to write that night — uncached tokens,
+per-turn wait — still moves by a sixth or more. Per-night pass totals were 31, 27 and 31
+of 32, and 6 of the 32 (arm, task) cells did not agree on all three nights. The pass
+column is a gate, not a ranking; three nights do not change that, they measure it.
+
 ## Setup, exactly
 
 | | |
@@ -246,6 +443,9 @@ ran the same version all three nights except cline, which upgraded itself after 
 | cline | 3.0.60, then 3.0.61 | `npm i -g cline` |
 | codex | 0.151.0 | `npm i -g @openai/codex` |
 
+The side runs are the same setup with two of those versions moved: goose 1.50.0
+(Block's installer) in all of them, and chad 2.0.3 in the three four-arm nights.
+
 Three more were installed and dropped at smoke, with the reason in
 each night's `smoke_verdict.json`: **deepagents-code 0.1.65** and **qwen-code 0.22.3** get
 `400 failed to parse grammar` from llama-server (their tool JSON schemas, converted to
@@ -264,7 +464,8 @@ uv sync                                # chad + its venv (every arm gets this ve
 # install whichever harnesses you want as arms (table above); a missing binary is
 # skipped by name in provenance, never a crash
 # one directory per night; name it repN-YYYYMMDD to have the scorecard pool it with
-# the committed nights, anything else to keep it separate
+# the committed nights, anything else to keep it separate — a run that measures one
+# version rather than one more rep is committed as <harness>-<version>-YYYYMMDD
 export MATRIX_RUNS=benchmarks/matrix/_runs/rep3-$(date +%Y%m%d)
 
 uv run python benchmarks/matrix/run.py setup            # write each harness's provider config
@@ -288,7 +489,10 @@ uv run python benchmarks/matrix/scorecard.py --convergence   # is another night 
 `overnight.sh` is the unattended version of the same sequence (smoke → llama → MLX one
 task at a time with a settle window, because load/teardown cycling a 12 GB model has
 panicked a GPU here) and refuses to start if a previous run's accumulators are present or
-a port is already bound. Run it under `caffeinate -is`.
+a port is already bound. Run it under `caffeinate -is`. `night-chad-2.0.3.sh` is the
+four-arm side run in the same form, and adds the two refusals that run cost: the version
+under test has to be the one `uv run` produces, and the box has to have less than 8 GB
+already wired.
 
 The GGUF is fetched into the shared Hugging Face cache on first use; `STOCK_GGUF=<path>`
 points at one you already have. Setting `MATRIX_MINI_YAML` overrides where
@@ -303,15 +507,27 @@ the proxy), `sampler_audit.jsonl` and its summary, `smoke.json` + `smoke_verdict
 `provenance.json`, `traces/*/prefill_trace.jsonl` (the MLX arms' in-process equivalent of
 a turn record), and that night's own rendered `scorecard.md` / `.json` / `tables.md`.
 `_runs/` itself holds only the pooled `scorecard.md` / `.json` / `tables.md` over every
-night. `tests/test_matrix_bench.py` regenerates the two pooled markdown files from the
+night, and — for a side run repeated across nights — the same three under a
+`*-chad-2.0.3.*` name, which pools those nights and only those. A side run
+(`<harness>-<version>-YYYYMMDD/`) is committed the same way and carries its own rendered
+tables, plus, for the goose run, the `body_diff.txt` its request bodies produced; the
+name is what keeps it out of the grid's pooled tables.
+
+`tests/test_matrix_bench.py` regenerates the pooled markdown files from the
 rows and fails if they differ, checks that each night is a complete 88-cell
 sampler-verified grid, and checks that the nights pool as distinct reps rather than
 overwriting one another — so the tables cannot drift from the data by hand, and a night
-cannot go missing quietly.
+cannot go missing quietly. It holds a side run to the same two rules (its own tables
+regenerate from its own rows; it never reaches the grid's pooled ones), holds a repeated
+side run to a third (its nights pool into their own committed render, all of them, and
+that render regenerates too), and to one more that a killed run needs: every record in
+the appending accumulators has to belong to a cell `grid.json` actually banked. A run
+interrupted mid-cell leaves turn and audit records for a rep with no row, and the next
+attempt at that cell would then be counted twice.
 
 Not committed: server and proxy logs, the MLX arms' full trajectories and stdout (model
 output), kept workdirs, captured request bodies, generated provider configs, and scratch
-runs (anything under `_runs/` that is not a `repN-*` night).
+runs (anything under `_runs/` that is neither a `repN-*` night nor a named side run).
 Nothing under this directory names the machine it ran on — paths are stored relative to
 the repo, harness output is redacted of the home and temp directories and the hostname,
 and the same test scans every tracked file for those.
@@ -346,6 +562,13 @@ miss was pinned to a minute-resolution timestamp in its first user message (abov
 
 ## Caveats, all of them
 
+- The side runs are a four-arm grid, not a nine-arm one. The goose-only run is n=1 on a
+  single arm; the chad 2.0.3 nights are n=3 on four arms, which is enough for the two
+  fixes (a prompt-shape change you can diff, a disk checkpoint that restores in 47 of 48
+  cells) and for the drafter's 1.47x, but their turn-1 wait column is still not
+  comparable to the nine-arm nights at any rep count, because with four arms the prefix
+  cache survives between tasks. Nothing in these runs reranks the pass column against
+  the grid's.
 - n=3 reps, 8 tasks, one machine. What that buys is in "got wrong" item 6: the prompt
   columns repeat to within 0.4%, the per-turn columns spread by 61–95% at the median,
   and 33 of 88 cells did not give the same verdict on all three nights. Read the tax and
