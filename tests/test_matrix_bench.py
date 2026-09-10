@@ -377,6 +377,43 @@ def test_side_run_tables_are_reproducible(sc):
             assert f.read().strip() == buf.getvalue().strip(), d
 
 
+def _side_series(prefix: str) -> list:
+    """The side-run directories that are repeats of one measurement: same harness, same
+    version, different night (`<harness>-<version>-YYYYMMDD*/`). Pooled among themselves
+    and nowhere else."""
+    return sorted(d for d in _side_runs()
+                  if os.path.basename(d).startswith(prefix))
+
+
+@pytest.mark.skipif(len(_side_series("chad-2.0.3-")) < 2, reason="one 2.0.3 night")
+def test_pooled_side_series_is_reproducible(sc):
+    """The nights of one side series pool into their own committed render, and that
+    render is what the scripts print from their rows.
+
+    Same rule as the pooled nights, one directory up: `scorecard-<series>.md` and
+    `tables-<series>.md` sit beside the grid's own `scorecard.md`, and must never be
+    confused with it — the series pools only its own nights, and the grid's pooled files
+    must not have moved when a side night was added."""
+    run = _load("run")
+    dirs = _side_series("chad-2.0.3-")
+    text, data = sc.build(dirs)
+    with open(os.path.join(RUNS, "scorecard-chad-2.0.3.md")) as f:
+        assert f.read() == text
+    # Pools its own nights, all of them, and nothing else.
+    assert data["runs"] == [os.path.relpath(d, ROOT) for d in dirs]
+    rows, _, _ = sc.load(dirs)
+    assert {r["rep"] for r in rows} == set(range(len(dirs)))
+    assert len(rows) == sum(len(json.load(open(os.path.join(d, "grid.json"))))
+                            for d in dirs)
+    for d in _nights(sc):
+        assert d not in dirs, os.path.basename(d)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        run.main(["table", "--runs", *dirs])
+    with open(os.path.join(RUNS, "tables-chad-2.0.3.md")) as f:
+        assert f.read().strip() == buf.getvalue().strip()
+
+
 def test_tasks_are_committed_pristine():
     """`run.py` scaffolds from git, so every task file has to be in HEAD (or staged) —
     a working-tree-only task would refuse at run time, not here."""
