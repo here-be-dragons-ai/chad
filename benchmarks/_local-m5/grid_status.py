@@ -40,6 +40,24 @@ def main():
     if not os.path.isfile(GRID):
         sys.exit(f"no grid rows at {GRID}")
     rows = [r for r in json.load(open(GRID)) if r.get("arm") in (A3, A4)]
+    # Drop cells that died by signal. This grid is expected to be interrupted, and
+    # run.py records the interrupted cell like any other — a `book-store` row landed at
+    # 598.8 s / 13-of-20 tests / exit_code -15, which is not a measurement of anything
+    # except when the SIGTERM arrived. Left in, it would pair by occurrence index with a
+    # real chad4 row and silently corrupt the comparison; and because it is slow and
+    # failing it would bias the verdict toward whichever arm happened to be running when
+    # the run was paused. A negative exit code is the signal-death marker.
+    def _killed(r):
+        # Signal death OUTSIDE the harness cap. A row with timed_out=True also carries a
+        # negative exit code, but it is a real result — the harness stopped a cell that
+        # burned its 1200 s budget, which is exactly the outcome an interactive agent
+        # should be judged on. chad4 hit it on book-store (0/20 tests, 131 tokens in
+        # 1200 s) and dropping that would have biased the verdict toward chad4. Only the
+        # pause kills are junk: they say when the SIGTERM arrived, nothing else.
+        return (r.get("exit_code") or 0) < 0 and not r.get("timed_out")
+
+    killed = [r for r in rows if _killed(r)]
+    rows = [r for r in rows if not _killed(r)]
     seq = collections.defaultdict(list)          # (task, arm) -> rows, in file order
     for r in rows:
         seq[(r["task"], r["arm"])].append(r)
@@ -72,6 +90,10 @@ def main():
 
     n = len(pairs)
     print("-" * 78)
+    if killed:
+        print(f"excluded {len(killed)} signal-killed cell(s): "
+              + ", ".join(f"{r['arm']} {r['task']} ({r['wall_s']:.0f}s, exit "
+                          f"{r['exit_code']})" for r in killed))
     print(f"{'':<15}{'':>4}{'':>10}{'':>10}{'':>8}{g3:>11,}{g4:>11,}")
     print(f"\n{n} complete pairs — chad4 faster in {w4}, chad3 in {w3}")
     if g4:
