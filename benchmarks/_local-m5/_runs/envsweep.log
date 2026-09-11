@@ -1,0 +1,43 @@
+=== rep 1/3 ===
+  kv8-adaptive ... prefill 458 decode 78.1 warm 0.4 kv=34816 B/tok
+  kv8-c1024 ... prefill 449 decode 78.6 warm 0.4 kv=34816 B/tok
+  kv8-c2048 ... prefill 421 decode 78.9 warm 0.4 kv=34816 B/tok
+  kv8-c4096 ... prefill 413 decode 77.2 warm 0.41 kv=34816 B/tok
+  fp16-adaptive ... prefill 415 decode 77.3 warm 0.4 kv=65536 B/tok
+  fp16-c1024 ... prefill 432 decode 77.2 warm 0.41 kv=65536 B/tok
+  fp16-c2048 ... prefill 438 decode 77.4 warm 0.41 kv=65536 B/tok
+  fp16-c4096 ... prefill 442 decode 77.3 warm 0.41 kv=65536 B/tok
+=== rep 2/3 ===
+  kv8-adaptive ... prefill 425 decode 78.5 warm 0.42 kv=34816 B/tok
+  kv8-c1024 ... prefill 432 decode 76.8 warm 0.42 kv=34816 B/tok
+  kv8-c2048 ... prefill 430 decode 78.2 warm 0.41 kv=34816 B/tok
+  kv8-c4096 ... prefill 428 decode 78.2 warm 0.41 kv=34816 B/tok
+  fp16-adaptive ... prefill 436 decode 76.9 warm 0.4 kv=65536 B/tok
+  fp16-c1024 ... prefill 440 decode 77.1 warm 0.41 kv=65536 B/tok
+  fp16-c2048 ... prefill 436 decode 76.7 warm 0.41 kv=65536 B/tok
+  fp16-c4096 ... prefill 428 decode 76.5 warm 0.42 kv=65536 B/tok
+=== rep 3/3 ===
+  kv8-adaptive ... prefill 434 decode 78.5 warm 0.41 kv=34816 B/tok
+  kv8-c1024 ... prefill 438 decode 78.6 warm 0.41 kv=34816 B/tok
+  kv8-c2048 ... prefill 435 decode 78.4 warm 0.41 kv=34816 B/tok
+  kv8-c4096 ... prefill 429 decode 78.3 warm 0.41 kv=34816 B/tok
+  fp16-adaptive ... prefill 435 decode 77.1 warm 0.4 kv=65536 B/tok
+  fp16-c1024 ... prefill 441 decode 76.8 warm 0.4 kv=65536 B/tok
+  fp16-c2048 ... prefill 417 decode 76.0 warm 0.41 kv=65536 B/tok
+  fp16-c4096 ... prefill 418 decode 69.6 warm 0.43 kv=65536 B/tok
+
+24 rows -> /Users/gtonic/src/chad/benchmarks/_local-m5/_runs/envsweep.jsonl
+
+arm               n   prefill  vs base   decode  vs base   warm  kv B/tok
+--------------------------------------------------------------------------
+kv8-adaptive      3     434/s    +0.0%   78.5/s    +0.0%  0.41s   [34816]
+kv8-c1024         3     438/s    +0.9%   78.6/s    +0.1%  0.41s   [34816]
+kv8-c2048         3     430/s    -0.9%   78.4/s    -0.1%  0.41s   [34816]
+kv8-c4096         3     428/s    -1.4%   78.2/s    -0.4%  0.41s   [34816]
+fp16-adaptive     3     435/s    +0.2%   77.1/s    -1.8%  0.40s   [65536]
+fp16-c1024        3     440/s    +1.4%   77.1/s    -1.8%  0.41s   [65536]
+fp16-c2048        3     436/s    +0.5%   76.7/s    -2.3%  0.41s   [65536]
+fp16-c4096        3     428/s    -1.4%   76.5/s    -2.5%  0.42s   [65536]
+
+medians; 'vs base' is against kv8-adaptive (the shipped default).
+arm check: kv8 =[34816] B/tok, fp16 =[65536] B/tok -> DISTINCT (arms applied)

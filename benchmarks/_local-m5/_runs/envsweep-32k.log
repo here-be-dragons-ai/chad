@@ -1,0 +1,30 @@
+=== rep 1/3 ===
+  kv8-adaptive@32k ... prefill 379 decode 68.1 warm 0.48 kv=34816 B/tok
+  fp16-adaptive@32k ... prefill 381 decode 56.8 warm 0.51 kv=65536 B/tok
+=== rep 2/3 ===
+  kv8-adaptive@32k ... prefill 386 decode 68.2 warm 0.48 kv=34816 B/tok
+  fp16-adaptive@32k ... prefill 379 decode 56.6 warm 0.52 kv=65536 B/tok
+=== rep 3/3 ===
+  kv8-adaptive@32k ... prefill 374 decode 65.8 warm 0.48 kv=34816 B/tok
+  fp16-adaptive@32k ... prefill 374 decode 56.9 warm 0.51 kv=65536 B/tok
+
+6 rows -> /Users/gtonic/src/chad/benchmarks/_local-m5/_runs/envsweep.jsonl
+
+arm                   n   prefill  vs base   decode  vs base   warm  kv B/tok
+------------------------------------------------------------------------------
+-- 5k-token prompt
+kv8-adaptive          3     434/s    +0.0%   78.5/s    +0.0%  0.41s   [34816]
+kv8-c1024             3     438/s    +0.9%   78.6/s    +0.1%  0.41s   [34816]
+kv8-c2048             3     430/s    -0.9%   78.4/s    -0.1%  0.41s   [34816]
+kv8-c4096             3     428/s    -1.4%   78.2/s    -0.4%  0.41s   [34816]
+fp16-adaptive         3     435/s    +0.2%   77.1/s    -1.8%  0.40s   [65536]
+fp16-c1024            3     440/s    +1.4%   77.1/s    -1.8%  0.41s   [65536]
+fp16-c2048            3     436/s    +0.5%   76.7/s    -2.3%  0.41s   [65536]
+fp16-c4096            3     428/s    -1.4%   76.5/s    -2.5%  0.42s   [65536]
+------------------------------------------------------------------------------
+-- 32k-token prompt
+kv8-adaptive@32k      3     379/s    +0.0%   68.1/s    +0.0%  0.48s   [34816]
+fp16-adaptive@32k     3     379/s    +0.0%   56.8/s   -16.6%  0.51s   [65536]
+
+medians; 'vs base' is against kv8-adaptive in the same prompt-size group.
+arm check: kv8 =[34816] B/tok, fp16 =[65536] B/tok -> DISTINCT (arms applied)
