@@ -1,0 +1,50 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+  }
+}
+
+title: "chad — C4 System Context" {
+  shape: text
+  style.font-size: 32
+  style.bold: true
+  near: top-center
+}
+
+dev: "Developer (gtonic)\n[Person]\n\nRuns chad3 / chad4 from\nthe terminal in a repo" {
+  shape: person
+  style.fill: "#08427B"
+  style.font-color: "#FFFFFF"
+}
+
+chad: "chad harness\n[Software System]\n\nLocal Claude-Code-style coding agent.\nOwns its inference loop: prefix KV cache,\nDFlash2 block speculation, fused Metal kernels.\nFive tools: bash, edit, write, write_todos, done." {
+  style.fill: "#1168BD"
+  style.font-color: "#FFFFFF"
+}
+
+hf: "Hugging Face Hub\n[External System]\n\nSource of the model weights.\nTouched only on download;\nsessions run offline." {
+  style.fill: "#999999"
+  style.font-color: "#FFFFFF"
+}
+
+cache: "Local model cache\n[External System]\n\n~/.cache/huggingface\n3-bit shipped checkpoint + bundled drafter\n4-bit community quant\nDrafter shared by both" {
+  style.fill: "#999999"
+  style.font-color: "#FFFFFF"
+}
+
+code: "Working copy\n[External System]\n\nThe repo under ~/src that\nchad reads, edits and runs\ncommands against" {
+  style.fill: "#999999"
+  style.font-color: "#FFFFFF"
+}
+
+metal: "Apple Silicon GPU\n[External System]\n\nM5 Pro / 48 GB.\nMLX + Metal — where every\ntoken is actually computed" {
+  style.fill: "#999999"
+  style.font-color: "#FFFFFF"
+}
+
+dev -> chad: "asks for a change,\napproves each edit\nand command"
+chad -> dev: "diffs, tool output,\ntodo list"
+chad -> code: "reads, edits,\nruns tests"
+chad -> cache: "loads weights\n+ DFlash2 drafter"
+chad -> metal: "prefill and decode\nvia MLX"
+cache -> hf: "populated once\nby download"

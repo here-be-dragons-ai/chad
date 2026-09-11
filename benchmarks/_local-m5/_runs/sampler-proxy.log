@@ -1,0 +1,20 @@
+sampler proxy :8080 -> :8888  forcing {'temperature': 1.0, 'top_k': 20, 'top_p': 0.95, 'min_p': 0.05, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'repeat_penalty': 1.0}
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 49424)
+Traceback (most recent call last):
+  File "/Users/gtonic/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/lib/python3.11/socketserver.py", line 691, in process_request_thread
+    self.finish_request(request, client_address)
+  File "/Users/gtonic/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/lib/python3.11/socketserver.py", line 361, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/Users/gtonic/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/lib/python3.11/socketserver.py", line 755, in __init__
+    self.handle()
+  File "/Users/gtonic/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/lib/python3.11/http/server.py", line 442, in handle
+    self.handle_one_request()
+  File "/Users/gtonic/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/lib/python3.11/http/server.py", line 408, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gtonic/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/lib/python3.11/socket.py", line 718, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [Errno 54] Connection reset by peer
+----------------------------------------

@@ -1,0 +1,568 @@
+# launched 2026-09-11T14:47:06 wall 446.0s
+[2m  [warm start: 2,166 prefix tokens from disk cache; 327 project tokens prefilled in 0.9s][0m
+[2mLet[0m[2m me[0m[2m read[0m[2m the[0m[2m instructions[0m[2m and[0m[2m test[0m[2m file[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m[32m
+[0m
+[32m●[0m [1mRun  cat instructions.md[0m
+[2m  ⎿ # Instructions[0m
+[2m     [0m
+[2m     Make a chain of dominoes.[0m
+[2m     [0m
+[2m     Compute a way to order a given set of dominoes in such a way that they form a correct domino chain (the dots on one half of a stone match the dots on the neighboring half of an adjacent stone) and that dots on the halves of the stones which don't have a neighbor (the first and last stone) match each other.[0m
+[2m     [0m
+[2m     … +7 lines[0m
+
+[32m●[0m [1mRun  cat dominoes_test.py; echo ---; wc -l dominoes.py dominoes_test.py[0m
+[2m  ⎿ # These tests are auto-generated with test data from:[0m
+[2m     # https://github.com/exercism/problem-specifications/tree/main/exercises/dominoes/canonical-data.json[0m
+[2m     # File last updated on 2023-07-19[0m
+[2m     [0m
+[2m     import unittest[0m
+[2m     [0m
+[2m     … +130 lines[0m
+[2mdom[0m[2mino[0m[2mes[0m[2m.py[0m[2m is[0m[2m 2[0m[2m lines[0m[2m?[0m[2m Probably[0m[2m a[0m[2m stub[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m.[0m[2m
+
+[0m[2mTask[0m[2m:[0m[2m find[0m[2m a[0m[2m Hamilton[0m[2mian[0m[2m cycle[0m[2m over[0m[2m mult[0m[2miset[0m[2m edges[0m[2m —[0m[2m classic[0m[2m domino[0m[2mes[0m[2m.[0m[2m Approach[0m[2m:[0m[2m DFS[0m[2m over[0m[2m a[0m[2m directed[0m[2m graph[0m[2m of[0m[2m edges[0m[2m,[0m[2m each[0m[2m used[0m[2m at[0m[2m most[0m[2m once[0m[2m.[0m[2m Chain[0m[2m:[0m[2m a[0m[2m sequence[0m[2m where[0m[2m consecutive[0m[2m values[0m[2m match[0m[2m,[0m[2m and[0m[2m the[0m[2m first[0m[2m of[0m[2m the[0m[2m first[0m[2m domino[0m[2m matches[0m[2m the[0m[2m last[0m[2m of[0m[2m the[0m[2m last[0m[2m domino[0m[2m.[0m[2m Standard[0m[2m solution[0m[2m:[0m[2m graph[0m[2m with[0m[2m nodes[0m[2m =[0m[2m values[0m[2m,[0m[2m edges[0m[2m =[0m[2m domino[0m[2mes[0m[2m;[0m[2m find[0m[2m a[0m[2m cycle[0m[2m that[0m[2m uses[0m[2m all[0m[2m edges[0m[2m ([0m[2mE[0m[2muler[0m[2mian[0m[2m conditions[0m[2m:[0m[2m connected[0m[2m graph[0m[2m,[0m[2m all[0m[2m vertex[0m[2m degrees[0m[2m even[0m[2m).[0m[2m Then[0m[2m DFS[0m[2m with[0m[2m back[0m[2mtracking[0m[2m.[0m[2m
+
+[0m[2mNote[0m[2m:[0m[2m `[0m[2mref[0m[2mute[0m[2m_correct[0m[2m_chain[0m[2m`[0m[2m requires[0m[2m output[0m[2m to[0m[2m be[0m[2m None[0m[2m.[0m[2m For[0m[2m a[0m[2m singleton[0m[2m ([0m[2m1[0m[2m,[0m[2m2[0m[2m),[0m[2m a[0m[2m chain[0m[2m requires[0m[2m the[0m[2m ends[0m[2m to[0m[2m match[0m[2m:[0m[2m first[0m[2m[[0m[2m0[0m[2m]==[0m[2mlast[0m[2m[[0m[2m1[0m[2m].[0m[2m Single[0m[2m domino[0m[2m ([0m[2m1[0m[2m,[0m[2m2[0m[2m):[0m[2m no[0m[2m chain[0m[2m.[0m[2m Correct[0m[2m.[0m[2m
+
+[0m[2mImplementation[0m[2m:[0m[2m if[0m[2m the[0m[2m number[0m[2m of[0m[2m domino[0m[2mes[0m[2m is[0m[2m zero[0m[2m,[0m[2m can[0m[2m_chain[0m[2m returns[0m[2m [][0m[2m ([0m[2mempty[0m[2m output[0m[2m is[0m[2m allowed[0m[2m:[0m[2m assert[0m[2m_correct[0m[2m_chain[0m[2m returns[0m[2m early[0m[2m if[0m[2m not[0m[2m any[0m[2m(output[0m[2m_chain[0m[2m)).[0m[2m Therefore[0m[2m empty[0m[2m input[0m[2m →[0m[2m [].[0m[2m
+
+[0m[2mAlgorithm[0m[2m:[0m[2m
+[0m[2m-[0m[2m Build[0m[2m a[0m[2m graph[0m[2m:[0m[2m count[0m[2m the[0m[2m degree[0m[2m of[0m[2m each[0m[2m node[0m[2m,[0m[2m and[0m[2m adjacency[0m[2m as[0m[2m a[0m[2m list[0m[2m of[0m[2m edge[0m[2m indices[0m[2m per[0m[2m node[0m[2m.[0m[2m
+[0m[2m-[0m[2m Valid[0m[2mity[0m[2m check[0m[2m:[0m[2m all[0m[2m degrees[0m[2m even[0m[2m,[0m[2m and[0m[2m the[0m[2m underlying[0m[2m und[0m[2mirected[0m[2m graph[0m[2m is[0m[2m connected[0m[2m ([0m[2mconsider[0m[2ming[0m[2m only[0m[2m nodes[0m[2m appearing[0m[2m in[0m[2m edges[0m[2m).[0m[2m
+[0m[2m-[0m[2m Then[0m[2m DFS[0m[2m:[0m[2m try[0m[2m a[0m[2m cycle[0m[2m that[0m[2m starts[0m[2m from[0m[2m some[0m[2m node[0m[2m and[0m[2m uses[0m[2m all[0m[2m edges[0m[2m.[0m[2m Start[0m[2m DFS[0m[2m from[0m[2m each[0m[2m node[0m[2m with[0m[2m a[0m[2m degree[0m[2m greater[0m[2m than[0m[2m 0[0m[2m,[0m[2m and[0m[2m flip[0m[2m each[0m[2m edge[0m[2m.[0m[2m
+
+[0m[2mDFS[0m[2m:[0m[2m state[0m[2m:[0m[2m list[0m[2m of[0m[2m used[0m[2m edge[0m[2m indices[0m[2m,[0m[2m current[0m[2m endpoint[0m[2m,[0m[2m chain[0m[2m.[0m[2m Rec[0m[2mursively[0m[2m try[0m[2m unused[0m[2m edges[0m[2m connected[0m[2m to[0m[2m the[0m[2m current[0m[2m node[0m[2m ([0m[2mboth[0m[2m orientations[0m[2m).[0m[2m Pr[0m[2mune[0m[2m:[0m[2m unused[0m[2m edges[0m[2m must[0m[2m remain[0m[2m connected[0m[2m to[0m[2m the[0m[2m current[0m[2m node[0m[2m…[0m[2m more[0m[2m simply[0m[2m:[0m[2m prune[0m[2m if[0m[2m any[0m[2m unused[0m[2m edge[0m[2m is[0m[2m not[0m[2m connected[0m[2m to[0m[2m the[0m[2m current[0m[2m endpoint[0m[2m ([0m[2mconnect[0m[2mivity[0m[2m of[0m[2m the[0m[2m remaining[0m[2m edges[0m[2m).[0m[2m Standard[0m[2m approach[0m[2m:[0m[2m at[0m[2m each[0m[2m step[0m[2m,[0m[2m the[0m[2m remaining[0m[2m graph[0m[2m ([0m[2munused[0m[2m edges[0m[2m)[0m[2m must[0m[2m be[0m[2m connected[0m[2m,[0m[2m and[0m[2m the[0m[2m current[0m[2m endpoint[0m[2m must[0m[2m be[0m[2m a[0m[2m node[0m[2m of[0m[2m that[0m[2m remaining[0m[2m graph[0m[2m…[0m[2m actually[0m[2m,[0m[2m for[0m[2m cycle[0m[2m chain[0m[2m:[0m[2m at[0m[2m any[0m[2m point[0m[2m,[0m[2m unused[0m[2m edges[0m[2m form[0m[2m a[0m[2m sub[0m[2mgraph[0m[2m,[0m[2m and[0m[2m we[0m[2m must[0m[2m be[0m[2m able[0m[2m to[0m[2m return[0m[2m to[0m[2m the[0m[2m starting[0m[2m point[0m[2m.[0m[2m Pr[0m[2muning[0m[2m:[0m[2m remaining[0m[2m edges[0m[2m must[0m[2m be[0m[2m connected[0m[2m and[0m[2m contain[0m[2m the[0m[2m current[0m[2m endpoint[0m[2m?[0m[2m The[0m[2m remaining[0m[2m edges[0m[2m form[0m[2m a[0m[2m closed[0m[2m trail[0m[2m from[0m[2m current[0m[2m to[0m[2m start[0m[2m.[0m[2m Simple[0m[2mst[0m[2m and[0m[2m most[0m[2m robust[0m[2m method[0m[2m:[0m[2m DFS[0m[2m with[0m[2m memo[0m[2mization[0m[2m /[0m[2m pruning[0m[2m;[0m[2m the[0m[2m test[0m[2m cases[0m[2m are[0m[2m small[0m[2m ([0m[2m6[0m[2m edges[0m[2m).[0m[2m Even[0m[2m naive[0m[2m DFS[0m[2m with[0m[2m back[0m[2mtracking[0m[2m will[0m[2m work[0m[2m,[0m[2m but[0m[2m "[0m[2mback[0m[2mtrack[0m[2m required[0m[2m"[0m[2m cases[0m[2m also[0m[2m work[0m[2m with[0m[2m naive[0m[2m back[0m[2mtracking[0m[2m.[0m[2m Keep[0m[2m it[0m[2m simple[0m[2m,[0m[2m with[0m[2m an[0m[2m optional[0m[2m connectivity[0m[2m check[0m[2m for[0m[2m remaining[0m[2m edges[0m[2m ([0m[2monly[0m[2m nodes[0m[2m in[0m[2m the[0m[2m remaining[0m[2m edges[0m[2m are[0m[2m considered[0m[2m,[0m[2m ignoring[0m[2m nodes[0m[2m that[0m[2m exist[0m[2m only[0m[2m in[0m[2m used[0m[2m edges[0m[2m).[0m[2m
+
+[0m[2mImplementation[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m can[0m[2m_chain[0m[2m(dom[0m[2mino[0m[2mes[0m[2m):[0m[2m
+[0m[2m   [0m[2m n[0m[2m =[0m[2m len[0m[2m(dom[0m[2mino[0m[2mes[0m[2m)[0m[2m
+[0m[2m   [0m[2m if[0m[2m n[0m[2m ==[0m[2m 0[0m[2m:[0m[2m
+[0m[2m       [0m[2m return[0m[2m [][0m[2m
+[0m[2m   [0m[2m #[0m[2m degrees[0m[2m
+[0m[2m   [0m[2m from[0m[2m collections[0m[2m import[0m[2m Counter[0m[2m,[0m[2m defaultdict[0m[2m
+[0m[2m   [0m[2m degrees[0m[2m =[0m[2m Counter[0m[2m()[0m[2m
+[0m[2m   [0m[2m adj[0m[2m =[0m[2m defaultdict[0m[2m(list[0m[2m)[0m[2m
+[0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m)[0m[2m in[0m[2m enumerate[0m[2m(dom[0m[2mino[0m[2mes[0m[2m):[0m[2m
+[0m[2m       [0m[2m degrees[0m[2m[a[0m[2m][0m[2m +=[0m[2m 1[0m[2m
+[0m[2m       [0m[2m degrees[0m[2m[b[0m[2m][0m[2m +=[0m[2m 1[0m[2m
+[0m[2m       [0m[2m adj[0m[2m[a[0m[2m].[0m[2mappend[0m[2m(([0m[2mi[0m[2m,[0m[2m b[0m[2m))[0m[2m
+[0m[2m       [0m[2m if[0m[2m a[0m[2m !=[0m[2m b[0m[2m:[0m[2m
+[0m[2m           [0m[2m adj[0m[2m[b[0m[2m].[0m[2mappend[0m[2m(([0m[2mi[0m[2m,[0m[2m a[0m[2m))[0m[2m
+[0m[2m   [0m[2m for[0m[2m v[0m[2m,[0m[2m d[0m[2m in[0m[2m degrees[0m[2m.items[0m[2m():[0m[2m
+[0m[2m       [0m[2m if[0m[2m d[0m[2m %[0m[2m 2[0m[2m:[0m[2m
+[0m[2m           [0m[2m return[0m[2m None[0m[2m
+[0m[2m   [0m[2m #[0m[2m connected[0m[2m
+[0m[2m   [0m[2m nodes[0m[2m =[0m[2m list[0m[2m(deg[0m[2mrees[0m[2m)[0m[2m
+[0m[2m   [0m[2m #[0m[2m adjacency[0m[2m of[0m[2m und[0m[2mirected[0m[2m graph[0m[2m for[0m[2m connectivity[0m[2m ([0m[2mnodes[0m[2m)[0m[2m
+[0m[2m   [0m[2m g[0m[2m =[0m[2m defaultdict[0m[2m(set[0m[2m)[0m[2m
+[0m[2m   [0m[2m for[0m[2m a[0m[2m,[0m[2m b[0m[2m in[0m[2m domino[0m[2mes[0m[2m:[0m[2m
+[0m[2m       [0m[2m g[0m[2m[a[0m[2m].[0m[2madd[0m[2m(b[0m[2m)[0m[2m
+[0m[2m       [0m[2m g[0m[2m[b[0m[2m].[0m[2madd[0m[2m(a[0m[2m)[0m[2m
+[0m[2m   [0m[2m #[0m[2m BFS[0m[2m
+[0m[2m   [0m[2m seen[0m[2m =[0m[2m {[0m[2mnodes[0m[2m[[0m[2m0[0m[2m]}[0m[2m
+[0m[2m   [0m[2m stack[0m[2m =[0m[2m [[0m[2mnodes[0m[2m[[0m[2m0[0m[2m]][0m[2m
+[0m[2m   [0m[2m while[0m[2m stack[0m[2m:[0m[2m
+[0m[2m       [0m[2m v[0m[2m =[0m[2m stack[0m[2m.pop[0m[2m()[0m[2m
+[0m[2m       [0m[2m for[0m[2m w[0m[2m in[0m[2m g[0m[2m[v[0m[2m]:[0m[2m
+[0m[2m           [0m[2m if[0m[2m w[0m[2m not[0m[2m in[0m[2m seen[0m[2m:[0m[2m
+[0m[2m               [0m[2m seen[0m[2m.add[0m[2m(w[0m[2m)[0m[2m
+[0m[2m               [0m[2m stack[0m[2m.append[0m[2m(w[0m[2m)[0m[2m
+[0m[2m   [0m[2m if[0m[2m not[0m[2m set[0m[2m(nodes[0m[2m)[0m[2m <=[0m[2m seen[0m[2m:[0m[2m
+[0m[2m       [0m[2m return[0m[2m None[0m[2m
+[0m[2m   [0m[2m #[0m[2m DFS[0m[2m
+[0m[2m   [0m[2m used[0m[2m =[0m[2m [[0m[2mFalse[0m[2m]*[0m[2mn[0m[2m
+[0m[2m   [0m[2m chain[0m[2m =[0m[2m [][0m[2m
+[0m[2m   [0m[2m def[0m[2m dfs[0m[2m(start[0m[2m,[0m[2m cur[0m[2m,[0m[2m idx[0m[2m_count[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m idx[0m[2m_count[0m[2m ==[0m[2m n[0m[2m:[0m[2m
+[0m[2m           [0m[2m return[0m[2m cur[0m[2m ==[0m[2m start[0m[2m
+[0m[2m       [0m[2m for[0m[2m ([0m[2mi[0m[2m,[0m[2m other[0m[2m)[0m[2m in[0m[2m adj[0m[2m[cur[0m[2m]:[0m[2m
+[0m[2m           [0m[2m if[0m[2m used[0m[2m[i[0m[2m]:[0m[2m continue[0m[2m
+[0m[2m           [0m[2m #[0m[2m prune[0m[2m:[0m[2m remaining[0m[2m edges[0m[2m must[0m[2m be[0m[2m connected[0m[2m and[0m[2m contain[0m[2m cur[0m[2m
+[0m[2m           [0m[2m #[0m[2m ([0m[2mskip[0m[2m pruning[0m[2m for[0m[2m simplicity[0m[2m?[0m[2m n[0m[2m is[0m[2m small[0m[2m,[0m[2m but[0m[2m back[0m[2mtracking[0m[2m may[0m[2m be[0m[2m exponential[0m[2m;[0m[2m add[0m[2m pruning[0m[2m)[0m[2m
+[0m[2m           [0m[2m used[0m[2m[i[0m[2m][0m[2m =[0m[2m True[0m[2m
+[0m[2m           [0m[2m chain[0m[2m.append[0m[2m(dom[0m[2mino[0m[2mes[0m[2m[i[0m[2m][0m[2m if[0m[2m orientation[0m[2m...)[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mOrientation[0m[2m:[0m[2m domino[0m[2mes[0m[2m[i[0m[2m][0m[2m =[0m[2m ([0m[2ma[0m[2m,b[0m[2m);[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m then[0m[2m reversed[0m[2m,[0m[2m otherwise[0m[2m kept[0m[2m.[0m[2m
+
+[0m[2mPr[0m[2mune[0m[2m:[0m[2m after[0m[2m using[0m[2m edge[0m[2m i[0m[2m,[0m[2m check[0m[2m that[0m[2m remaining[0m[2m edges[0m[2m form[0m[2m a[0m[2m connected[0m[2m graph[0m[2m ([0m[2mover[0m[2m nodes[0m[2m with[0m[2m unused[0m[2m edges[0m[2m),[0m[2m and[0m[2m that[0m[2m cur[0m[2m is[0m[2m…[0m[2m hmm[0m[2m,[0m[2m cur[0m[2m must[0m[2m be[0m[2m a[0m[2m node[0m[2m in[0m[2m the[0m[2m remaining[0m[2m graph[0m[2m unless[0m[2m there[0m[2m are[0m[2m no[0m[2m remaining[0m[2m edges[0m[2m.[0m[2m Also[0m[2m,[0m[2m all[0m[2m remaining[0m[2m nodes[0m[2m must[0m[2m be[0m[2m reachable[0m[2m…[0m[2m the[0m[2m remaining[0m[2m unused[0m[2m edges[0m[2m must[0m[2m be[0m[2m connected[0m[2m,[0m[2m and[0m[2m if[0m[2m there[0m[2m are[0m[2m remaining[0m[2m edges[0m[2m,[0m[2m then[0m[2m cur[0m[2m must[0m[2m be[0m[2m included[0m[2m in[0m[2m those[0m[2m nodes[0m[2m?[0m[2m Actually[0m[2m the[0m[2m chain[0m[2m continues[0m[2m from[0m[2m cur[0m[2m,[0m[2m and[0m[2m must[0m[2m return[0m[2m to[0m[2m start[0m[2m.[0m[2m Unused[0m[2m edges[0m[2m form[0m[2m a[0m[2m trail[0m[2m from[0m[2m cur[0m[2m to[0m[2m start[0m[2m;[0m[2m therefore[0m[2m the[0m[2m unused[0m[2m graph[0m[2m must[0m[2m be[0m[2m connected[0m[2m,[0m[2m and[0m[2m if[0m[2m unused[0m[2m edges[0m[2m exist[0m[2m,[0m[2m then[0m[2m cur[0m[2m must[0m[2m be[0m[2m in[0m[2m their[0m[2m node[0m[2m set[0m[2m.[0m[2m Also[0m[2m start[0m[2m must[0m[2m be[0m[2m in[0m[2m that[0m[2m set[0m[2m ([0m[2mmust[0m[2m return[0m[2m).[0m[2m Both[0m[2m follow[0m[2m from[0m[2m connectivity[0m[2m,[0m[2m but[0m[2m…[0m[2m a[0m[2m connected[0m[2m graph[0m[2m containing[0m[2m both[0m[2m cur[0m[2m and[0m[2m start[0m[2m.[0m[2m Therefore[0m[2m:[0m[2m nodes[0m[2m_unused[0m[2m =[0m[2m union[0m[2m of[0m[2m endpoints[0m[2m of[0m[2m unused[0m[2m edges[0m[2m;[0m[2m must[0m[2m be[0m[2m connected[0m[2m,[0m[2m and[0m[2m if[0m[2m there[0m[2m are[0m[2m unused[0m[2m edges[0m[2m then[0m[2m both[0m[2m start[0m[2m and[0m[2m cur[0m[2m are[0m[2m contained[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m even[0m[2mness[0m[2m of[0m[2m degrees[0m[2m:[0m[2m after[0m[2m using[0m[2m an[0m[2m edge[0m[2m,[0m[2m parity[0m[2m may[0m[2m be[0m[2m broken[0m[2m —[0m[2m parity[0m[2m in[0m[2m the[0m[2m remaining[0m[2m graph[0m[2m:[0m[2m in[0m[2m a[0m[2m cycle[0m[2m,[0m[2m using[0m[2m an[0m[2m edge[0m[2m at[0m[2m node[0m[2m cur[0m[2m decreases[0m[2m that[0m[2m node[0m[2m's[0m[2m degree[0m[2m by[0m[2m 1[0m[2m,[0m[2m and[0m[2m…[0m[2m using[0m[2m edge[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m):[0m[2m degrees[0m[2m of[0m[2m cur[0m[2m and[0m[2m other[0m[2m each[0m[2m decrease[0m[2m by[0m[2m 1[0m[2m.[0m[2m Par[0m[2mity[0m[2m:[0m[2m all[0m[2m even[0m[2m →[0m[2m after[0m[2m removal[0m[2m both[0m[2m become[0m[2m odd[0m[2m,[0m[2m unless[0m[2m cur[0m[2m==[0m[2mother[0m[2m ([0m[2mdouble[0m[2m tile[0m[2m,[0m[2m degree[0m[2m -[0m[2m2[0m[2m,[0m[2m stays[0m[2m even[0m[2m).[0m[2m So[0m[2m the[0m[2m remaining[0m[2m graph[0m[2m must[0m[2m also[0m[2m have[0m[2m all[0m[2m degrees[0m[2m even[0m[2m.[0m[2m Good[0m[2m pruning[0m[2m:[0m[2m check[0m[2m parity[0m[2m +[0m[2m connectivity[0m[2m of[0m[2m the[0m[2m remaining[0m[2m graph[0m[2m at[0m[2m each[0m[2m node[0m[2m.[0m[2m Cost[0m[2m:[0m[2m n[0m[2m is[0m[2m small[0m[2m ([0m[2m6[0m[2m edges[0m[2m),[0m[2m no[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mS[0m[2mimpl[0m[2mer[0m[2m:[0m[2m for[0m[2m each[0m[2m unused[0m[2m edge[0m[2m,[0m[2m run[0m[2m the[0m[2m check[0m[2m before[0m[2m recurs[0m[2ming[0m[2m:[0m[2m build[0m[2m remaining[0m[2m =[0m[2m [[0m[2mdom[0m[2mino[0m[2mes[0m[2m[j[0m[2m][0m[2m for[0m[2m j[0m[2m in[0m[2m range[0m[2m(n[0m[2m)[0m[2m if[0m[2m not[0m[2m used[0m[2m[j[0m[2m][0m[2m and[0m[2m j[0m[2m !=[0m[2m i[0m[2m …[0m[2m].[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mDFS[0m[2m implementation[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m dfs[0m[2m(start[0m[2m,[0m[2m cur[0m[2m,[0m[2m k[0m[2m,[0m[2m remaining[0m[2m):[0m[2m
+[0m[2m   [0m[2m #[0m[2m remaining[0m[2m:[0m[2m list[0m[2m of[0m[2m edge[0m[2m indices[0m[2m unused[0m[2m
+[0m[2m   [0m[2m if[0m[2m k[0m[2m ==[0m[2m n[0m[2m:[0m[2m
+[0m[2m       [0m[2m return[0m[2m cur[0m[2m ==[0m[2m start[0m[2m
+[0m[2m   [0m[2m if[0m[2m remaining[0m[2m:[0m[2m
+[0m[2m       [0m[2m #[0m[2m check[0m[2m parity[0m[2m and[0m[2m connectivity[0m[2m of[0m[2m remaining[0m[2m
+[0m[2m       [0m[2m deg[0m[2m =[0m[2m Counter[0m[2m()[0m[2m
+[0m[2m       [0m[2m g[0m[2m2[0m[2m =[0m[2m defaultdict[0m[2m(set[0m[2m)[0m[2m
+[0m[2m       [0m[2m for[0m[2m j[0m[2m in[0m[2m remaining[0m[2m:[0m[2m
+[0m[2m           [0m[2m a[0m[2m,[0m[2m b[0m[2m =[0m[2m domino[0m[2mes[0m[2m[j[0m[2m][0m[2m
+[0m[2m           [0m[2m deg[0m[2m[a[0m[2m]+=[0m[2m1[0m[2m;[0m[2m deg[0m[2m[b[0m[2m]+=[0m[2m1[0m[2m
+[0m[2m           [0m[2m g[0m[2m2[0m[2m[a[0m[2m].[0m[2madd[0m[2m(b[0m[2m);[0m[2m g[0m[2m2[0m[2m[b[0m[2m].[0m[2madd[0m[2m(a[0m[2m)[0m[2m
+[0m[2m       [0m[2m if[0m[2m any[0m[2m(d[0m[2m%[0m[2m2[0m[2m for[0m[2m d[0m[2m in[0m[2m deg[0m[2m.values[0m[2m()):[0m[2m return[0m[2m None[0m[2m...[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mThis[0m[2m is[0m[2m getting[0m[2m heavy[0m[2m;[0m[2m n[0m[2m is[0m[2m at[0m[2m most[0m[2m around[0m[2m 6[0m[2m in[0m[2m tests[0m[2m,[0m[2m but[0m[2m might[0m[2m be[0m[2m larger[0m[2m in[0m[2m general[0m[2m.[0m[2m The[0m[2m test[0m[2m's[0m[2m max[0m[2m is[0m[2m 6[0m[2m edges[0m[2m,[0m[2m so[0m[2m naive[0m[2m DFS[0m[2m without[0m[2m pruning[0m[2m would[0m[2m suffice[0m[2m,[0m[2m but[0m[2m "[0m[2mback[0m[2mtrack[0m[2m required[0m[2m"[0m[2m also[0m[2m works[0m[2m with[0m[2m naive[0m[2m back[0m[2mtracking[0m[2m.[0m[2m Still[0m[2m,[0m[2m add[0m[2m light[0m[2m pruning[0m[2m:[0m[2m after[0m[2m tent[0m[2matively[0m[2m using[0m[2m edge[0m[2m i[0m[2m ([0m[2mcur[0m[2m→[0m[2mother[0m[2m),[0m[2m verify[0m[2m that[0m[2m the[0m[2m remaining[0m[2m edges[0m[2m are[0m[2m connected[0m[2m,[0m[2m that[0m[2m both[0m[2m start[0m[2m and[0m[2m cur[0m[2m are[0m[2m included[0m[2m in[0m[2m the[0m[2m remaining[0m[2m nodes[0m[2m ([0m[2mif[0m[2m there[0m[2m are[0m[2m remaining[0m[2m edges[0m[2m),[0m[2m and[0m[2m that[0m[2m all[0m[2m remaining[0m[2m degrees[0m[2m are[0m[2m even[0m[2m.[0m[2m If[0m[2m it[0m[2m fails[0m[2m,[0m[2m skip[0m[2m that[0m[2m edge[0m[2m.[0m[2m This[0m[2m is[0m[2m easy[0m[2m to[0m[2m implement[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m write[0m[2m the[0m[2m code[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  cat dominoes.py; python -m pytest -q dominoes_test.py 2>&1 | tail -5[0m
+[2m  ⎿ def can_chain(dominoes):[0m
+[2m         pass[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_nine_elements - AssertionError: u...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_separate_loops - AssertionError: ...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_singleton_input_singleton_output[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_three_elements - AssertionError: ...[0m
+[2m     … +1 lines[0m
+[2mBaseline[0m[2m:[0m[2m 7[0m[2m failures[0m[2m,[0m[2m 6[0m[2m successes[0m[2m.[0m[2m Next[0m[2m,[0m[2m implement[0m[2m it[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mWrite dominoes.py[0m
+[2m  ⎿ 99 lines written[0m
+[2m  ⎿ +99 -0[0m
+[32m  + [34mfrom[39;49;00m[37m [39;49;00m[04m[36mcollections[39;49;00m[37m [39;49;00m[34mimport[39;49;00m Counter, defaultdict[37m[39;49;00m[0m
+[32m  + [0m
+[32m  + [0m
+[32m  + [34mdef[39;49;00m[37m [39;49;00m[32mcan_chain[39;49;00m(dominoes):[37m[39;49;00m[0m
+[32m  +     [33m"""[39;49;00m[33mFind a cyclic ordering of the given dominoes, or None if impossible.[39;49;00m[33m[39;49;00m[0m
+[32m  + [0m
+[32m  +     A valid chain uses every domino exactly once (duplicates allowed),[37m[39;49;00m[0m
+[32m  +     consecutive dominoes match end-to-end, [35mand[39;49;00m the free end of the last[37m[39;49;00m[0m
+[32m  +     domino matches the free end of the first.[37m[39;49;00m[0m
+[32m  +     [33m"""[39;49;00m[33m[39;49;00m[0m
+[32m  +     n = [36mlen[39;49;00m(dominoes)[37m[39;49;00m[0m
+[32m  +     [34mif[39;49;00m n == [34m0[39;49;00m:[37m[39;49;00m[0m
+[2m     … +87 more diff lines[0m
+[2mWait[0m[2m:[0m[2m in[0m[2m `[0m[2mdfs[0m[2m(start[0m[2m,[0m[2m cur[0m[2m,[0m[2m remaining[0m[2m)[0m[2m`,[0m[2m `[0m[2madj[0m[2m[cur[0m[2m][0m[2m`[0m[2m contains[0m[2m all[0m[2m edges[0m[2m,[0m[2m including[0m[2m already[0m[2m-used[0m[2m ones[0m[2m —[0m[2m we[0m[2m're[0m[2m checking[0m[2m used[0m[2m[i[0m[2m].[0m[2m But[0m[2m `[0m[2mremaining[0m[2m`[0m[2m is[0m[2m a[0m[2m list[0m[2m,[0m[2m and[0m[2m `[0m[2mused[0m[2m`[0m[2m gets[0m[2m updated[0m[2m.[0m[2m Also[0m[2m,[0m[2m for[0m[2m double[0m[2m domino[0m[2mes[0m[2m ([0m[2ma[0m[2m==[0m[2ma[0m[2m),[0m[2m adj[0m[2m[a[0m[2m][0m[2m only[0m[2m contains[0m[2m i[0m[2m,[0m[2m b[0m[2m=a[0m[2m once[0m[2m ([0m[2mbecause[0m[2m when[0m[2m a[0m[2m==[0m[2mb[0m[2m,[0m[2m adj[0m[2m[a[0m[2m].[0m[2mappend[0m[2m is[0m[2m called[0m[2m only[0m[2m once[0m[2m)[0m[2m —[0m[2m good[0m[2m,[0m[2m that[0m[2m avoids[0m[2m double[0m[2m-processing[0m[2m.[0m[2m However[0m[2m,[0m[2m orientation[0m[2m:[0m[2m `[0m[2mother[0m[2m`[0m[2m for[0m[2m a[0m[2m double[0m[2m is[0m[2m a[0m[2m,[0m[2m so[0m[2m the[0m[2m chain[0m[2m tuple[0m[2m ([0m[2mother[0m[2m,a[0m[2m)[0m[2m or[0m[2m ([0m[2ma[0m[2m,[0m[2mother[0m[2m)[0m[2m is[0m[2m both[0m[2m ([0m[2ma[0m[2m,a[0m[2m).[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mOne[0m[2m subtle[0m[2m point[0m[2m:[0m[2m for[0m[2m a[0m[2m non[0m[2m-double[0m[2m edge[0m[2m,[0m[2m adj[0m[2m[a[0m[2m][0m[2m contains[0m[2m ([0m[2mi[0m[2m,[0m[2m b[0m[2m),[0m[2m and[0m[2m adj[0m[2m[b[0m[2m][0m[2m contains[0m[2m ([0m[2mi[0m[2m,[0m[2m a[0m[2m).[0m[2m Both[0m[2m orientations[0m[2m are[0m[2m available[0m[2m —[0m[2m good[0m[2m.[0m[2m
+
+[0m[2mThe[0m[2m `[0m[2medges[0m[2m`[0m[2m parameter[0m[2m of[0m[2m connected[0m[2m isn[0m[2m't[0m[2m used[0m[2m but[0m[2m that[0m[2m's[0m[2m fine[0m[2m ([0m[2mit[0m[2m's[0m[2m just[0m[2m being[0m[2m passed[0m[2m).[0m[2m In[0m[2m `[0m[2musable[0m[2m`[0m[2m we[0m[2m're[0m[2m building[0m[2m g[0m[2m from[0m[2m remaining[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mRunning[0m[2m the[0m[2m tests[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | tail -5[0m
+[2m  ⎿ FAILED dominoes_test.py::DominoesTest::test_separate_loops - UnboundLocalErro...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_separate_three_domino_loops - Unb...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_singleton_input_singleton_output[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_three_elements - UnboundLocalErro...[0m
+[2m     10 failed, 3 passed in 0.02s[0m
+[2mUn[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m —[0m[2m inside[0m[2m `[0m[2mdfs[0m[2m`,[0m[2m `[0m[2mused[0m[2m`[0m[2m is[0m[2m read[0m[2m,[0m[2m and[0m[2m then[0m[2m `[0m[2mused[0m[2m[i[0m[2m][0m[2m =[0m[2m True[0m[2m`[0m[2m is[0m[2m executed[0m[2m;[0m[2m `[0m[2mused[0m[2m`[0m[2m is[0m[2m assigned[0m[2m in[0m[2m the[0m[2m outer[0m[2m scope[0m[2m,[0m[2m but[0m[2m `[0m[2mchain[0m[2m`[0m[2m also[0m[2m gets[0m[2m reass[0m[2migned[0m[2m...[0m[2m no[0m[2m wait[0m[2m,[0m[2m `[0m[2mchain[0m[2m.pop[0m[2m()`[0m[2m is[0m[2m a[0m[2m method[0m[2m call[0m[2m so[0m[2m it[0m[2m's[0m[2m not[0m[2m an[0m[2m assignment[0m[2m.[0m[2m `[0m[2mused[0m[2m[i[0m[2m][0m[2m =[0m[2m True[0m[2m`[0m[2m is[0m[2m an[0m[2m item[0m[2m assignment[0m[2m,[0m[2m not[0m[2m a[0m[2m variable[0m[2m assignment[0m[2m —[0m[2m that[0m[2m shouldn[0m[2m't[0m[2m be[0m[2m a[0m[2m problem[0m[2m.[0m[2m But[0m[2m `[0m[2mused[0m[2m =[0m[2m [[0m[2mFalse[0m[2m]*[0m[2mn[0m[2m`[0m[2m gets[0m[2m reass[0m[2migned[0m[2m inside[0m[2m the[0m[2m for[0m[2m-loop[0m[2m over[0m[2m start[0m[2m —[0m[2m that[0m[2m's[0m[2m inside[0m[2m the[0m[2m outer[0m[2m function[0m[2m body[0m[2m,[0m[2m not[0m[2m inside[0m[2m dfs[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m:[0m[2m inside[0m[2m `[0m[2musable[0m[2m`,[0m[2m is[0m[2m `[0m[2mremaining[0m[2m`[0m[2m...[0m[2m no[0m[2m,[0m[2m that[0m[2m's[0m[2m not[0m[2m it[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m the[0m[2m error[0m[2m:[0m[2m maybe[0m[2m it[0m[2m's[0m[2m `[0m[2mnodes[0m[2m`[0m[2m?[0m[2m In[0m[2m `[0m[2mconnected[0m[2m(edges[0m[2m,[0m[2m g[0m[2m,[0m[2m nodes[0m[2m)[0m[2m`,[0m[2m `[0m[2mnodes[0m[2m`[0m[2m is[0m[2m a[0m[2m parameter[0m[2m so[0m[2m that[0m[2m's[0m[2m fine[0m[2m.[0m[2m In[0m[2m `[0m[2musable[0m[2m`,[0m[2m `[0m[2mnodes[0m[2m`[0m[2m is[0m[2m local[0m[2m so[0m[2m that[0m[2m's[0m[2m fine[0m[2m.[0m[2m
+
+[0m[2mActually[0m[2m the[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m is[0m[2m probably[0m[2m on[0m[2m `[0m[2mchain[0m[2m`:[0m[2m inside[0m[2m dfs[0m[2m,[0m[2m `[0m[2mchain[0m[2m.pop[0m[2m()`[0m[2m —[0m[2m but[0m[2m `[0m[2mchain[0m[2m`[0m[2m gets[0m[2m reass[0m[2migned[0m[2m in[0m[2m the[0m[2m loop[0m[2m after[0m[2m dfs[0m[2m is[0m[2m defined[0m[2m ([0m[2mat[0m[2m module[0m[2m level[0m[2m,[0m[2m `[0m[2mresult[0m[2m =[0m[2m None[0m[2m;[0m[2m for[0m[2m start[0m[2m:[0m[2m used[0m[2m=[[0m[2m...[0m[2m];[0m[2m chain[0m[2m=[][0m[2m;[0m[2m dfs[0m[2m(...[0m[2m)`[0m[2m).[0m[2m Since[0m[2m `[0m[2mdfs[0m[2m`[0m[2m'[0m[2ms[0m[2m closure[0m[2m references[0m[2m `[0m[2mchain[0m[2m`,[0m[2m and[0m[2m `[0m[2mchain[0m[2m`[0m[2m is[0m[2m a[0m[2m cell[0m[2m variable[0m[2m that[0m[2m gets[0m[2m assigned[0m[2m in[0m[2m the[0m[2m outer[0m[2m function[0m[2m,[0m[2m `[0m[2mchain[0m[2m.pop[0m[2m()`[0m[2m before[0m[2m assignment[0m[2m is[0m[2m...[0m[2m `[0m[2mchain[0m[2m`[0m[2m is[0m[2m assigned[0m[2m before[0m[2m `[0m[2mdfs[0m[2m`[0m[2m is[0m[2m called[0m[2m.[0m[2m Hmm[0m[2m.[0m[2m
+
+[0m[2mWait[0m[2m —[0m[2m actually[0m[2m,[0m[2m `[0m[2mused[0m[2m`[0m[2m and[0m[2m `[0m[2mchain[0m[2m`[0m[2m are[0m[2m assigned[0m[2m in[0m[2m the[0m[2m for[0m[2m-loop[0m[2m body[0m[2m of[0m[2m can[0m[2m_chain[0m[2m,[0m[2m so[0m[2m they[0m[2m become[0m[2m local[0m[2m variables[0m[2m of[0m[2m can[0m[2m_chain[0m[2m.[0m[2m `[0m[2mdfs[0m[2m`[0m[2m closes[0m[2m over[0m[2m them[0m[2m ([0m[2mfree[0m[2m variables[0m[2m).[0m[2m The[0m[2m first[0m[2m iteration[0m[2m:[0m[2m `[0m[2mused[0m[2m=[[0m[2mFalse[0m[2m]*[0m[2mn[0m[2m`[0m[2m is[0m[2m assigned[0m[2m before[0m[2m `[0m[2mdfs[0m[2m`[0m[2m is[0m[2m called[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m get[0m[2m the[0m[2m actual[0m[2m error[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | grep -A5 UnboundLocalError …[0m
+[2m  ⎿ E       UnboundLocalError: cannot access local variable '_connected' where it is not associated with a value[0m
+[2m     [0m
+[2m     dominoes.py:32: UnboundLocalError[0m
+[2m     __________________ DominoesTest.test_disconnected_double_loop __________________[0m
+[2m     [0m
+[2m     self = <dominoes_test.DominoesTest testMethod=test_disconnected_double_loop>[0m
+[2m     … +13 lines[0m
+[2m`[0m[2m_[0m[2mconnected[0m[2m`[0m[2m is[0m[2m assigned[0m[2m inside[0m[2m `[0m[2mcan[0m[2m_chain[0m[2m`[0m[2m ([0m[2mdef[0m[2m _[0m[2mconnected[0m[2m...[0m[2m),[0m[2m and[0m[2m also[0m[2m called[0m[2m from[0m[2m `[0m[2musable[0m[2m`[0m[2m —[0m[2m because[0m[2m of[0m[2m the[0m[2m assignment[0m[2m,[0m[2m it[0m[2m's[0m[2m treated[0m[2m as[0m[2m a[0m[2m local[0m[2m variable[0m[2m within[0m[2m can[0m[2m_chain[0m[2m,[0m[2m but[0m[2m `[0m[2musable[0m[2m`[0m[2m ([0m[2ma[0m[2m nested[0m[2m function[0m[2m)[0m[2m references[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m before[0m[2m that[0m[2m...[0m[2m actually[0m[2m,[0m[2m `[0m[2musable[0m[2m`[0m[2m references[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m from[0m[2m the[0m[2m outer[0m[2m scope[0m[2m —[0m[2m since[0m[2m there[0m[2m's[0m[2m an[0m[2m assignment[0m[2m to[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m inside[0m[2m can[0m[2m_chain[0m[2m,[0m[2m Python[0m[2m treats[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m as[0m[2m local[0m[2m to[0m[2m can[0m[2m_chain[0m[2m,[0m[2m and[0m[2m nested[0m[2m functions[0m[2m...[0m[2m no[0m[2m wait[0m[2m,[0m[2m nested[0m[2m functions[0m[2m look[0m[2m at[0m[2m the[0m[2m enclosing[0m[2m function[0m[2m's[0m[2m scope[0m[2m,[0m[2m but[0m[2m if[0m[2m that[0m[2m variable[0m[2m is[0m[2m local[0m[2m to[0m[2m the[0m[2m enclosing[0m[2m scope[0m[2m and[0m[2m not[0m[2m yet[0m[2m assigned[0m[2m...[0m[2m `[0m[2musable[0m[2m`[0m[2m calls[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m —[0m[2m since[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m is[0m[2m local[0m[2m to[0m[2m can[0m[2m_chain[0m[2m ([0m[2mdue[0m[2m to[0m[2m the[0m[2m def[0m[2m/[0m[2massignment[0m[2m),[0m[2m `[0m[2musable[0m[2m`[0m[2m can[0m[2m't[0m[2m access[0m[2m it[0m[2m as[0m[2m a[0m[2m free[0m[2m variable[0m[2m.[0m[2m That[0m[2m's[0m[2m the[0m[2m bug[0m[2m.[0m[2m Fix[0m[2m:[0m[2m remove[0m[2m the[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m wrapper[0m[2m,[0m[2m and[0m[2m just[0m[2m call[0m[2m `[0m[2mconnected[0m[2m`[0m[2m directly[0m[2m from[0m[2m `[0m[2musable[0m[2m`.[0m[2m
+[0m[32m
+
+[0m[32mThe[0m[32m `_[0m[32mconnected[0m[32m`[0m[32m alias[0m[32m breaks[0m[32m sc[0m[32moping[0m[32m —[0m[32m nested[0m[32m `[0m[32musable[0m[32m`[0m[32m can[0m[32m't[0m[32m see[0m[32m it[0m[32m.[0m[32m Removing[0m[32m the[0m[32m alias[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -         [34mreturn[39;49;00m _connected(remaining, g, [36mlist[39;49;00m(nodes))[37m[39;49;00m[0m
+[32m  +         [34mreturn[39;49;00m connected(remaining, g, [36mlist[39;49;00m(nodes))[37m[39;49;00m[0m
+[2m    [0m
+[2m        [34mdef[39;49;00m[37m [39;49;00m[32mconnected[39;49;00m(edges, g, nodes):[37m[39;49;00m[0m
+[2mWait[0m[2m —[0m[2m but[0m[2m `[0m[2mconnected[0m[2m`[0m[2m is[0m[2m also[0m[2m defined[0m[2m before[0m[2m `[0m[2musable[0m[2m`[0m[2m?[0m[2m No[0m[2m:[0m[2m `[0m[2musable[0m[2m`[0m[2m is[0m[2m defined[0m[2m before[0m[2m `[0m[2mconnected[0m[2m`[0m[2m in[0m[2m the[0m[2m file[0m[2m.[0m[2m In[0m[2m Python[0m[2m closures[0m[2m,[0m[2m the[0m[2m name[0m[2m is[0m[2m looked[0m[2m up[0m[2m at[0m[2m call[0m[2m time[0m[2m,[0m[2m and[0m[2m by[0m[2m that[0m[2m point[0m[2m `[0m[2mconnected[0m[2m`[0m[2m has[0m[2m been[0m[2m defined[0m[2m ([0m[2msince[0m[2m it[0m[2m's[0m[2m defined[0m[2m before[0m[2m the[0m[2m loop[0m[2m that[0m[2m calls[0m[2m dfs[0m[2m,[0m[2m both[0m[2m defs[0m[2m are[0m[2m executed[0m[2m before[0m[2m the[0m[2m call[0m[2m).[0m[2m Also[0m[2m,[0m[2m there[0m[2m's[0m[2m no[0m[2m assignment[0m[2m to[0m[2m `[0m[2mconnected[0m[2m`[0m[2m inside[0m[2m can[0m[2m_chain[0m[2m,[0m[2m so[0m[2m it[0m[2m's[0m[2m a[0m[2m proper[0m[2m free[0m[2m variable[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mRun[0m[2m the[0m[2m tests[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | tail -8[0m
+[2m  ⎿ FAILED dominoes_test.py::DominoesTest::test_disconnected_single_isolated - Un...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_need_backtrack - UnboundLocalErro...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_nine_elements - UnboundLocalError...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_separate_loops - UnboundLocalErro...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_separate_three_domino_loops - Unb...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_singleton_input_singleton_output[0m
+[2m     … +2 lines[0m
+[2mstill[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m —[0m[2m this[0m[2m time[0m[2m it[0m[2m's[0m[2m `[0m[2mchain[0m[2m`[0m[2m?[0m[2m Because[0m[2m in[0m[2m the[0m[2m for[0m[2m-loop[0m[2m body[0m[2m `[0m[2mchain[0m[2m =[0m[2m [][0m[2m`[0m[2m is[0m[2m being[0m[2m reass[0m[2migned[0m[2m,[0m[2m and[0m[2m `[0m[2mdfs[0m[2m`[0m[2m does[0m[2m `[0m[2mchain[0m[2m.append[0m[2m`[0m[2m /[0m[2m `[0m[2mchain[0m[2m.pop[0m[2m`[0m[2m —[0m[2m no[0m[2m wait[0m[2m,[0m[2m these[0m[2m are[0m[2m method[0m[2m calls[0m[2m,[0m[2m not[0m[2m assignments[0m[2m to[0m[2m chain[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m but[0m[2m `[0m[2mchain[0m[2m`[0m[2m is[0m[2m local[0m[2m to[0m[2m can[0m[2m_chain[0m[2m,[0m[2m and[0m[2m `[0m[2mdfs[0m[2m`[0m[2m references[0m[2m `[0m[2mchain[0m[2m`[0m[2m —[0m[2m free[0m[2m variable[0m[2m…[0m[2m In[0m[2m Python[0m[2m,[0m[2m when[0m[2m a[0m[2m nested[0m[2m function[0m[2m references[0m[2m a[0m[2m name[0m[2m that[0m[2m is[0m[2m local[0m[2m in[0m[2m the[0m[2m enclosing[0m[2m scope[0m[2m ([0m[2mvia[0m[2m assignment[0m[2m),[0m[2m that[0m[2m name[0m[2m becomes[0m[2m a[0m[2m cell[0m[2m variable[0m[2m and[0m[2m is[0m[2m accessible[0m[2m from[0m[2m the[0m[2m nested[0m[2m function[0m[2m —[0m[2m that[0m[2m works[0m[2m ([0m[2mclosure[0m[2m).[0m[2m The[0m[2m error[0m[2m before[0m[2m was[0m[2m `_[0m[2mconnected[0m[2m`,[0m[2m which[0m[2m was[0m[2m local[0m[2m to[0m[2m can[0m[2m_chain[0m[2m and[0m[2m referenced[0m[2m from[0m[2m `[0m[2musable[0m[2m`[0m[2m —[0m[2m closures[0m[2m work[0m[2m even[0m[2m for[0m[2m locally[0m[2m-bound[0m[2m names[0m[2m.[0m[2m So[0m[2m why[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2m?[0m[2m It[0m[2m's[0m[2m because[0m[2m the[0m[2m call[0m[2m to[0m[2m `[0m[2musable[0m[2m`[0m[2m ([0m[2mfrom[0m[2m `[0m[2mdfs[0m[2m`)[0m[2m happens[0m[2m…[0m[2m no[0m[2m,[0m[2m that[0m[2m's[0m[2m not[0m[2m it[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m actually[0m[2m,[0m[2m the[0m[2m reason[0m[2m is[0m[2m:[0m[2m `[0m[2mdef[0m[2m usable[0m[2m`[0m[2m is[0m[2m defined[0m[2m before[0m[2m `[0m[2mdef[0m[2m connected[0m[2m`.[0m[2m When[0m[2m `[0m[2musable[0m[2m`[0m[2m'[0m[2ms[0m[2m body[0m[2m executes[0m[2m `[0m[2mconnected[0m[2m(...)[0m[2m`,[0m[2m `[0m[2mconnected[0m[2m`[0m[2m is[0m[2m local[0m[2m to[0m[2m can[0m[2m_chain[0m[2m ([0m[2mdefined[0m[2m after[0m[2m usable[0m[2m,[0m[2m but[0m[2m before[0m[2m any[0m[2m calls[0m[2m).[0m[2m At[0m[2m the[0m[2m time[0m[2m `[0m[2musable[0m[2m`[0m[2m is[0m[2m *[0m[2mdefined[0m[2m*,[0m[2m the[0m[2m closure[0m[2m captures[0m[2m the[0m[2m cell[0m[2m,[0m[2m and[0m[2m the[0m[2m cell[0m[2m is[0m[2m empty[0m[2m until[0m[2m `[0m[2mdef[0m[2m connected[0m[2m`[0m[2m runs[0m[2m.[0m[2m But[0m[2m the[0m[2m call[0m[2m only[0m[2m happens[0m[2m inside[0m[2m the[0m[2m dfs[0m[2m loop[0m[2m,[0m[2m after[0m[2m all[0m[2m the[0m[2m defs[0m[2m.[0m[2m However[0m[2m:[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m —[0m[2m I[0m[2m fixed[0m[2m that[0m[2m.[0m[2m Now[0m[2m,[0m[2m which[0m[2m variable[0m[2m is[0m[2m un[0m[2mbound[0m[2m?[0m[2m Let[0m[2m me[0m[2m check[0m[2m the[0m[2m actual[0m[2m error[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | grep -B2 UnboundLocalError …[0m
+[2m  ⎿ >       if not _connected(dominoes, graph, list(degrees)):[0m
+[2m                    ^^^^^^^^^^[0m
+[2m     E       UnboundLocalError: cannot access local variable '_connected' where it is not associated with a value[0m
+[2m     [0m
+[2m     dominoes.py:32: UnboundLocalError[0m
+[2m     --[0m
+[2m     … +3 lines[0m
+[2mLine[0m[2m 3[0m[2m2[0m[2m is[0m[2m still[0m[2m using[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m —[0m[2m I[0m[2m only[0m[2m changed[0m[2m the[0m[2m reference[0m[2m inside[0m[2m `[0m[2musable[0m[2m`,[0m[2m but[0m[2m the[0m[2m check[0m[2m `[0m[2mif[0m[2m not[0m[2m _[0m[2mconnected[0m[2m(...[0m[2m)`[0m[2m at[0m[2m the[0m[2m top[0m[2m level[0m[2m still[0m[2m exists[0m[2m.[0m[2m Going[0m[2m to[0m[2m replace[0m[2m that[0m[2m too[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -         [34mif[39;49;00m [35mnot[39;49;00m _connected(dominoes, graph, [36mlist[39;49;00m(degrees)):[37m[39;49;00m[0m
+[32m  +         [34mif[39;49;00m [35mnot[39;49;00m connected(dominoes, graph, [36mlist[39;49;00m(degrees)):[37m[39;49;00m[0m
+[2mAlso[0m[2m,[0m[2m the[0m[2m `[0m[2mconnected[0m[2m`[0m[2m function[0m[2m takes[0m[2m an[0m[2m `[0m[2medges[0m[2m`[0m[2m parameter[0m[2m that[0m[2m isn[0m[2m't[0m[2m used[0m[2m,[0m[2m but[0m[2m that[0m[2m's[0m[2m fine[0m[2m.[0m[2m However[0m[2m,[0m[2m a[0m[2m caveat[0m[2m:[0m[2m `[0m[2mdfs[0m[2m`[0m[2m also[0m[2m references[0m[2m `[0m[2mused[0m[2m`[0m[2m ([0m[2mlocal[0m[2m to[0m[2m can[0m[2m_chain[0m[2m,[0m[2m gets[0m[2m reass[0m[2migned[0m[2m in[0m[2m the[0m[2m loop[0m[2m).[0m[2m `[0m[2mchain[0m[2m`[0m[2m gets[0m[2m reass[0m[2migned[0m[2m in[0m[2m the[0m[2m loop[0m[2m body[0m[2m as[0m[2m `[0m[2mchain[0m[2m =[0m[2m [][0m[2m`[0m[2m —[0m[2m `[0m[2mdfs[0m[2m`[0m[2m executes[0m[2m `[0m[2mchain[0m[2m.append[0m[2m`,[0m[2m `[0m[2mchain[0m[2m.pop[0m[2m`[0m[2m —[0m[2m these[0m[2m are[0m[2m attribute[0m[2m accesses[0m[2m on[0m[2m a[0m[2m free[0m[2m variable[0m[2m,[0m[2m not[0m[2m assignments[0m[2m,[0m[2m so[0m[2m no[0m[2m problem[0m[2m.[0m[2m But[0m[2m wait[0m[2m —[0m[2m does[0m[2m Python[0m[2m treat[0m[2m `[0m[2mchain[0m[2m`[0m[2m inside[0m[2m dfs[0m[2m as[0m[2m a[0m[2m free[0m[2m variable[0m[2m?[0m[2m Since[0m[2m can[0m[2m_chain[0m[2m assigns[0m[2m to[0m[2m `[0m[2mchain[0m[2m`[0m[2m ([0m[2mvia[0m[2m `[0m[2mchain[0m[2m =[0m[2m [][0m[2m`[0m[2m in[0m[2m the[0m[2m loop[0m[2m),[0m[2m `[0m[2mchain[0m[2m`[0m[2m becomes[0m[2m a[0m[2m cell[0m[2m,[0m[2m and[0m[2m `[0m[2mchain[0m[2m.append[0m[2m`[0m[2m inside[0m[2m dfs[0m[2m reads[0m[2m that[0m[2m cell[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2m`[0m[2mused[0m[2m`[0m[2m similarly[0m[2m:[0m[2m `[0m[2mused[0m[2m[i[0m[2m][0m[2m =[0m[2m True[0m[2m`[0m[2m is[0m[2m an[0m[2m item[0m[2m assignment[0m[2m —[0m[2m no[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mAlright[0m[2m,[0m[2m let[0m[2m's[0m[2m run[0m[2m it[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | tail -8[0m
+[2m  ⎿ FAILED dominoes_test.py::DominoesTest::test_disconnected_single_isolated - Un...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_need_backtrack - UnboundLocalErro...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_nine_elements - UnboundLocalError...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_separate_loops - UnboundLocalErro...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_separate_three_domino_loops - Unb...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_singleton_input_singleton_output[0m
+[2m     … +2 lines[0m
+[2mstill[0m[2m failing[0m[2m?[0m[2m Might[0m[2m be[0m[2m due[0m[2m to[0m[2m an[0m[2m old[0m[2m .[0m[2mpy[0m[2mc[0m[2m,[0m[2m or[0m[2m the[0m[2m edit[0m[2m got[0m[2m reflected[0m[2m in[0m[2m a[0m[2m weird[0m[2m way[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m the[0m[2m actual[0m[2m file[0m[2m and[0m[2m error[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  find . -name __pycache__ -exec rm -rf {} + 2>/dev/null; sed -n 1,15p do…[0m
+[2m  ⎿ from collections import Counter, defaultdict[0m
+[2m     [0m
+[2m     [0m
+[2m     def can_chain(dominoes):[0m
+[2m         """Find a cyclic ordering of the given dominoes, or None if impossible.[0m
+[2m     [0m
+[2m     … +21 lines[0m
+[2mstill[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m for[0m[2m `[0m[2mconnected[0m[2m`[0m[2m at[0m[2m line[0m[2m 3[0m[2m2[0m[2m.[0m[2m Why[0m[2m?[0m[2m `[0m[2mconnected[0m[2m`[0m[2m is[0m[2m a[0m[2m def[0m[2m inside[0m[2m can[0m[2m_chain[0m[2m →[0m[2m a[0m[2m local[0m[2m variable[0m[2m of[0m[2m can[0m[2m_chain[0m[2m.[0m[2m `[0m[2musable[0m[2m`[0m[2m ([0m[2ma[0m[2m nested[0m[2m function[0m[2m)[0m[2m references[0m[2m `[0m[2mconnected[0m[2m`[0m[2m —[0m[2m but[0m[2m `[0m[2mconnected[0m[2m`[0m[2m is[0m[2m a[0m[2m local[0m[2m of[0m[2m can[0m[2m_chain[0m[2m,[0m[2m not[0m[2m a[0m[2m free[0m[2m variable[0m[2m of[0m[2m usable[0m[2m.[0m[2m Python[0m[2m:[0m[2m when[0m[2m a[0m[2m nested[0m[2m function[0m[2m references[0m[2m a[0m[2m name[0m[2m that[0m[2m's[0m[2m local[0m[2m in[0m[2m an[0m[2m enclosing[0m[2m scope[0m[2m...[0m[2m actually[0m[2m no[0m[2m,[0m[2m in[0m[2m Python[0m[2m,[0m[2m a[0m[2m nested[0m[2m function[0m[2m can[0m[2m only[0m[2m reference[0m[2m *[0m[2mglobal[0m[2m*[0m[2m or[0m[2m *[0m[2mfree[0m[2m*[0m[2m variables[0m[2m;[0m[2m if[0m[2m `[0m[2musable[0m[2m`[0m[2m references[0m[2m `[0m[2mconnected[0m[2m`,[0m[2m Python[0m[2m's[0m[2m compiler[0m[2m determines[0m[2m that[0m[2m `[0m[2mconnected[0m[2m`[0m[2m is[0m[2m local[0m[2m to[0m[2m `[0m[2mcan[0m[2m_chain[0m[2m`[0m[2m ([0m[2msince[0m[2m can[0m[2m_chain[0m[2m assigns[0m[2m/b[0m[2minds[0m[2m it[0m[2m),[0m[2m and[0m[2m `[0m[2musable[0m[2m`[0m[2m can[0m[2m't[0m[2m access[0m[2m it[0m[2m —[0m[2m hence[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m.[0m[2m Correct[0m[2m:[0m[2m a[0m[2m nested[0m[2m function[0m[2m can[0m[2m't[0m[2m see[0m[2m local[0m[2m variables[0m[2m of[0m[2m its[0m[2m enclosing[0m[2m scope[0m[2m;[0m[2m it[0m[2m can[0m[2m only[0m[2m see[0m[2m free[0m[2m variables[0m[2m ([0m[2mthings[0m[2m that[0m[2m are[0m[2m non[0m[2mlocal[0m[2m or[0m[2m global[0m[2m).[0m[2m Since[0m[2m `[0m[2mconnected[0m[2m`[0m[2m is[0m[2m local[0m[2m to[0m[2m can[0m[2m_chain[0m[2m,[0m[2m `[0m[2musable[0m[2m`[0m[2m'[0m[2ms[0m[2m reference[0m[2m to[0m[2m it[0m[2m raises[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m at[0m[2m runtime[0m[2m...[0m[2m actually[0m[2m,[0m[2m does[0m[2m it[0m[2m raise[0m[2m an[0m[2m error[0m[2m when[0m[2m the[0m[2m function[0m[2m is[0m[2m compiled[0m[2m?[0m[2m No[0m[2m —[0m[2m it[0m[2m's[0m[2m treated[0m[2m as[0m[2m a[0m[2m local[0m[2m variable[0m[2m inside[0m[2m usable[0m[2m,[0m[2m and[0m[2m since[0m[2m it[0m[2m's[0m[2m never[0m[2m assigned[0m[2m,[0m[2m it[0m[2m errors[0m[2m at[0m[2m runtime[0m[2m.[0m[2m Yes[0m[2m.[0m[2m
+
+[0m[2mFix[0m[2m:[0m[2m either[0m[2m define[0m[2m `[0m[2mconnected[0m[2m`[0m[2m at[0m[2m module[0m[2m level[0m[2m,[0m[2m or[0m[2m make[0m[2m `[0m[2musable[0m[2m`[0m[2m not[0m[2m reference[0m[2m the[0m[2m nested[0m[2m `[0m[2mconnected[0m[2m`[0m[2m —[0m[2m pass[0m[2m it[0m[2m in[0m[2m,[0m[2m or[0m[2m declare[0m[2m `[0m[2mnon[0m[2mlocal[0m[2m`[0m[2m?[0m[2m A[0m[2m nested[0m[2m function[0m[2m can[0m[2m use[0m[2m `[0m[2mnon[0m[2mlocal[0m[2m`[0m[2m to[0m[2m access[0m[2m a[0m[2m local[0m[2m of[0m[2m its[0m[2m enclosing[0m[2m function[0m[2m.[0m[2m E[0m[2masi[0m[2mest[0m[2m approach[0m[2m:[0m[2m ho[0m[2mist[0m[2m `[0m[2mconnected[0m[2m`[0m[2m out[0m[2m to[0m[2m a[0m[2m module[0m[2m-level[0m[2m function[0m[2m,[0m[2m taking[0m[2m ([0m[2medges[0m[2m,[0m[2m g[0m[2m,[0m[2m nodes[0m[2m)[0m[2m as[0m[2m arguments[0m[2m.[0m[2m That[0m[2m resolves[0m[2m both[0m[2m reference[0m[2m sites[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m`[0m[32mconnected[0m[32m`[0m[32m is[0m[32m local[0m[32m to[0m[32m `[0m[32mcan[0m[32m_chain[0m[32m`,[0m[32m so[0m[32m nested[0m[32m functions[0m[32m can[0m[32m't[0m[32m see[0m[32m it[0m[32m.[0m[32m Ho[0m[32misting[0m[32m it[0m[32m to[0m[32m module[0m[32m level[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  sed -n 30,75p dominoes.py[0m
+[2m  ⎿ if any(d % 2 for d in degrees.values()):[0m
+[2m             return None[0m
+[2m         if not connected(dominoes, graph, list(degrees)):[0m
+[2m             return None[0m
+[2m     [0m
+[2m         used = [False] * n[0m
+[2m     … +40 lines[0m
+[2mRew[0m[2mrite[0m[2m the[0m[2m file[0m[2m cleanly[0m[2m:[0m[2m put[0m[2m the[0m[2m module[0m[2m-level[0m[2m `_[0m[2mis[0m[2m_connected[0m[2m(edges[0m[2m,[0m[2m g[0m[2m,[0m[2m nodes[0m[2m)`[0m[2m at[0m[2m the[0m[2m top[0m[2m,[0m[2m and[0m[2m update[0m[2m the[0m[2m call[0m[2m sites[0m[2m.[0m[2m Also[0m[2m,[0m[2m move[0m[2m `[0m[2mdef[0m[2m usable[0m[2m`[0m[2m after[0m[2m `[0m[2mdef[0m[2m connected[0m[2m`[0m[2m to[0m[2m make[0m[2m the[0m[2m ordering[0m[2m logical[0m[2m ([0m[2morder[0m[2m doesn[0m[2m't[0m[2m matter[0m[2m at[0m[2m the[0m[2m module[0m[2m level[0m[2m).[0m[2m Rewrite[0m[2m the[0m[2m whole[0m[2m file[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mWrite dominoes.py[0m
+[2m  ⎿ 98 lines written[0m
+[2m  ⎿ +98 -0[0m
+[32m  + [34mfrom[39;49;00m[37m [39;49;00m[04m[36mcollections[39;49;00m[37m [39;49;00m[34mimport[39;49;00m Counter, defaultdict[37m[39;49;00m[0m
+[32m  + [0m
+[32m  + [0m
+[32m  + [34mdef[39;49;00m[37m [39;49;00m[32m_is_connected[39;49;00m(edges, g, nodes):[37m[39;49;00m[0m
+[32m  + [37m    [39;49;00m[33m"""Check that every node in `nodes` is reachable in graph `g`."""[39;49;00m[37m[39;49;00m[0m
+[32m  +     [34mif[39;49;00m [36mlen[39;49;00m(nodes) <= [34m1[39;49;00m:[37m[39;49;00m[0m
+[32m  +         [34mreturn[39;49;00m [34mTrue[39;49;00m[37m[39;49;00m[0m
+[32m  +     seen = {nodes[[34m0[39;49;00m]}[37m[39;49;00m[0m
+[32m  +     stack = [nodes[[34m0[39;49;00m]][37m[39;49;00m[0m
+[32m  +     [34mwhile[39;49;00m stack:[37m[39;49;00m[0m
+[32m  +         v = stack.pop()[37m[39;49;00m[0m
+[32m  +         [34mfor[39;49;00m w [35min[39;49;00m g[v]:[37m[39;49;00m[0m
+[2m     … +86 more diff lines[0m
+[2mWait[0m[2m,[0m[2m `[0m[2mresult[0m[2m =[0m[2m chain[0m[2m`[0m[2m —[0m[2m chain[0m[2m is[0m[2m a[0m[2m list[0m[2m,[0m[2m and[0m[2m after[0m[2m that[0m[2m if[0m[2m dfs[0m[2m returns[0m[2m True[0m[2m,[0m[2m result[0m[2m=[0m[2mchain[0m[2m —[0m[2m however[0m[2m,[0m[2m in[0m[2m the[0m[2m next[0m[2m loop[0m[2m iteration[0m[2m,[0m[2m `[0m[2mchain[0m[2m =[0m[2m [][0m[2m`[0m[2m gets[0m[2m reass[0m[2migned[0m[2m,[0m[2m and[0m[2m result[0m[2m still[0m[2m references[0m[2m the[0m[2m old[0m[2m list[0m[2m ([0m[2mthe[0m[2m assignment[0m[2m only[0m[2m re[0m[2mbind[0m[2ms[0m[2m the[0m[2m name[0m[2m,[0m[2m and[0m[2m the[0m[2m old[0m[2m list[0m[2m object[0m[2m is[0m[2m preserved[0m[2m).[0m[2m Good[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m,[0m[2m in[0m[2m dfs[0m[2m,[0m[2m `[0m[2mchain[0m[2m`[0m[2m is[0m[2m a[0m[2m free[0m[2m variable[0m[2m…[0m[2m `[0m[2mchain[0m[2m`[0m[2m is[0m[2m a[0m[2m local[0m[2m variable[0m[2m in[0m[2m can[0m[2m_chain[0m[2m ([0m[2massigned[0m[2m in[0m[2m the[0m[2m loop[0m[2m),[0m[2m and[0m[2m `[0m[2mdfs[0m[2m`[0m[2m executes[0m[2m `[0m[2mchain[0m[2m.append[0m[2m`[0m[2m/[0m[2m`[0m[2mchain[0m[2m.pop[0m[2m`[0m[2m —[0m[2m is[0m[2m `[0m[2mchain[0m[2m`[0m[2m a[0m[2m free[0m[2m variable[0m[2m in[0m[2m dfs[0m[2m?[0m[2m Since[0m[2m can[0m[2m_chain[0m[2m assigns[0m[2m `[0m[2mchain[0m[2m`[0m[2m at[0m[2m the[0m[2m module[0m[2m…[0m[2m no[0m[2m wait[0m[2m,[0m[2m can[0m[2m_chain[0m[2m is[0m[2m a[0m[2m normal[0m[2m function[0m[2m,[0m[2m and[0m[2m `[0m[2mchain[0m[2m =[0m[2m [][0m[2m`[0m[2m inside[0m[2m the[0m[2m loop[0m[2m makes[0m[2m `[0m[2mchain[0m[2m`[0m[2m a[0m[2m local[0m[2m variable[0m[2m of[0m[2m can[0m[2m_chain[0m[2m.[0m[2m dfs[0m[2m references[0m[2m `[0m[2mchain[0m[2m`[0m[2m —[0m[2m a[0m[2m nested[0m[2m function[0m[2m can[0m[2m only[0m[2m reference[0m[2m free[0m[2m variables[0m[2m;[0m[2m `[0m[2mchain[0m[2m`[0m[2m is[0m[2m local[0m[2m in[0m[2m the[0m[2m enclosing[0m[2m scope[0m[2m →[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m again[0m[2m?![0m[2m
+
+[0m[2mNo[0m[2m wait[0m[2m —[0m[2m actually[0m[2m in[0m[2m Python[0m[2m:[0m[2m a[0m[2m nested[0m[2m function[0m[2m can[0m[2m reference[0m[2m any[0m[2m name[0m[2m that[0m[2m is[0m[2m local[0m[2m in[0m[2m an[0m[2m enclosing[0m[2m scope[0m[2m?[0m[2m No[0m[2m —[0m[2m it[0m[2m can[0m[2m only[0m[2m access[0m[2m things[0m[2m it[0m[2m treats[0m[2m as[0m[2m free[0m[2m variables[0m[2m.[0m[2m The[0m[2m rule[0m[2m:[0m[2m a[0m[2m name[0m[2m is[0m[2m local[0m[2m to[0m[2m a[0m[2m function[0m[2m if[0m[2m it[0m[2m's[0m[2m assigned[0m[2m somewhere[0m[2m in[0m[2m that[0m[2m function[0m[2m.[0m[2m In[0m[2m a[0m[2m nested[0m[2m function[0m[2m,[0m[2m names[0m[2m that[0m[2m are[0m[2m local[0m[2m in[0m[2m an[0m[2m *[0m[2menc[0m[2mlosing[0m[2m*[0m[2m function[0m[2m but[0m[2m not[0m[2m global[0m[2m —[0m[2m the[0m[2m nested[0m[2m function[0m[2m treats[0m[2m them[0m[2m as[0m[2m free[0m[2m variables[0m[2m ([0m[2mc[0m[2mlosures[0m[2m).[0m[2m Yes[0m[2m:[0m[2m closure[0m[2m cells[0m[2m.[0m[2m Example[0m[2m:[0m[2m
+
+[0m[2m```[0m[2m
+[0m[2mdef[0m[2m outer[0m[2m():[0m[2m
+[0m[2m   [0m[2m def[0m[2m inner[0m[2m():[0m[2m
+[0m[2m       [0m[2m return[0m[2m x[0m[2m
+[0m[2m   [0m[2m x[0m[2m =[0m[2m 5[0m[2m
+[0m[2m   [0m[2m return[0m[2m inner[0m[2m()[0m[2m
+[0m[2m```[0m[2m
+[0m[2mThis[0m[2m works[0m[2m —[0m[2m inner[0m[2m references[0m[2m the[0m[2m local[0m[2m x[0m[2m of[0m[2m outer[0m[2m via[0m[2m a[0m[2m closure[0m[2m cell[0m[2m.[0m[2m Python[0m[2m's[0m[2m compiler[0m[2m:[0m[2m if[0m[2m a[0m[2m nested[0m[2m function[0m[2m references[0m[2m a[0m[2m name[0m[2m that[0m[2m is[0m[2m local[0m[2m in[0m[2m an[0m[2m enclosing[0m[2m scope[0m[2m,[0m[2m that[0m[2m name[0m[2m becomes[0m[2m a[0m[2m cell[0m[2m,[0m[2m and[0m[2m inner[0m[2m accesses[0m[2m the[0m[2m cell[0m[2m.[0m[2m So[0m[2m it[0m[2m works[0m[2m —[0m[2m the[0m[2m earlier[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m happened[0m[2m because[0m[2m `[0m[2musable[0m[2m`[0m[2m referenced[0m[2m `[0m[2mconnected[0m[2m`[0m[2m before[0m[2m…[0m[2m no[0m[2m,[0m[2m that[0m[2m's[0m[2m wrong[0m[2m —[0m[2m if[0m[2m it[0m[2m's[0m[2m a[0m[2m cell[0m[2m,[0m[2m then[0m[2m it[0m[2m's[0m[2m bound[0m[2m after[0m[2m `[0m[2mdef[0m[2m connected[0m[2m`[0m[2m executes[0m[2m,[0m[2m and[0m[2m the[0m[2m call[0m[2m to[0m[2m `[0m[2musable[0m[2m`[0m[2m happens[0m[2m after[0m[2m that[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m so[0m[2m why[0m[2m did[0m[2m it[0m[2m fail[0m[2m?[0m[2m
+
+[0m[2mActual[0m[2m Python[0m[2m rule[0m[2m:[0m[2m if[0m[2m a[0m[2m nested[0m[2m function[0m[2m references[0m[2m a[0m[2m name[0m[2m that[0m[2m is[0m[2m local[0m[2m in[0m[2m an[0m[2m enclosing[0m[2m scope[0m[2m,[0m[2m the[0m[2m compiler[0m[2m treats[0m[2m it[0m[2m as[0m[2m a[0m[2m free[0m[2m variable[0m[2m and[0m[2m creates[0m[2m a[0m[2m cell[0m[2m in[0m[2m the[0m[2m enclosing[0m[2m scope[0m[2m.[0m[2m So[0m[2m `[0m[2musable[0m[2m`[0m[2m referencing[0m[2m `[0m[2mconnected[0m[2m`[0m[2m…[0m[2m `[0m[2mconnected[0m[2m`[0m[2m gets[0m[2m bound[0m[2m in[0m[2m can[0m[2m_chain[0m[2m ([0m[2mdef[0m[2m connected[0m[2m at[0m[2m line[0m[2m 4[0m[2m5[0m[2m).[0m[2m The[0m[2m call[0m[2m to[0m[2m `[0m[2musable[0m[2m`[0m[2m happens[0m[2m inside[0m[2m dfs[0m[2m,[0m[2m which[0m[2m is[0m[2m called[0m[2m after[0m[2m that[0m[2m binding[0m[2m.[0m[2m So[0m[2m it[0m[2m should[0m[2m work[0m[2m?[0m[2m
+
+[0m[2mBut[0m[2m the[0m[2m error[0m[2m said[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m at[0m[2m line[0m[2m 3[0m[2m2[0m[2m —[0m[2m the[0m[2m call[0m[2m in[0m[2m `[0m[2musable[0m[2m`[0m[2m…[0m[2m no[0m[2m wait[0m[2m,[0m[2m the[0m[2m error[0m[2m was[0m[2m at[0m[2m line[0m[2m 3[0m[2m2[0m[2m which[0m[2m is[0m[2m `[0m[2mif[0m[2m not[0m[2m _[0m[2mconnected[0m[2m(dom[0m[2mino[0m[2mes[0m[2m,[0m[2m graph[0m[2m,[0m[2m list[0m[2m(deg[0m[2mrees[0m[2m))[0m[2m`[0m[2m —[0m[2m that[0m[2m's[0m[2m inside[0m[2m can[0m[2m_chain[0m[2m itself[0m[2m,[0m[2m and[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m…[0m[2m hmm[0m[2m,[0m[2m in[0m[2m the[0m[2m previous[0m[2m version[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m was[0m[2m defined[0m[2m at[0m[2m line[0m[2m 4[0m[2m6[0m[2m,[0m[2m but[0m[2m the[0m[2m reference[0m[2m was[0m[2m at[0m[2m line[0m[2m 3[0m[2m2[0m[2m —[0m[2m before[0m[2m the[0m[2m def[0m[2m.[0m[2m If[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m is[0m[2m a[0m[2m local[0m[2m of[0m[2m can[0m[2m_chain[0m[2m and[0m[2m is[0m[2m referenced[0m[2m at[0m[2m line[0m[2m 3[0m[2m2[0m[2m before[0m[2m being[0m[2m bound[0m[2m →[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m.[0m[2m That[0m[2m's[0m[2m the[0m[2m reason[0m[2m:[0m[2m in[0m[2m can[0m[2m_chain[0m[2m itself[0m[2m,[0m[2m `_[0m[2mconnected[0m[2m`[0m[2m is[0m[2m a[0m[2m local[0m[2m variable[0m[2m ([0m[2mdue[0m[2m to[0m[2m `[0m[2mdef[0m[2m _[0m[2mconnected[0m[2m`[0m[2m),[0m[2m and[0m[2m line[0m[2m 3[0m[2m2[0m[2m executes[0m[2m before[0m[2m the[0m[2m def[0m[2m statement[0m[2m ([0m[2mdefs[0m[2m are[0m[2m executed[0m[2m in[0m[2m order[0m[2m:[0m[2m line[0m[2m 3[0m[2m2[0m[2m executes[0m[2m when[0m[2m can[0m[2m_chain[0m[2m runs[0m[2m,[0m[2m before[0m[2m reaching[0m[2m `[0m[2mdef[0m[2m _[0m[2mconnected[0m[2m`[0m[2m at[0m[2m line[0m[2m 4[0m[2m6[0m[2m…[0m[2m no[0m[2m wait[0m[2m,[0m[2m `[0m[2mdef[0m[2m usable[0m[2m`[0m[2m and[0m[2m `[0m[2mdef[0m[2m connected[0m[2m`[0m[2m are[0m[2m also[0m[2m defs[0m[2m,[0m[2m executed[0m[2m at[0m[2m call[0m[2m time[0m[2m.[0m[2m can[0m[2m_chain[0m[2m executes[0m[2m the[0m[2m statements[0m[2m in[0m[2m order[0m[2m:[0m[2m line[0m[2m 3[0m[2m2[0m[2m's[0m[2m `[0m[2mif[0m[2m not[0m[2m _[0m[2mconnected[0m[2m(...[0m[2m)`[0m[2m executes[0m[2m before[0m[2m the[0m[2m def[0m[2m statement[0m[2m at[0m[2m lines[0m[2m 3[0m[2m9[0m[2m/[0m[2m4[0m[2m6[0m[2m —[0m[2m hence[0m[2m the[0m[2m cell[0m[2m is[0m[2m empty[0m[2m →[0m[2m Un[0m[2mbound[0m[2mLocal[0m[2mError[0m[2m.[0m[2m That[0m[2m's[0m[2m the[0m[2m reason[0m[2m for[0m[2m the[0m[2m error[0m[2m in[0m[2m the[0m[2m first[0m[2m version[0m[2m.[0m[2m
+
+[0m[2mAnd[0m[2m in[0m[2m the[0m[2m second[0m[2m version[0m[2m,[0m[2m the[0m[2m error[0m[2m was[0m[2m at[0m[2m line[0m[2m 3[0m[2m2[0m[2m with[0m[2m `[0m[2mconnected[0m[2m`[0m[2m —[0m[2m same[0m[2m issue[0m[2m:[0m[2m `[0m[2mif[0m[2m not[0m[2m connected[0m[2m(...[0m[2m)`[0m[2m at[0m[2m line[0m[2m 3[0m[2m2[0m[2m executes[0m[2m before[0m[2m `[0m[2mdef[0m[2m connected[0m[2m`[0m[2m at[0m[2m line[0m[2m 4[0m[2m5[0m[2m.[0m[2m A[0m[2m def[0m[2m statement[0m[2m binds[0m[2m the[0m[2m name[0m[2m,[0m[2m but[0m[2m the[0m[2m call[0m[2m at[0m[2m line[0m[2m 3[0m[2m2[0m[2m comes[0m[2m first[0m[2m.[0m[2m So[0m[2m the[0m[2m order[0m[2m matters[0m[2m.[0m[2m In[0m[2m the[0m[2m current[0m[2m rewrite[0m[2m,[0m[2m `_[0m[2mis[0m[2m_connected[0m[2m`[0m[2m is[0m[2m defined[0m[2m at[0m[2m module[0m[2m level[0m[2m —[0m[2m no[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2m`[0m[2mchain[0m[2m`[0m[2m in[0m[2m dfs[0m[2m:[0m[2m `[0m[2mchain[0m[2m`[0m[2m is[0m[2m a[0m[2m local[0m[2m of[0m[2m can[0m[2m_chain[0m[2m,[0m[2m bound[0m[2m before[0m[2m the[0m[2m loop[0m[2m,[0m[2m before[0m[2m dfs[0m[2m is[0m[2m called[0m[2m;[0m[2m dfs[0m[2m references[0m[2m `[0m[2mchain[0m[2m`[0m[2m ([0m[2mfree[0m[2m,[0m[2m closure[0m[2m cell[0m[2m).[0m[2m Works[0m[2m.[0m[2m
+
+[0m[2m`[0m[2mused[0m[2m`[0m[2m similarly[0m[2m.[0m[2m Good[0m[2m.[0m[2m Run[0m[2m the[0m[2m tests[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | tail -5[0m
+[2m  ⎿ FAILED dominoes_test.py::DominoesTest::test_need_backtrack - AssertionError: ...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_nine_elements - AssertionError: u...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_separate_loops - AssertionError: ...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_three_elements - AssertionError: ...[0m
+[2m     5 failed, 8 passed in 0.02s[0m
+[2mProgress[0m[2m made[0m[2m.[0m[2m Now[0m[2m,[0m[2m the[0m[2m remaining[0m[2m failures[0m[2m are[0m[2m 4[0m[2m assertion[0m[2m failures[0m[2m ([0m[2mchain[0m[2m was[0m[2m found[0m[2m but[0m[2m is[0m[2m invalid[0m[2m)[0m[2m —[0m[2m probably[0m[2m because[0m[2m the[0m[2m `[0m[2musable[0m[2m`[0m[2m prune[0m[2m is[0m[2m broken[0m[2m,[0m[2m or[0m[2m a[0m[2m bug[0m[2m in[0m[2m chain[0m[2m orientation[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m one[0m[2m:[0m[2m test[0m[2m_three[0m[2m_elements[0m[2m:[0m[2m domino[0m[2mes[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m3[0m[2m,[0m[2m1[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m)].[0m[2m Expected[0m[2m chain[0m[2m,[0m[2m e[0m[2m.g[0m[2m.[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m),([0m[2m3[0m[2m,[0m[2m1[0m[2m)].[0m[2m
+
+[0m[2mPossible[0m[2m bug[0m[2m:[0m[2m in[0m[2m `[0m[2mdfs[0m[2m`,[0m[2m orientation[0m[2m `[0m[2mchain[0m[2m.append[0m[2m(([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m else[0m[2m ([0m[2ma[0m[2m,[0m[2m other[0m[2m))[0m[2m`.[0m[2m Edge[0m[2m i[0m[2m=([0m[2ma[0m[2m,b[0m[2m).[0m[2m From[0m[2m node[0m[2m `[0m[2mcur[0m[2m`,[0m[2m if[0m[2m other[0m[2m==[0m[2ma[0m[2m,[0m[2m the[0m[2m other[0m[2m end[0m[2m of[0m[2m the[0m[2m placed[0m[2m domino[0m[2m is[0m[2m `[0m[2ma[0m[2m`[0m[2m…[0m[2m wait[0m[2m:[0m[2m if[0m[2m we[0m[2m place[0m[2m the[0m[2m domino[0m[2m in[0m[2m a[0m[2m form[0m[2m that[0m[2m connects[0m[2m cur[0m[2m to[0m[2m `[0m[2mother[0m[2m`:[0m[2m the[0m[2m domino[0m[2m goes[0m[2m from[0m[2m cur[0m[2m to[0m[2m other[0m[2m.[0m[2m If[0m[2m other[0m[2m==[0m[2ma[0m[2m,[0m[2m then[0m[2m orientation[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m):[0m[2m left[0m[2m=a[0m[2m,[0m[2m right[0m[2m=b[0m[2m.[0m[2m But[0m[2m we[0m[2m need[0m[2m the[0m[2m left[0m[2m end[0m[2m to[0m[2m equal[0m[2m cur[0m[2m![0m[2m other[0m[2m==[0m[2ma[0m[2m means[0m[2m cur[0m[2m==[0m[2ma[0m[2m,[0m[2m so[0m[2m left[0m[2m=a[0m[2m=[0m[2mcur[0m[2m.[0m[2m Correct[0m[2m.[0m[2m Otherwise[0m[2m,[0m[2m other[0m[2m==[0m[2mb[0m[2m,[0m[2m orientation[0m[2m ([0m[2ma[0m[2m,[0m[2m other[0m[2m):[0m[2m right[0m[2m=b[0m[2m=[0m[2mother[0m[2m,[0m[2m left[0m[2m=a[0m[2m.[0m[2m Correct[0m[2m.[0m[2m
+
+[0m[2mSo[0m[2m the[0m[2m orientation[0m[2m logic[0m[2m is[0m[2m fine[0m[2m.[0m[2m
+
+[0m[2mCheck[0m[2m the[0m[2m `[0m[2musable[0m[2m`[0m[2m prune[0m[2m:[0m[2m `[0m[2mif[0m[2m start[0m[2m not[0m[2m in[0m[2m nodes[0m[2m or[0m[2m cur[0m[2m not[0m[2m in[0m[2m nodes[0m[2m:[0m[2m return[0m[2m False[0m[2m`.[0m[2m Problem[0m[2m:[0m[2m if[0m[2m remaining[0m[2m is[0m[2m non[0m[2m-empty[0m[2m,[0m[2m cur[0m[2m must[0m[2m be[0m[2m a[0m[2m node[0m[2m in[0m[2m the[0m[2m remaining[0m[2m graph[0m[2m —[0m[2m that[0m[2m's[0m[2m correct[0m[2m since[0m[2m the[0m[2m chain[0m[2m continues[0m[2m from[0m[2m cur[0m[2m.[0m[2m start[0m[2m must[0m[2m also[0m[2m be[0m[2m in[0m[2m the[0m[2m nodes[0m[2m ([0m[2mto[0m[2m come[0m[2m back[0m[2m at[0m[2m the[0m[2m end[0m[2m).[0m[2m Correct[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m subtle[0m[2m bug[0m[2m:[0m[2m `[0m[2mcur[0m[2m not[0m[2m in[0m[2m nodes[0m[2m`[0m[2m —[0m[2m if[0m[2m the[0m[2m remaining[0m[2m edges[0m[2m don[0m[2m't[0m[2m contain[0m[2m cur[0m[2m,[0m[2m we[0m[2m can[0m[2m't[0m[2m continue[0m[2m —[0m[2m correct[0m[2m prune[0m[2m.[0m[2m
+
+[0m[2mPar[0m[2mity[0m[2m check[0m[2m:[0m[2m after[0m[2m removing[0m[2m edge[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m),[0m[2m cur[0m[2m's[0m[2m degree[0m[2m decreases[0m[2m by[0m[2m 1[0m[2m →[0m[2m odd[0m[2m.[0m[2m This[0m[2m breaks[0m[2m the[0m[2m even[0m[2m-degree[0m[2m condition[0m[2m![0m[2m In[0m[2m a[0m[2m cyclic[0m[2m trail[0m[2m,[0m[2m we[0m[2m must[0m[2m pass[0m[2m through[0m[2m each[0m[2m node[0m[2m with[0m[2m an[0m[2m equal[0m[2m number[0m[2m of[0m[2m entries[0m[2m and[0m[2m exits[0m[2m.[0m[2m If[0m[2m all[0m[2m degrees[0m[2m are[0m[2m even[0m[2m in[0m[2m the[0m[2m full[0m[2m graph[0m[2m,[0m[2m removing[0m[2m one[0m[2m edge[0m[2m ([0m[2mcur[0m[2m→[0m[2mother[0m[2m)[0m[2m makes[0m[2m the[0m[2m degrees[0m[2m of[0m[2m cur[0m[2m and[0m[2m other[0m[2m odd[0m[2m.[0m[2m The[0m[2m remaining[0m[2m unused[0m[2m edges[0m[2m will[0m[2m never[0m[2m all[0m[2m be[0m[2m even[0m[2m ([0m[2mexcept[0m[2m when[0m[2m cur[0m[2m==[0m[2mother[0m[2m,[0m[2m a[0m[2m double[0m[2m).[0m[2m Therefore[0m[2m `[0m[2mif[0m[2m any[0m[2m(d[0m[2m %[0m[2m 2[0m[2m for[0m[2m d[0m[2m in[0m[2m deg[0m[2m.values[0m[2m()):[0m[2m return[0m[2m False[0m[2m`[0m[2m always[0m[2m fails[0m[2m for[0m[2m non[0m[2m-double[0m[2m edges[0m[2m![0m[2m That[0m[2m's[0m[2m the[0m[2m bug[0m[2m —[0m[2m we[0m[2m're[0m[2m pruning[0m[2m everything[0m[2m.[0m[2m
+
+[0m[2mThe[0m[2m correct[0m[2m invariant[0m[2m:[0m[2m the[0m[2m remaining[0m[2m graph[0m[2m +[0m[2m the[0m[2m open[0m[2m ends[0m[2m ([0m[2mcur[0m[2m and[0m[2m start[0m[2m)[0m[2m form[0m[2m a[0m[2m connected[0m[2m Euler[0m[2mian[0m[2m trail[0m[2m:[0m[2m all[0m[2m nodes[0m[2m even[0m[2m except[0m[2m possibly[0m[2m cur[0m[2m and[0m[2m start[0m[2m ([0m[2modd[0m[2m if[0m[2m they[0m[2m're[0m[2m different[0m[2m).[0m[2m So[0m[2m the[0m[2m parity[0m[2m check[0m[2m should[0m[2m exclude[0m[2m the[0m[2m two[0m[2m endpoints[0m[2m:[0m[2m degree[0m[2m parity[0m[2m at[0m[2m any[0m[2m node[0m[2m other[0m[2m than[0m[2m {[0m[2mstart[0m[2m,[0m[2m cur[0m[2m}[0m[2m must[0m[2m be[0m[2m even[0m[2m,[0m[2m and[0m[2m the[0m[2m par[0m[2mities[0m[2m of[0m[2m start[0m[2m and[0m[2m cur[0m[2m must[0m[2m be[0m[2m consistent[0m[2m ([0m[2mboth[0m[2m odd[0m[2m if[0m[2m start[0m[2m !=[0m[2m cur[0m[2m,[0m[2m both[0m[2m even[0m[2m if[0m[2m start[0m[2m==[0m[2mcur[0m[2m).[0m[2m
+
+[0m[2mFix[0m[2m:[0m[2m
+
+[0m[2m```[0m[2m
+[0m[2modd[0m[2m =[0m[2m [[0m[2mv[0m[2m for[0m[2m v[0m[2m in[0m[2m deg[0m[2m if[0m[2m deg[0m[2m[v[0m[2m][0m[2m %[0m[2m 2[0m[2m][0m[2m
+[0m[2mif[0m[2m set[0m[2m([0m[2modd[0m[2m)[0m[2m not[0m[2m in[0m[2m ({[0m[2mstart[0m[2m,[0m[2m cur[0m[2m},[0m[2m set[0m[2m())[0m[2m when[0m[2m...[0m[2m 
+[0m[2m```[0m[2m
+[0m[2mActually[0m[2m:[0m[2m the[0m[2m allowed[0m[2m odd[0m[2m nodes[0m[2m are[0m[2m exactly[0m[2m the[0m[2m set[0m[2m of[0m[2m endpoints[0m[2m:[0m[2m if[0m[2m start[0m[2m !=[0m[2m cur[0m[2m:[0m[2m {[0m[2mstart[0m[2m,[0m[2m cur[0m[2m};[0m[2m if[0m[2m start[0m[2m ==[0m[2m cur[0m[2m:[0m[2m the[0m[2m empty[0m[2m set[0m[2m ([0m[2msince[0m[2m removing[0m[2m an[0m[2m edge[0m[2m with[0m[2m cur[0m[2m==[0m[2mstart[0m[2m…[0m[2m removing[0m[2m a[0m[2m double[0m[2m ([0m[2mcur[0m[2m==[0m[2mstart[0m[2m)[0m[2m decreases[0m[2m degree[0m[2m by[0m[2m 2[0m[2m,[0m[2m parity[0m[2m stays[0m[2m even[0m[2m,[0m[2m so[0m[2m odd[0m[2m must[0m[2m be[0m[2m empty[0m[2m).[0m[2m Condition[0m[2m:[0m[2m the[0m[2m set[0m[2m of[0m[2m odd[0m[2m nodes[0m[2m equals[0m[2m {[0m[2mstart[0m[2m,[0m[2m cur[0m[2m}[0m[2m if[0m[2m start[0m[2m !=[0m[2m cur[0m[2m,[0m[2m else[0m[2m the[0m[2m empty[0m[2m set[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mThe[0m[32m parity[0m[32m pruning[0m[32m is[0m[32m broken[0m[32m:[0m[32m removing[0m[32m an[0m[32m edge[0m[32m ([0m[32mcur[0m[32m→[0m[32mother[0m[32m)[0m[32m makes[0m[32m cur[0m[32m's[0m[32m and[0m[32m other[0m[32m's[0m[32m degrees[0m[32m odd[0m[32m,[0m[32m so[0m[32m the[0m[32m "[0m[32mall[0m[32m even[0m[32m"[0m[32m check[0m[32m rejects[0m[32m every[0m[32m non[0m[32m-double[0m[32m edge[0m[32m.[0m[32m Correct[0m[32m invariant[0m[32m:[0m[32m only[0m[32m the[0m[32m open[0m[32m ends[0m[32m `[0m[32mstart[0m[32m`[0m[32m/[0m[32m`[0m[32mcur[0m[32m`[0m[32m may[0m[32m be[0m[32m odd[0m[32m.[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +4 -1[0m
+[31m  -         [34mif[39;49;00m [36many[39;49;00m(d % [34m2[39;49;00m [34mfor[39;49;00m d [35min[39;49;00m deg.values()):[37m[39;49;00m[0m
+[32m  +         [37m# Only the open ends of the partial trail may have odd degree.[39;49;00m[37m[39;49;00m[0m
+[32m  +         allowed_odd = {start, cur} [34mif[39;49;00m start != cur [34melse[39;49;00m [36mset[39;49;00m()[37m[39;49;00m[0m
+[32m  +         odd = {v [34mfor[39;49;00m v [35min[39;49;00m deg [34mif[39;49;00m deg[v] % [34m2[39;49;00m}[37m[39;49;00m[0m
+[32m  +         [34mif[39;49;00m odd != allowed_odd:[37m[39;49;00m[0m
+[2m                [34mreturn[39;49;00m [34mFalse[39;49;00m[37m[39;49;00m[0m
+[2m            [34mif[39;49;00m start [35mnot[39;49;00m [35min[39;49;00m nodes [35mor[39;49;00m cur [35mnot[39;49;00m [35min[39;49;00m nodes:[37m[39;49;00m[0m
+[2mWait[0m[2m —[0m[2m is[0m[2m the[0m[2m allowed[0m[2m odd[0m[2m set[0m[2m exactly[0m[2m {[0m[2mstart[0m[2m,[0m[2m cur[0m[2m},[0m[2m or[0m[2m "[0m[2ma[0m[2m subset[0m[2m of[0m[2m it[0m[2m"?[0m[2m If[0m[2m start[0m[2m !=[0m[2m cur[0m[2m,[0m[2m after[0m[2m removing[0m[2m edge[0m[2m ([0m[2mcur[0m[2m,[0m[2m x[0m[2m),[0m[2m the[0m[2m parity[0m[2m at[0m[2m cur[0m[2m and[0m[2m x[0m[2m flips[0m[2m.[0m[2m The[0m[2m degrees[0m[2m of[0m[2m the[0m[2m remaining[0m[2m edges[0m[2m:[0m[2m cur[0m[2m's[0m[2m degree[0m[2m decreases[0m[2m by[0m[2m 1[0m[2m ([0m[2modd[0m[2m if[0m[2m it[0m[2m was[0m[2m even[0m[2m),[0m[2m x[0m[2m likewise[0m[2m.[0m[2m So[0m[2m the[0m[2m odd[0m[2m nodes[0m[2m =[0m[2m exactly[0m[2m {[0m[2mstart[0m[2m,[0m[2m cur[0m[2m}?[0m[2m Let[0m[2m's[0m[2m think[0m[2m:[0m[2m the[0m[2m remaining[0m[2m unused[0m[2m edges[0m[2m must[0m[2m form[0m[2m a[0m[2m trail[0m[2m from[0m[2m cur[0m[2m to[0m[2m start[0m[2m.[0m[2m All[0m[2m intermediate[0m[2m nodes[0m[2m on[0m[2m that[0m[2m trail[0m[2m:[0m[2m even[0m[2m degree[0m[2m ([0m[2meach[0m[2m visit[0m[2m uses[0m[2m 2[0m[2m stub[0m[2ms[0m[2m…[0m[2m actually[0m[2m,[0m[2m an[0m[2m edge[0m[2m between[0m[2m two[0m[2m nodes[0m[2m in[0m[2m the[0m[2m remaining[0m[2m set[0m[2m contributes[0m[2m to[0m[2m both[0m[2m).[0m[2m In[0m[2m a[0m[2m trail[0m[2m from[0m[2m cur[0m[2m to[0m[2m start[0m[2m,[0m[2m only[0m[2m the[0m[2m endpoints[0m[2m have[0m[2m odd[0m[2m degree[0m[2m,[0m[2m and[0m[2m the[0m[2m rest[0m[2m are[0m[2m even[0m[2m.[0m[2m So[0m[2m odd[0m[2m must[0m[2m be[0m[2m exactly[0m[2m {[0m[2mcur[0m[2m,[0m[2m start[0m[2m}.[0m[2m And[0m[2m if[0m[2m start[0m[2m==[0m[2mcur[0m[2m,[0m[2m all[0m[2m even[0m[2m.[0m[2m So[0m[2m `[0m[2modd[0m[2m ==[0m[2m allowed[0m[2m_odd[0m[2m`[0m[2m is[0m[2m correct[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m one[0m[2m more[0m[2m check[0m[2m:[0m[2m the[0m[2m initial[0m[2m call[0m[2m:[0m[2m before[0m[2m dfs[0m[2m,[0m[2m degrees[0m[2m is[0m[2m all[0m[2m even[0m[2m.[0m[2m First[0m[2m edge[0m[2m from[0m[2m start[0m[2m:[0m[2m cur[0m[2m=start[0m[2m,[0m[2m remove[0m[2m edge[0m[2m ([0m[2mstart[0m[2m,[0m[2m other[0m[2m):[0m[2m odd[0m[2m =[0m[2m {[0m[2mstart[0m[2m,[0m[2m other[0m[2m}[0m[2m but[0m[2m allowed[0m[2m_odd[0m[2m =[0m[2m {[0m[2mstart[0m[2m,[0m[2m start[0m[2m}[0m[2m =[0m[2m {[0m[2mstart[0m[2m}[0m[2m →[0m[2m rejected[0m[2m![0m[2m Bug[0m[2m:[0m[2m at[0m[2m the[0m[2m first[0m[2m step[0m[2m cur[0m[2m==[0m[2mstart[0m[2m,[0m[2m but[0m[2m removing[0m[2m edge[0m[2m ([0m[2mstart[0m[2m,[0m[2m other[0m[2m)[0m[2m makes[0m[2m other[0m[2m odd[0m[2m,[0m[2m not[0m[2m start[0m[2m…[0m[2m wait[0m[2m,[0m[2m removing[0m[2m an[0m[2m edge[0m[2m incident[0m[2m to[0m[2m start[0m[2m decreases[0m[2m start[0m[2m's[0m[2m degree[0m[2m by[0m[2m 1[0m[2m →[0m[2m odd[0m[2m;[0m[2m and[0m[2m other[0m[2m's[0m[2m also[0m[2m decreases[0m[2m by[0m[2m 1[0m[2m →[0m[2m odd[0m[2m.[0m[2m So[0m[2m odd[0m[2m =[0m[2m {[0m[2mstart[0m[2m,[0m[2m other[0m[2m}.[0m[2m allowed[0m[2m_odd[0m[2m={[0m[2mstart[0m[2m}[0m[2m →[0m[2m mismatch[0m[2m →[0m[2m every[0m[2m edge[0m[2m rejected[0m[2m →[0m[2m dfs[0m[2m can[0m[2m never[0m[2m even[0m[2m start[0m[2m.[0m[2m
+
+[0m[2mHmm[0m[2m.[0m[2m Right[0m[2m:[0m[2m at[0m[2m the[0m[2m first[0m[2m step[0m[2m of[0m[2m the[0m[2m trail[0m[2m,[0m[2m cur[0m[2m==[0m[2mstart[0m[2m==[0m[2mopen[0m[2m endpoint[0m[2m,[0m[2m but[0m[2m the[0m[2m far[0m[2m end[0m[2m `[0m[2mother[0m[2m`[0m[2m is[0m[2m the[0m[2m *[0m[2mnew[0m[2m*[0m[2m open[0m[2m endpoint[0m[2m after[0m[2m placing[0m[2m the[0m[2m edge[0m[2m.[0m[2m The[0m[2m remaining[0m[2m trail[0m[2m goes[0m[2m from[0m[2m `[0m[2mother[0m[2m`[0m[2m ([0m[2mthe[0m[2m new[0m[2m current[0m[2m position[0m[2m)[0m[2m back[0m[2m to[0m[2m `[0m[2mstart[0m[2m`.[0m[2m So[0m[2m allowed[0m[2m_odd[0m[2m should[0m[2m be[0m[2m {[0m[2mcur[0m[2m,[0m[2m other[0m[2m}[0m[2m —[0m[2m the[0m[2m endpoints[0m[2m of[0m[2m the[0m[2m remaining[0m[2m trail[0m[2m:[0m[2m the[0m[2m current[0m[2m position[0m[2m ([0m[2mother[0m[2m)[0m[2m and[0m[2m start[0m[2m.[0m[2m
+
+[0m[2mFix[0m[2m:[0m[2m allowed[0m[2m_odd[0m[2m =[0m[2m {[0m[2mcur[0m[2m,[0m[2m other[0m[2m}[0m[2m if[0m[2m cur[0m[2m !=[0m[2m other[0m[2m else[0m[2m set[0m[2m().[0m[2m
+[0m[32m
+
+[0m[32mThe[0m[32m open[0m[32m ends[0m[32m of[0m[32m the[0m[32m *[0m[32mremaining[0m[32m*[0m[32m trail[0m[32m are[0m[32m `[0m[32mother[0m[32m`[0m[32m ([0m[32mnew[0m[32m position[0m[32m)[0m[32m and[0m[32m `[0m[32mstart[0m[32m`,[0m[32m not[0m[32m `[0m[32mcur[0m[32m`[0m[32m/[0m[32m`[0m[32mstart[0m[32m`:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +3 -2[0m
+[31m  -         [37m# Only the open ends of the partial trail may have odd degree.[39;49;00m[37m[39;49;00m[0m
+[31m  -         allowed_odd = {start, cur} [34mif[39;49;00m start != cur [34melse[39;49;00m [36mset[39;49;00m()[37m[39;49;00m[0m
+[32m  +         [37m# Only the open ends of the remaining trail may have odd degree:[39;49;00m[37m[39;49;00m[0m
+[32m  +         [37m# the new position (other) and the trail's start.[39;49;00m[37m[39;49;00m[0m
+[32m  +         allowed_odd = {other, start} [34mif[39;49;00m other != start [34melse[39;49;00m [36mset[39;49;00m()[37m[39;49;00m[0m
+[2mBut[0m[2m `[0m[2mother[0m[2m`[0m[2m is[0m[2m a[0m[2m loop[0m[2m variable[0m[2m in[0m[2m `[0m[2mdfs[0m[2m`,[0m[2m and[0m[2m `[0m[2musable[0m[2m`[0m[2m receives[0m[2m `[0m[2mremaining[0m[2m,[0m[2m start[0m[2m,[0m[2m cur[0m[2m`[0m[2m —[0m[2m `[0m[2mother[0m[2m`[0m[2m is[0m[2m not[0m[2m a[0m[2m parameter[0m[2m of[0m[2m usable[0m[2m.[0m[2m Need[0m[2m to[0m[2m pass[0m[2m `[0m[2mother[0m[2m`[0m[2m to[0m[2m usable[0m[2m.[0m[2m Update[0m[2m the[0m[2m call[0m[2m sites[0m[2m and[0m[2m signature[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m[32m
+[0m
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -     [34mdef[39;49;00m[37m [39;49;00m[32musable[39;49;00m(remaining, start, cur):[37m[39;49;00m[0m
+[32m  +     [34mdef[39;49;00m[37m [39;49;00m[32musable[39;49;00m(remaining, start, cur, other):[37m[39;49;00m[0m
+
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -             [34mif[39;49;00m [35mnot[39;49;00m usable(rest, start, cur):[37m[39;49;00m[0m
+[32m  +             [34mif[39;49;00m [35mnot[39;49;00m usable(rest, start, cur, other):[37m[39;49;00m[0m
+[2mWait[0m[2m,[0m[2m the[0m[2m second[0m[2m call[0m[2m site[0m[2m:[0m[2m `[0m[2mif[0m[2m not[0m[2m _[0m[2mis[0m[2m_connected[0m[2m(dom[0m[2mino[0m[2mes[0m[2m,[0m[2m graph[0m[2m,[0m[2m list[0m[2m(deg[0m[2mrees[0m[2m))[0m[2m`[0m[2m —[0m[2m that[0m[2m's[0m[2m not[0m[2m `[0m[2musable[0m[2m`.[0m[2m But[0m[2m maybe[0m[2m there[0m[2m was[0m[2m another[0m[2m `[0m[2musable[0m[2m(rest[0m[2m,[0m[2m ...[0m[2m)`[0m[2m somewhere[0m[2m?[0m[2m The[0m[2m only[0m[2m call[0m[2m to[0m[2m usable[0m[2m is[0m[2m inside[0m[2m dfs[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m,[0m[2m the[0m[2m `[0m[2mcur[0m[2m not[0m[2m in[0m[2m nodes[0m[2m`[0m[2m check[0m[2m:[0m[2m the[0m[2m current[0m[2m position[0m[2m is[0m[2m `[0m[2mother[0m[2m`,[0m[2m not[0m[2m `[0m[2mcur[0m[2m`.[0m[2m The[0m[2m remaining[0m[2m trail[0m[2m starts[0m[2m from[0m[2m `[0m[2mother[0m[2m`.[0m[2m So[0m[2m check[0m[2m `[0m[2mother[0m[2m not[0m[2m in[0m[2m nodes[0m[2m`[0m[2m?[0m[2m If[0m[2m `[0m[2mother[0m[2m`[0m[2m is[0m[2m not[0m[2m in[0m[2m nodes[0m[2m of[0m[2m the[0m[2m remaining[0m[2m graph[0m[2m,[0m[2m no[0m[2m edge[0m[2m is[0m[2m available[0m[2m from[0m[2m other[0m[2m →[0m[2m dead[0m[2m end[0m[2m.[0m[2m Update[0m[2m:[0m[2m
+
+[0m[2m```[0m[2m
+[0m[2mif[0m[2m start[0m[2m not[0m[2m in[0m[2m nodes[0m[2m or[0m[2m cur[0m[2m not[0m[2m in[0m[2m nodes[0m[2m:[0m[2m
+[0m[2m```[0m[2m
+[0m[2m→[0m[2m
+[0m[2m```[0m[2m
+[0m[2mif[0m[2m start[0m[2m not[0m[2m in[0m[2m nodes[0m[2m or[0m[2m other[0m[2m not[0m[2m in[0m[2m nodes[0m[2m:[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m though[0m[2m this[0m[2m check[0m[2m is[0m[2m weak[0m[2m ([0m[2mif[0m[2m other[0m[2m==[0m[2mstart[0m[2m,[0m[2m and[0m[2m start[0m[2m not[0m[2m in[0m[2m nodes[0m[2m →[0m[2m reject[0m[2m;[0m[2m if[0m[2m other[0m[2m !=[0m[2m start[0m[2m and[0m[2m other[0m[2m not[0m[2m in[0m[2m nodes[0m[2m →[0m[2m reject[0m[2m).[0m[2m No[0m[2m problem[0m[2m,[0m[2m keep[0m[2m it[0m[2m for[0m[2m other[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -         [34mif[39;49;00m start [35mnot[39;49;00m [35min[39;49;00m nodes [35mor[39;49;00m cur [35mnot[39;49;00m [35min[39;49;00m nodes:[37m[39;49;00m[0m
+[32m  +         [34mif[39;49;00m start [35mnot[39;49;00m [35min[39;49;00m nodes [35mor[39;49;00m other [35mnot[39;49;00m [35min[39;49;00m nodes:[37m[39;49;00m[0m
+[2mAlso[0m[2m,[0m[2m verify[0m[2m `[0m[2mcur[0m[2m ==[0m[2m start[0m[2m`[0m[2m on[0m[2m success[0m[2m at[0m[2m the[0m[2m end[0m[2m:[0m[2m at[0m[2m the[0m[2m point[0m[2m when[0m[2m `[0m[2mnot[0m[2m remaining[0m[2m`,[0m[2m cur[0m[2m must[0m[2m equal[0m[2m start[0m[2m.[0m[2m This[0m[2m is[0m[2m correct[0m[2m ([0m[2mthe[0m[2m last[0m[2m placed[0m[2m domino[0m[2m returns[0m[2m to[0m[2m start[0m[2m).[0m[2m
+
+[0m[2mRun[0m[2m the[0m[2m test[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | tail -5[0m
+[2m  ⎿ =========================== short test summary info ============================[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_can_reverse_dominoes - AssertionE...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_need_backtrack - AssertionError: ...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_nine_elements - AssertionError: L...[0m
+[2m     3 failed, 10 passed in 0.02s[0m
+[2m3[0m[2m failures[0m[2m remain[0m[2m.[0m[2m Let[0m[2m's[0m[2m check[0m[2m the[0m[2m details[0m[2m:[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest dominoes_test.py::DominoesTest::test_can_reverse_domin…[0m
+[2m  ⎿ E   AssertionError: Lists differ: [(1, 2), (1, 3), (2, 3)] != [(1, 1), (1, 2), (2, 3)][0m
+[2m     E   [0m
+[2m     E   First differing element 0:[0m
+[2m     E   (1, 2)[0m
+[2m     E   (1, 1)[0m
+[2m     E   [0m
+[2m     … +27 lines[0m
+[2mThe[0m[2m chain[0m[2m is[0m[2m found[0m[2m,[0m[2m but[0m[2m the[0m[2m mult[0m[2miset[0m[2m of[0m[2m domino[0m[2mes[0m[2m doesn[0m[2m't[0m[2m match[0m[2m the[0m[2m input[0m[2m.[0m[2m The[0m[2m test[0m[2m's[0m[2m normalize[0m[2m sorts[0m[2m each[0m[2m domino[0m[2m's[0m[2m tuple[0m[2m and[0m[2m sorts[0m[2m the[0m[2m list[0m[2m —[0m[2m so[0m[2m ([0m[2m2[0m[2m,[0m[2m1[0m[2m)[0m[2m and[0m[2m ([0m[2m1[0m[2m,[0m[2m2[0m[2m)[0m[2m are[0m[2m the[0m[2m same[0m[2m.[0m[2m The[0m[2m failing[0m[2m case[0m[2m:[0m[2m for[0m[2m input[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m1[0m[2m,[0m[2m3[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m)],[0m[2m the[0m[2m output[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m1[0m[2m,[0m[2m3[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m)][0m[2m —[0m[2m these[0m[2m match[0m[2m after[0m[2m normalization[0m[2m![0m[2m But[0m[2m the[0m[2m error[0m[2m says[0m[2m the[0m[2m lists[0m[2m differ[0m[2m…[0m[2m "[0m[2mLists[0m[2m differ[0m[2m:[0m[2m [([0m[2m1[0m[2m,[0m[2m 2[0m[2m),[0m[2m ([0m[2m1[0m[2m,[0m[2m 3[0m[2m),[0m[2m ([0m[2m2[0m[2m,[0m[2m 3[0m[2m)][0m[2m !=[0m[2m [([0m[2m1[0m[2m,[0m[2m 1[0m[2m),[0m[2m ([0m[2m1[0m[2m,[0m[2m 2[0m[2m),[0m[2m ([0m[2m2[0m[2m,[0m[2m 3[0m[2m)][0m[2m".[0m[2m
+
+[0m[2mAh[0m[2m![0m[2m Got[0m[2m it[0m[2m —[0m[2m `[0m[2mresult[0m[2m =[0m[2m chain[0m[2m`[0m[2m —[0m[2m the[0m[2m chain[0m[2m list[0m[2m is[0m[2m shared[0m[2m.[0m[2m `[0m[2mresult[0m[2m`[0m[2m references[0m[2m the[0m[2m same[0m[2m list[0m[2m object[0m[2m as[0m[2m `[0m[2mchain[0m[2m`[0m[2m…[0m[2m no[0m[2m wait[0m[2m,[0m[2m `[0m[2mresult[0m[2m =[0m[2m chain[0m[2m`[0m[2m just[0m[2m binds[0m[2m the[0m[2m name[0m[2m,[0m[2m and[0m[2m then[0m[2m in[0m[2m the[0m[2m next[0m[2m loop[0m[2m iteration[0m[2m `[0m[2mchain[0m[2m =[0m[2m [][0m[2m`[0m[2m creates[0m[2m a[0m[2m new[0m[2m list[0m[2m,[0m[2m but[0m[2m result[0m[2m keeps[0m[2m pointing[0m[2m to[0m[2m the[0m[2m old[0m[2m list[0m[2m —[0m[2m that[0m[2m's[0m[2m fine[0m[2m.[0m[2m But[0m[2m the[0m[2m bug[0m[2m is[0m[2m:[0m[2m in[0m[2m `[0m[2mdfs[0m[2m`[0m[2m we[0m[2m do[0m[2m `[0m[2mchain[0m[2m.append[0m[2m`,[0m[2m and[0m[2m on[0m[2m back[0m[2mtracking[0m[2m `[0m[2mchain[0m[2m.pop[0m[2m`[0m[2m —[0m[2m that[0m[2m's[0m[2m fine[0m[2m.[0m[2m But[0m[2m `[0m[2mresult[0m[2m =[0m[2m chain[0m[2m`[0m[2m captures[0m[2m the[0m[2m list[0m[2m.[0m[2m Then[0m[2m in[0m[2m the[0m[2m next[0m[2m for[0m[2m-start[0m[2m iteration[0m[2m,[0m[2m `[0m[2mchain[0m[2m =[0m[2m [][0m[2m`[0m[2m —[0m[2m a[0m[2m new[0m[2m object[0m[2m,[0m[2m and[0m[2m result[0m[2m still[0m[2m references[0m[2m the[0m[2m old[0m[2m one[0m[2m.[0m[2m OK[0m[2m,[0m[2m that[0m[2m's[0m[2m fine[0m[2m.[0m[2m
+
+[0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m mismatch[0m[2m:[0m[2m the[0m[2m output[0m[2m chain[0m[2m contains[0m[2m the[0m[2m correct[0m[2m domino[0m[2mes[0m[2m,[0m[2m but[0m[2m…[0m[2m let[0m[2m's[0m[2m look[0m[2m:[0m[2m test[0m[2m_can[0m[2m_reverse[0m[2m:[0m[2m input[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m1[0m[2m,[0m[2m3[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m)],[0m[2m output[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m1[0m[2m,[0m[2m3[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m)][0m[2m??[0m[2m Normal[0m[2mizing[0m[2m both[0m[2m gives[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m1[0m[2m,[0m[2m3[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m)][0m[2m —[0m[2m equal[0m[2m.[0m[2m But[0m[2m the[0m[2m error[0m[2m says[0m[2m output[0m[2m !=[0m[2m input[0m[2m and[0m[2m the[0m[2m lists[0m[2m differ[0m[2m:[0m[2m `[0m[2m[([0m[2m1[0m[2m,[0m[2m 2[0m[2m),[0m[2m ([0m[2m1[0m[2m,[0m[2m 3[0m[2m),[0m[2m ([0m[2m2[0m[2m,[0m[2m 3[0m[2m)][0m[2m !=[0m[2m [([0m[2m1[0m[2m,[0m[2m 1[0m[2m),[0m[2m ([0m[2m1[0m[2m,[0m[2m 2[0m[2m),[0m[2m ([0m[2m2[0m[2m,[0m[2m 3[0m[2m)][0m[2m`.[0m[2m That[0m[2m's[0m[2m the[0m[2m format[0m[2m of[0m[2m assert[0m[2mEqual[0m[2m:[0m[2m "[0m[2mLists[0m[2m differ[0m[2m:[0m[2m X[0m[2m !=[0m[2m Y[0m[2m",[0m[2m where[0m[2m X[0m[2m is[0m[2m first[0m[2m=[0m[2m…[0m[2m actually[0m[2m,[0m[2m does[0m[2m assert[0m[2m_same[0m[2m_dom[0m[2mino[0m[2mes[0m[2m call[0m[2m assert[0m[2mEqual[0m[2m(input[0m[2m_normal[0m[2m,[0m[2m output[0m[2m_normal[0m[2m,[0m[2m msg[0m[2m)[0m[2m??[0m[2m Let[0m[2m's[0m[2m check[0m[2m:[0m[2m `[0m[2mself[0m[2m.assertEqual[0m[2m(input[0m[2m_normal[0m[2m,[0m[2m output[0m[2m_normal[0m[2m,[0m[2m msg[0m[2m)[0m[2m`.[0m[2m So[0m[2m first[0m[2m=[0m[2mactual[0m[2m?[0m[2m No[0m[2m:[0m[2m assert[0m[2mEqual[0m[2m(first[0m[2m,[0m[2m second[0m[2m)[0m[2m —[0m[2m first[0m[2m is[0m[2m input[0m[2m_normal[0m[2m,[0m[2m second[0m[2m is[0m[2m output[0m[2m_normal[0m[2m.[0m[2m So[0m[2m X[0m[2m=[[0m[2m([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m1[0m[2m,[0m[2m3[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m)][0m[2m =[0m[2m input[0m[2m_normal[0m[2m,[0m[2m Y[0m[2m=[[0m[2m([0m[2m1[0m[2m,[0m[2m1[0m[2m),([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m)][0m[2m =[0m[2m output[0m[2m_normal[0m[2m!![0m[2m
+
+[0m[2mSo[0m[2m the[0m[2m output[0m[2m chain[0m[2m contains[0m[2m ([0m[2m1[0m[2m,[0m[2m1[0m[2m),[0m[2m which[0m[2m is[0m[2m not[0m[2m in[0m[2m the[0m[2m input[0m[2m.[0m[2m Bug[0m[2m in[0m[2m normalization[0m[2m:[0m[2m normalize[0m[2m does[0m[2m `[0m[2msorted[0m[2m(tuple[0m[2m(sorted[0m[2m(dom[0m[2mino[0m[2m)))[0m[2m`[0m[2m —[0m[2m no[0m[2m problem[0m[2m.[0m[2m The[0m[2m output[0m[2m actually[0m[2m contains[0m[2m ([0m[2m1[0m[2m,[0m[2m1[0m[2m).[0m[2m
+
+[0m[2mSo[0m[2m my[0m[2m chain[0m[2m orientation[0m[2m is[0m[2m wrong[0m[2m.[0m[2m test[0m[2m_need[0m[2m_back[0m[2mtrack[0m[2m:[0m[2m input[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m),([0m[2m3[0m[2m,[0m[2m1[0m[2m),([0m[2m2[0m[2m,[0m[2m4[0m[2m),([0m[2m2[0m[2m,[0m[2m4[0m[2m)];[0m[2m output[0m[2m [([0m[2m1[0m[2m,[0m[2m2[0m[2m),([0m[2m1[0m[2m,[0m[2m3[0m[2m),([0m[2m2[0m[2m,[0m[2m2[0m[2m),([0m[2m2[0m[2m,[0m[2m3[0m[2m),([0m[2m2[0m[2m,[0m[2m4[0m[2m)][0m[2m —[0m[2m contains[0m[2m ([0m[2m2[0m[2m,[0m[2m2[0m[2m)[0m[2m and[0m[2m ([0m[2m1[0m[2m,[0m[2m3[0m[2m),[0m[2m which[0m[2m are[0m[2m not[0m[2m in[0m[2m the[0m[2m input[0m[2m![0m[2m
+
+[0m[2mOrientation[0m[2m bug[0m[2m:[0m[2m `[0m[2mchain[0m[2m.append[0m[2m(([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m else[0m[2m ([0m[2ma[0m[2m,[0m[2m other[0m[2m))[0m[2m`.[0m[2m Edge[0m[2m i[0m[2m=([0m[2ma[0m[2m,b[0m[2m).[0m[2m If[0m[2m other[0m[2m==[0m[2ma[0m[2m →[0m[2m orientation[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m).[0m[2m Left[0m[2m=a[0m[2m=[0m[2mcur[0m[2m ✓[0m[2m,[0m[2m right[0m[2m=b[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m Otherwise[0m[2m,[0m[2m other[0m[2m==[0m[2mb[0m[2m →[0m[2m orientation[0m[2m ([0m[2ma[0m[2m,[0m[2m other[0m[2m)=([0m[2ma[0m[2m,b[0m[2m),[0m[2m left[0m[2m=a[0m[2m,[0m[2m right[0m[2m=b[0m[2m=[0m[2mother[0m[2m=[0m[2mcur[0m[2m??[0m[2m Wait[0m[2m,[0m[2m other[0m[2m==[0m[2mb[0m[2m means[0m[2m cur[0m[2m==[0m[2mb[0m[2m,[0m[2m but[0m[2m then[0m[2m left[0m[2m end[0m[2m a[0m[2m !=[0m[2m cur[0m[2m![0m[2m The[0m[2m chain[0m[2m breaks[0m[2m:[0m[2m the[0m[2m previous[0m[2m domino[0m[2m's[0m[2m right[0m[2m end[0m[2m must[0m[2m equal[0m[2m this[0m[2m domino[0m[2m's[0m[2m left[0m[2m end[0m[2m,[0m[2m i[0m[2m.e[0m[2m.,[0m[2m left[0m[2m=[0m[2mcur[0m[2m.[0m[2m If[0m[2m cur[0m[2m==[0m[2mb[0m[2m,[0m[2m the[0m[2m orientation[0m[2m should[0m[2m be[0m[2m ([0m[2mb[0m[2m,[0m[2m a[0m[2m),[0m[2m i[0m[2m.e[0m[2m.,[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m).[0m[2m
+
+[0m[2mSo[0m[2m the[0m[2m logic[0m[2m is[0m[2m reversed[0m[2m.[0m[2m Correct[0m[2m:[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m,[0m[2m the[0m[2m orientation[0m[2m is[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m);[0m[2m if[0m[2m other[0m[2m ==[0m[2m b[0m[2m,[0m[2m the[0m[2m orientation[0m[2m is[0m[2m ([0m[2mb[0m[2m,[0m[2m a[0m[2m).[0m[2m Both[0m[2m cases[0m[2m:[0m[2m ([0m[2mother[0m[2m,[0m[2m other[0m[2m's[0m[2m partner[0m[2m)[0m[2m =[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m if[0m[2m other[0m[2m==[0m[2ma[0m[2m else[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)…[0m[2m let[0m[2m me[0m[2m define[0m[2m:[0m[2m orientation[0m[2m =[0m[2m ([0m[2mother[0m[2m,[0m[2m x[0m[2m)[0m[2m where[0m[2m x[0m[2m is[0m[2m the[0m[2m other[0m[2m endpoint[0m[2m:[0m[2m if[0m[2m other[0m[2m==[0m[2ma[0m[2m then[0m[2m x[0m[2m=b[0m[2m;[0m[2m if[0m[2m other[0m[2m==[0m[2mb[0m[2m then[0m[2m x[0m[2m=a[0m[2m.[0m[2m So[0m[2m `([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m else[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m`.[0m[2m
+
+[0m[2mThe[0m[2m test[0m[2m failures[0m[2m confirm[0m[2m that[0m[2m the[0m[2m current[0m[2m code[0m[2m produces[0m[2m wrong[0m[2m tuples[0m[2m.[0m[2m Fix[0m[2m:[0m[2m
+
+[0m[2m`[0m[2mchain[0m[2m.append[0m[2m(([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m else[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m))[0m[2m`.[0m[2m
+
+[0m[2mFor[0m[2m doubles[0m[2m,[0m[2m a[0m[2m==[0m[2mb[0m[2m,[0m[2m other[0m[2m==[0m[2ma[0m[2m:[0m[2m ([0m[2mother[0m[2m,b[0m[2m)=([0m[2ma[0m[2m,a[0m[2m).[0m[2m Good[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mFound[0m[32m it[0m[32m —[0m[32m the[0m[32m orientation[0m[32m logic[0m[32m is[0m[32m inverted[0m[32m,[0m[32m which[0m[32m corrupt[0m[32ms[0m[32m the[0m[32m domino[0m[32m set[0m[32m.[0m[32m Fix[0m[32ming[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -             chain.append((other, a) [34mif[39;49;00m other == a [34melse[39;49;00m (a, other))[37m[39;49;00m[0m
+[32m  +             chain.append((other, b) [34mif[39;49;00m other == a [34melse[39;49;00m (other, a))[37m[39;49;00m[0m
+[2mWait[0m[2m,[0m[2m let[0m[2m me[0m[2m verify[0m[2m:[0m[2m other[0m[2m==[0m[2ma[0m[2m →[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m):[0m[2m left[0m[2m=a[0m[2m=[0m[2mcur[0m[2m ✓[0m[2m.[0m[2m other[0m[2m==[0m[2mb[0m[2m →[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m =[0m[2m ([0m[2mb[0m[2m,[0m[2m a[0m[2m):[0m[2m left[0m[2m=b[0m[2m=[0m[2mcur[0m[2m ✓[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | tail -3[0m
+[2m  ⎿ FAILED dominoes_test.py::DominoesTest::test_separate_loops - AssertionError: ...[0m
+[2m     FAILED dominoes_test.py::DominoesTest::test_three_elements - AssertionError: ...[0m
+[2m     5 failed, 8 passed in 0.02s[0m
+[2mHmm[0m[2m,[0m[2m 5[0m[2m failures[0m[2m again[0m[2m?[0m[2m Let[0m[2m me[0m[2m check[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest dominoes_test.py 2>&1 | grep -B1 -A6 'AssertionError' …[0m
+[2m  ⎿ self.assertEqual(output_chain[i][1], output_chain[i + 1][0], msg)[0m
+[2m     E   AssertionError: 1 != 3 : In chain [(2, 1), (3, 2), (1, 3)], right end of domino 0 ((2, 1)) and left end of domino 1 ((3, 2)) must match[0m
+[2m     _______________________ DominoesTest.test_need_backtrack _______________________[0m
+[2m     [0m
+[2m     self = <dominoes_test.DominoesTest testMethod=test_need_backtrack>[0m
+[2m     [0m
+[2m     … +39 lines[0m
+[2mThe[0m[2m chain[0m[2m is[0m[2m currently[0m[2m mismatch[0m[2ming[0m[2m:[0m[2m e[0m[2m.g[0m[2m.,[0m[2m [([0m[2m2[0m[2m,[0m[2m1[0m[2m),([0m[2m3[0m[2m,[0m[2m2[0m[2m),([0m[2m1[0m[2m,[0m[2m3[0m[2m)][0m[2m —[0m[2m 2[0m[2m|[0m[2m1[0m[2m then[0m[2m 3[0m[2m|[0m[2m2[0m[2m,[0m[2m mismatch[0m[2m 1[0m[2m!=[0m[2m3[0m[2m.[0m[2m
+
+[0m[2mWhere[0m[2m's[0m[2m the[0m[2m bug[0m[2m?[0m[2m Inside[0m[2m dfs[0m[2m:[0m[2m `[0m[2madj[0m[2m[cur[0m[2m][0m[2m`[0m[2m contains[0m[2m ([0m[2mi[0m[2m,[0m[2m other[0m[2m),[0m[2m where[0m[2m `[0m[2mother[0m[2m`[0m[2m is[0m[2m the[0m[2m node[0m[2m on[0m[2m the[0m[2m opposite[0m[2m side[0m[2m of[0m[2m edge[0m[2m i[0m[2m from[0m[2m `[0m[2mcur[0m[2m`.[0m[2m Let[0m[2m me[0m[2m check[0m[2m the[0m[2m adj[0m[2m construction[0m[2m:[0m[2m `[0m[2madj[0m[2m[a[0m[2m].[0m[2mappend[0m[2m(([0m[2mi[0m[2m,[0m[2m b[0m[2m))[0m[2m`[0m[2m —[0m[2m for[0m[2m node[0m[2m a[0m[2m,[0m[2m edge[0m[2m i[0m[2m leads[0m[2m to[0m[2m b[0m[2m.[0m[2m And[0m[2m `[0m[2mif[0m[2m a[0m[2m !=[0m[2m b[0m[2m:[0m[2m adj[0m[2m[b[0m[2m].[0m[2mappend[0m[2m(([0m[2mi[0m[2m,[0m[2m a[0m[2m))[0m[2m`.[0m[2m So[0m[2m the[0m[2m `[0m[2mother[0m[2m`[0m[2m inside[0m[2m the[0m[2m loop[0m[2m =[0m[2m the[0m[2m node[0m[2m on[0m[2m the[0m[2m opposite[0m[2m side[0m[2m from[0m[2m cur[0m[2m.[0m[2m That[0m[2m's[0m[2m correct[0m[2m.[0m[2m
+
+[0m[2mOrientation[0m[2m:[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m else[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m).[0m[2m Hmm[0m[2m wait[0m[2m:[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m then[0m[2m…[0m[2m cur[0m[2m is[0m[2m b[0m[2m ([0m[2msince[0m[2m adj[0m[2m[b[0m[2m][0m[2m holds[0m[2m ([0m[2mi[0m[2m,a[0m[2m)).[0m[2m Then[0m[2m orientation[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m):[0m[2m left[0m[2m=a[0m[2m…[0m[2m but[0m[2m cur[0m[2m=b[0m[2m![0m[2m The[0m[2m left[0m[2m should[0m[2m be[0m[2m cur[0m[2m.[0m[2m Wait[0m[2m a[0m[2m moment[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m redo[0m[2m this[0m[2m:[0m[2m edge[0m[2m i[0m[2m=([0m[2ma[0m[2m,b[0m[2m).[0m[2m If[0m[2m cur[0m[2m==[0m[2ma[0m[2m then[0m[2m other[0m[2m==[0m[2mb[0m[2m;[0m[2m desired[0m[2m orientation[0m[2m is[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m)[0m[2m =[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m)[0m[2m =[0m[2m ([0m[2mcur[0m[2m,[0m[2m a[0m[2m)[0m[2m??[0m[2m If[0m[2m cur[0m[2m==[0m[2ma[0m[2m then[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m).[0m[2m The[0m[2m formula[0m[2m "[0m[2mif[0m[2m other[0m[2m ==[0m[2m a[0m[2m then[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m else[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)":[0m[2m if[0m[2m cur[0m[2m==[0m[2ma[0m[2m then[0m[2m other[0m[2m==[0m[2mb[0m[2m,[0m[2m so[0m[2m we[0m[2m use[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m =[0m[2m ([0m[2mb[0m[2m,[0m[2m a[0m[2m).[0m[2m Left[0m[2m=b[0m[2m=[0m[2m…[0m[2m cur[0m[2m is[0m[2m a[0m[2m,[0m[2m so[0m[2m left[0m[2m should[0m[2m be[0m[2m a[0m[2m.[0m[2m Wrong[0m[2m![0m[2m
+
+[0m[2mIf[0m[2m cur[0m[2m==[0m[2mb[0m[2m then[0m[2m other[0m[2m==[0m[2ma[0m[2m:[0m[2m the[0m[2m formula[0m[2m gives[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m).[0m[2m Left[0m[2m=a[0m[2m=[0m[2mcur[0m[2m?[0m[2m cur[0m[2m==[0m[2mb[0m[2m.[0m[2m Wrong[0m[2m again[0m[2m![0m[2m
+
+[0m[2mI[0m[2m had[0m[2m it[0m[2m backwards[0m[2m.[0m[2m The[0m[2m correct[0m[2m formula[0m[2m:[0m[2m orientation[0m[2m =[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m)[0m[2m =[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m if[0m[2m cur[0m[2m==[0m[2m…[0m[2m hmm[0m[2m.[0m[2m More[0m[2m simply[0m[2m:[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m then[0m[2m cur[0m[2m ==[0m[2m b[0m[2m,[0m[2m orientation[0m[2m is[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m)[0m[2m =[0m[2m ([0m[2mb[0m[2m,[0m[2m a[0m[2m);[0m[2m if[0m[2m other[0m[2m ==[0m[2m b[0m[2m then[0m[2m cur[0m[2m ==[0m[2m a[0m[2m,[0m[2m orientation[0m[2m is[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m)[0m[2m =[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)…[0m[2m no[0m[2m,[0m[2m that[0m[2m's[0m[2m wrong[0m[2m:[0m[2m
+
+[0m[2m-[0m[2m cur[0m[2m==[0m[2ma[0m[2m,[0m[2m other[0m[2m==[0m[2mb[0m[2m →[0m[2m ([0m[2ma[0m[2m,b[0m[2m)[0m[2m =[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m).[0m[2m In[0m[2m terms[0m[2m of[0m[2m other[0m[2m:[0m[2m other[0m[2m==[0m[2mb[0m[2m →[0m[2m ([0m[2mother[0m[2m's[0m[2m partner[0m[2m is[0m[2m a[0m[2m):[0m[2m ([0m[2ma[0m[2m,[0m[2m other[0m[2m).[0m[2m
+[0m[2m-[0m[2m cur[0m[2m==[0m[2mb[0m[2m,[0m[2m other[0m[2m==[0m[2ma[0m[2m →[0m[2m ([0m[2mb[0m[2m,a[0m[2m)[0m[2m =[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m).[0m[2m other[0m[2m==[0m[2ma[0m[2m →[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m)[0m[2m =[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)?[0m[2m other[0m[2m==[0m[2ma[0m[2m,[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m)[0m[2m??[0m[2m No[0m[2m:[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m),[0m[2m but[0m[2m what[0m[2m we[0m[2m want[0m[2m is[0m[2m ([0m[2mb[0m[2m,[0m[2m a[0m[2m).[0m[2m
+
+[0m[2mU[0m[2mgh[0m[2m.[0m[2m Let[0m[2m me[0m[2m write[0m[2m it[0m[2m directly[0m[2m:[0m[2m `[0m[2mchain[0m[2m.append[0m[2m(([0m[2mcur[0m[2m,[0m[2m other[0m[2m))[0m[2m`.[0m[2m That[0m[2m's[0m[2m exactly[0m[2m what[0m[2m we[0m[2m want[0m[2m:[0m[2m left[0m[2m end[0m[2m =[0m[2m cur[0m[2m,[0m[2m right[0m[2m end[0m[2m =[0m[2m other[0m[2m.[0m[2m If[0m[2m a[0m[2m==[0m[2mb[0m[2m==[0m[2mcur[0m[2m==[0m[2mother[0m[2m then[0m[2m ([0m[2ma[0m[2m,a[0m[2m),[0m[2m which[0m[2m is[0m[2m fine[0m[2m.[0m[2m
+
+[0m[2mWhy[0m[2m did[0m[2m I[0m[2m comp[0m[2mlicate[0m[2m things[0m[2m?[0m[2m The[0m[2m original[0m[2m code[0m[2m `([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m else[0m[2m ([0m[2ma[0m[2m,[0m[2m other[0m[2m)`[0m[2m —[0m[2m let[0m[2m me[0m[2m check[0m[2m:[0m[2m cur[0m[2m==[0m[2ma[0m[2m,[0m[2m other[0m[2m==[0m[2mb[0m[2m →[0m[2m ([0m[2ma[0m[2m,[0m[2m other[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m)[0m[2m ✓[0m[2m correct[0m[2m.[0m[2m cur[0m[2m==[0m[2mb[0m[2m,[0m[2m other[0m[2m==[0m[2ma[0m[2m →[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m a[0m[2m)[0m[2m ✗[0m[2m —[0m[2m that[0m[2m's[0m[2m the[0m[2m original[0m[2m bug[0m[2m ([0m[2mprodu[0m[2mcing[0m[2m ([0m[2m1[0m[2m,[0m[2m1[0m[2m)[0m[2m instead[0m[2m of[0m[2m ([0m[2m2[0m[2m,[0m[2m1[0m[2m)?[0m[2m In[0m[2m test[0m[2m_can[0m[2m_reverse[0m[2m,[0m[2m output[0m[2m ([0m[2m1[0m[2m,[0m[2m1[0m[2m)[0m[2m was[0m[2m showing[0m[2m up[0m[2m —[0m[2m yes[0m[2m,[0m[2m that[0m[2m's[0m[2m it[0m[2m).[0m[2m
+
+[0m[2mMy[0m[2m "[0m[2mfix[0m[2m"[0m[2m `([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m if[0m[2m other[0m[2m ==[0m[2m a[0m[2m else[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m`:[0m[2m cur[0m[2m==[0m[2ma[0m[2m,[0m[2m other[0m[2m==[0m[2mb[0m[2m →[0m[2m ([0m[2mother[0m[2m,[0m[2m a[0m[2m)[0m[2m =[0m[2m ([0m[2mb[0m[2m,[0m[2m a[0m[2m)[0m[2m ✗[0m[2m.[0m[2m cur[0m[2m==[0m[2mb[0m[2m,[0m[2m other[0m[2m==[0m[2ma[0m[2m →[0m[2m ([0m[2mother[0m[2m,[0m[2m b[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m,[0m[2m b[0m[2m)[0m[2m ✗[0m[2m.[0m[2m Both[0m[2m wrong[0m[2m —[0m[2m I[0m[2m just[0m[2m flipped[0m[2m it[0m[2m.[0m[2m Use[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m)[0m[2m directly[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mThe[0m[32m orientation[0m[32m should[0m[32m simply[0m[32m be[0m[32m `([0m[32mcur[0m[32m,[0m[32m other[0m[32m)[0m[32m`:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit dominoes.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -             chain.append((other, b) [34mif[39;49;00m other == a [34melse[39;49;00m (other, a))[37m[39;49;00m[0m
+[32m  +             chain.append((cur, other))[37m[39;49;00m[0m
+[2mWait[0m[2m:[0m[2m is[0m[2m this[0m[2m correct[0m[2m?[0m[2m cur[0m[2m==[0m[2ma[0m[2m,[0m[2m other[0m[2m==[0m[2mb[0m[2m:[0m[2m ([0m[2mcur[0m[2m,[0m[2m other[0m[2m)=([0m[2ma[0m[2m,b[0m[2m)[0m[2m ✓[0m[2m.[0m[2m cur[0m[2m==[0m[2mb[0m[2m,[0m[2m other[0m[2m==[0m[2ma[0m[2m:[0m[2m ([0m[2mb[0m[2m,a[0m[2m)[0m[2m ✓[0m[2m.[0m[2m Both[0m[2m orientations[0m[2m connect[0m[2m cur[0m[2m to[0m[2m other[0m[2m.[0m[2m And[0m[2m the[0m[2m next[0m[2m dfs[0m[2m call[0m[2m:[0m[2m dfs[0m[2m(start[0m[2m,[0m[2m other[0m[2m,[0m[2m rest[0m[2m)[0m[2m —[0m[2m the[0m[2m new[0m[2m current[0m[2m position[0m[2m is[0m[2m other[0m[2m ✓[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | tail -3[0m
+[2m  ⎿ .............                                                            [100%][0m
+[2m     13 passed in 0.00s[0m
+[2mAll[0m[2m 1[0m[2m3[0m[2m cases[0m[2m pass[0m[2m.[0m[2m Should[0m[2m I[0m[2m do[0m[2m a[0m[2m quick[0m[2m sanity[0m[2m check[0m[2m on[0m[2m the[0m[2m final[0m[2m file[0m[2m,[0m[2m and[0m[2m also[0m[2m do[0m[2m a[0m[2m few[0m[2m spot[0m[2m-check[0m[2ms[0m[2m ([0m[2mempty[0m[2m,[0m[2m duplicates[0m[2m)?[0m[2m The[0m[2m tests[0m[2m cover[0m[2m those[0m[2m.[0m[2m Also[0m[2m,[0m[2m verify[0m[2m that[0m[2m the[0m[2m `[0m[2mother[0m[2m`[0m[2m parameter[0m[2m is[0m[2m still[0m[2m being[0m[2m used[0m[2m in[0m[2m `[0m[2musable[0m[2m`[0m[2m ([0m[2myes[0m[2m,[0m[2m it[0m[2m's[0m[2m used[0m[2m in[0m[2m allowed[0m[2m_odd[0m[2m and[0m[2m the[0m[2m node[0m[2m check[0m[2m).[0m[2m No[0m[2m problem[0m[2m.[0m[2m Done[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mAll[0m[32m 1[0m[32m3[0m[32m tests[0m[32m pass[0m[32m.[0m[32m Final[0m[32m verification[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q dominoes_test.py 2>&1 | tail -2; python -c "from do…[0m
+[2m  ⎿ .............                                                            [100%][0m
+[2m     13 passed in 0.00s[0m
+[2m     [][0m
+[2m     None[0m
+[2m     [(1, 2), (2, 3), (3, 1)][0m
+[2mAll[0m[2m good[0m[2m:[0m[2m `[0m[2mcan[0m[2m_chain[0m[2m([][0m[2m)`[0m[2m returns[0m[2m `[0m[2m[][0m[2m`,[0m[2m un[0m[2mchain[0m[2mable[0m[2m single[0m[2mtons[0m[2m return[0m[2m `[0m[2mNone[0m[2m`,[0m[2m and[0m[2m valid[0m[2m chains[0m[2m work[0m[2m too[0m[2m.[0m[2m Done[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0mloading Qwen3.8-27B-UD-Q3_K_XL-DFlash2-MLX [default] ...
+ready in 1.9s | context 262144 tokens (compact at 260096)

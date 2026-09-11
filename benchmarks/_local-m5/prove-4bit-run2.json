@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "model": "Qwen3.8-27B-4bit",
+    "download_mode": "model already cached, offline guard engaged",
+    "hardware": "Apple M5 Pro, 48 GB",
+    "load_s": 2.5821192264556885,
+    "big_ram_note": null
+  },
+  "results": [
+    {
+      "name": "casual_typo_fix",
+      "passed": true,
+      "wall": 8.2,
+      "timed_out": false,
+      "tok_per_s": 47.9,
+      "gen_tokens": 262,
+      "ttft_s": 0.42
+    },
+    {
+      "name": "add_function",
+      "passed": true,
+      "wall": 15.1,
+      "timed_out": false,
+      "tok_per_s": 43.2,
+      "gen_tokens": 510,
+      "ttft_s": null
+    },
+    {
+      "name": "locate_and_fix",
+      "passed": true,
+      "wall": 31.4,
+      "timed_out": false,
+      "tok_per_s": 46.6,
+      "gen_tokens": 1246,
+      "ttft_s": null
+    },
+    {
+      "name": "fix_bug_midtext",
+      "passed": true,
+      "wall": 25.8,
+      "timed_out": false,
+      "tok_per_s": 44.4,
+      "gen_tokens": 991,
+      "ttft_s": null
+    }
+  ]
+}

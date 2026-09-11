@@ -1,0 +1,351 @@
+# launched 2026-09-11T14:39:48 wall 183.0s
+[2m  [warm start: 2,204 prefix tokens from disk cache; 327 project tokens prefilled in 0.9s][0m
+[2mLet[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m instructions[0m[2m and[0m[2m the[0m[2m test[0m[2m file[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m[32m
+[0m
+[32m●[0m [1mPlan[0m
+[2m  [~] Read instructions.md, wordy.py, wordy_test.py[0m
+[2m  [ ] Implement solution in wordy.py[0m
+[2m  [ ] Run pytest until tests pass[0m
+
+[32m●[0m [1mRun  cat instructions.md[0m
+[2m  ⎿ # Instructions[0m
+[2m     [0m
+[2m     Parse and evaluate simple math word problems returning the answer as an integer.[0m
+[2m     [0m
+[2m     ## Iteration 0 — Numbers[0m
+[2m     [0m
+[2m     … +53 lines[0m
+[2mAlright[0m[2m,[0m[2m let[0m[2m's[0m[2m load[0m[2m the[0m[2m files[0m[2m word[0m[2my[0m[2m.py[0m[2m and[0m[2m word[0m[2my[0m[2m_test[0m[2m.py[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  cat -n wordy.py; echo ---; cat -n wordy_test.py[0m
+[2m  ⎿ 1	def answer(question):[0m
+[2m          2	    pass[0m
+[2m     ---[0m
+[2m          1	# These tests are auto-generated with test data from:[0m
+[2m          2	# https://github.com/exercism/problem-specifications/tree/main/exercises/wordy/canonical-data.json[0m
+[2m          3	# File last updated on 2023-07-19[0m
+[2m     … +115 lines[0m
+[2mStandard[0m[2m Exerc[0m[2mism[0m[2m Word[0m[2my[0m[2m problem[0m[2m.[0m[2m Let[0m[2m's[0m[2m implement[0m[2m:[0m[2m
+
+[0m[2m-[0m[2m Strip[0m[2m the[0m[2m "[0m[2mWhat[0m[2m is[0m[2m "[0m[2m prefix[0m[2m ([0m[2mor[0m[2m,[0m[2m more[0m[2m generally[0m[2m,[0m[2m check[0m[2m whether[0m[2m the[0m[2m question[0m[2m starts[0m[2m with[0m[2m "[0m[2mWhat[0m[2m is[0m[2m").[0m[2m Non[0m[2m-m[0m[2math[0m[2m question[0m[2m →[0m[2m "[0m[2munknown[0m[2m operation[0m[2m".[0m[2m
+[0m[2m-[0m[2m Parse[0m[2m tokens[0m[2m:[0m[2m numbers[0m[2m ([0m[2mint[0m[2m,[0m[2m including[0m[2m negative[0m[2m),[0m[2m operators[0m[2m plus[0m[2m/[0m[2mminus[0m[2m/m[0m[2multi[0m[2mplied[0m[2m by[0m[2m/div[0m[2mided[0m[2m by[0m[2m.[0m[2m
+[0m[2m-[0m[2m Evaluate[0m[2m left[0m[2m to[0m[2m right[0m[2m.[0m[2m
+[0m[2m-[0m[2m Errors[0m[2m:[0m[2m
+[0m[2m  -[0m[2m "[0m[2munknown[0m[2m operation[0m[2m":[0m[2m when[0m[2m a[0m[2m token[0m[2m is[0m[2m an[0m[2m unrecognized[0m[2m word[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m "[0m[2mc[0m[2mub[0m[2med[0m[2m")[0m[2m or[0m[2m a[0m[2m non[0m[2m-m[0m[2math[0m[2m question[0m[2m.[0m[2m
+[0m[2m  -[0m[2m "[0m[2msyntax[0m[2m error[0m[2m":[0m[2m invalid[0m[2m structure[0m[2m ([0m[2mmissing[0m[2m operand[0m[2m,[0m[2m no[0m[2m operands[0m[2m,[0m[2m consecutive[0m[2m operators[0m[2m,[0m[2m consecutive[0m[2m numbers[0m[2m,[0m[2m postfix[0m[2m/p[0m[2mrefix[0m[2m,[0m[2m etc[0m[2m.)[0m[2m
+
+[0m[2mAppro[0m[2mach[0m[2m:[0m[2m tokenize[0m[2m the[0m[2m part[0m[2m after[0m[2m the[0m[2m prefix[0m[2m.[0m[2m Each[0m[2m token[0m[2m is[0m[2m a[0m[2m number[0m[2m or[0m[2m an[0m[2m operator[0m[2m word[0m[2m.[0m[2m
+
+[0m[2mToken[0m[2m types[0m[2m:[0m[2m
+[0m[2m-[0m[2m number[0m[2m:[0m[2m r[0m[2m'-[0m[2m?\[0m[2md[0m[2m+'[0m[2m
+[0m[2m-[0m[2m operators[0m[2m:[0m[2m "[0m[2mplus[0m[2m",[0m[2m "[0m[2mminus[0m[2m",[0m[2m "[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m",[0m[2m "[0m[2mdiv[0m[2mided[0m[2m by[0m[2m"[0m[2m
+
+[0m[2m"[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m"[0m[2m is[0m[2m two[0m[2m words[0m[2m.[0m[2m So[0m[2m tokenize[0m[2m:[0m[2m split[0m[2m on[0m[2m whitespace[0m[2m,[0m[2m then[0m[2m reconstruct[0m[2m multi[0m[2m-word[0m[2m operators[0m[2m.[0m[2m
+
+[0m[2mPlan[0m[2m:[0m[2m
+[0m[2m1[0m[2m.[0m[2m If[0m[2m question[0m[2m doesn[0m[2m't[0m[2m start[0m[2m with[0m[2m "[0m[2mWhat[0m[2m is[0m[2m"[0m[2m →[0m[2m ValueError[0m[2m("[0m[2munknown[0m[2m operation[0m[2m").[0m[2m Actually[0m[2m "[0m[2mWho[0m[2m is[0m[2m the[0m[2m President[0m[2m..."[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m.[0m[2m
+[0m[2m2[0m[2m.[0m[2m Body[0m[2m =[0m[2m question[0m[2m after[0m[2m "[0m[2mWhat[0m[2m is[0m[2m",[0m[2m with[0m[2m trailing[0m[2m "?"[0m[2m stripped[0m[2m.[0m[2m
+[0m[2m3[0m[2m.[0m[2m If[0m[2m body[0m[2m is[0m[2m empty[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m
+[0m[2m4[0m[2m.[0m[2m Token[0m[2mize[0m[2m:[0m[2m scan[0m[2m words[0m[2m;[0m[2m if[0m[2m a[0m[2m word[0m[2m is[0m[2m in[0m[2m {"[0m[2mplus[0m[2m","[0m[2mminus[0m[2m"}[0m[2m it[0m[2m's[0m[2m a[0m[2m single[0m[2m-token[0m[2m operator[0m[2m;[0m[2m if[0m[2m a[0m[2m word[0m[2m is[0m[2m "[0m[2mmulti[0m[2mplied[0m[2m"/[0m[2m"[0m[2mdiv[0m[2mided[0m[2m"[0m[2m it[0m[2m must[0m[2m be[0m[2m followed[0m[2m by[0m[2m "[0m[2mby[0m[2m"[0m[2m —[0m[2m treat[0m[2m as[0m[2m operator[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m but[0m[2m what[0m[2m if[0m[2m "[0m[2mmulti[0m[2mplied[0m[2m"[0m[2m appears[0m[2m without[0m[2m "[0m[2mby[0m[2m"?[0m[2m Not[0m[2m in[0m[2m the[0m[2m tests[0m[2m.[0m[2m Keep[0m[2m it[0m[2m simple[0m[2m.[0m[2m
+
+[0m[2mS[0m[2mimpl[0m[2mer[0m[2m approach[0m[2m:[0m[2m use[0m[2m regex[0m[2m to[0m[2m find[0m[2m all[0m[2m tokens[0m[2m:[0m[2m
+[0m[2mpattern[0m[2m =[0m[2m r[0m[2m'[0m[2m(\[0m[2md[0m[2m+[0m[2m|-[0m[2m?\[0m[2md[0m[2m+[0m[2m)|[0m[2mplus[0m[2m|[0m[2mminus[0m[2m|[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m|[0m[2mdiv[0m[2mided[0m[2m by[0m[2m'[0m[2m —[0m[2m find[0m[2m all[0m[2m tokens[0m[2m that[0m[2m match[0m[2m the[0m[2m pattern[0m[2m in[0m[2m order[0m[2m.[0m[2m Then[0m[2m check[0m[2m that[0m[2m the[0m[2m matched[0m[2m tokens[0m[2m cover[0m[2m the[0m[2m whole[0m[2m body[0m[2m ([0m[2mno[0m[2m leftover[0m[2m words[0m[2m).[0m[2m If[0m[2m there[0m[2m are[0m[2m leftover[0m[2m words[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m "[0m[2mc[0m[2mub[0m[2med[0m[2m").[0m[2m
+
+[0m[2mThen[0m[2m validate[0m[2m token[0m[2m sequence[0m[2m:[0m[2m must[0m[2m be[0m[2m ([0m[2mnumber[0m[2m ([0m[2moperator[0m[2m number[0m[2m)[0m[2m*)[0m[2m —[0m[2m i[0m[2m.e[0m[2m.,[0m[2m start[0m[2m with[0m[2m number[0m[2m,[0m[2m then[0m[2m alternate[0m[2m.[0m[2m Viol[0m[2mation[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m
+
+[0m[2mWait[0m[2m,[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 5[0m[2m2[0m[2m cub[0m[2med[0m[2m?"[0m[2m →[0m[2m tokens[0m[2m:[0m[2m [[0m[2m5[0m[2m2[0m[2m],[0m[2m leftover[0m[2m "[0m[2mc[0m[2mub[0m[2med[0m[2m"[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"[0m[2mWho[0m[2m is[0m[2m the[0m[2m President[0m[2m of[0m[2m the[0m[2m United[0m[2m States[0m[2m?"[0m[2m →[0m[2m not[0m[2m a[0m[2m "[0m[2mWhat[0m[2m is[0m[2m"[0m[2m question[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"What[0m[2m is[0m[2m 1[0m[2m plus[0m[2m?"[0m[2m →[0m[2m tokens[0m[2m [[0m[2m1[0m[2m,[0m[2m plus[0m[2m][0m[2m →[0m[2m sequence[0m[2m is[0m[2m number[0m[2m,[0m[2m operator[0m[2m —[0m[2m missing[0m[2m trailing[0m[2m number[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"What[0m[2m is[0m[2m?"[0m[2m →[0m[2m no[0m[2m tokens[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"[0m[2m1[0m[2m plus[0m[2m plus[0m[2m 2[0m[2m"[0m[2m →[0m[2m [[0m[2m1[0m[2m,[0m[2m plus[0m[2m,[0m[2m plus[0m[2m,[0m[2m 2[0m[2m][0m[2m →[0m[2m operator[0m[2m,[0m[2m operator[0m[2m in[0m[2m a[0m[2m row[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"[0m[2m1[0m[2m plus[0m[2m 2[0m[2m 1[0m[2m"[0m[2m →[0m[2m [[0m[2m1[0m[2m,[0m[2m plus[0m[2m,[0m[2m 2[0m[2m,[0m[2m 1[0m[2m][0m[2m →[0m[2m number[0m[2m,[0m[2m number[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"[0m[2m1[0m[2m 2[0m[2m plus[0m[2m"[0m[2m →[0m[2m [[0m[2m1[0m[2m,[0m[2m 2[0m[2m,[0m[2m plus[0m[2m][0m[2m →[0m[2m number[0m[2m,[0m[2m number[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"[0m[2mplus[0m[2m 1[0m[2m 2[0m[2m"[0m[2m →[0m[2m [[0m[2mplus[0m[2m,[0m[2m 1[0m[2m,[0m[2m 2[0m[2m][0m[2m →[0m[2m starts[0m[2m with[0m[2m operator[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"[0m[2m2[0m[2m 2[0m[2m minus[0m[2m 3[0m[2m"[0m[2m →[0m[2m [[0m[2m2[0m[2m,[0m[2m 2[0m[2m,[0m[2m minus[0m[2m,[0m[2m 3[0m[2m][0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+[0m[2m"[0m[2m7[0m[2m plus[0m[2m multiplied[0m[2m by[0m[2m -[0m[2m2[0m[2m"[0m[2m →[0m[2m [[0m[2m7[0m[2m,[0m[2m plus[0m[2m,[0m[2m -[0m[2m2[0m[2m][0m[2m...[0m[2m wait[0m[2m "[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m"[0m[2m is[0m[2m an[0m[2m operator[0m[2m token[0m[2m,[0m[2m so[0m[2m tokens[0m[2m are[0m[2m [[0m[2m7[0m[2m,[0m[2m plus[0m[2m,[0m[2m multiplied[0m[2m by[0m[2m,[0m[2m -[0m[2m2[0m[2m][0m[2m →[0m[2m operator[0m[2m,[0m[2m operator[0m[2m in[0m[2m a[0m[2m row[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+
+[0m[2mEdge[0m[2m case[0m[2m:[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 5[0m[2m?"[0m[2m →[0m[2m body[0m[2m is[0m[2m "[0m[2m5[0m[2m"[0m[2m →[0m[2m tokens[0m[2m [[0m[2m5[0m[2m][0m[2m →[0m[2m result[0m[2m 5[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+
+[0m[2mOrder[0m[2m of[0m[2m error[0m[2m priority[0m[2m:[0m[2m if[0m[2m there[0m[2m are[0m[2m leftover[0m[2m words[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m,[0m[2m otherwise[0m[2m if[0m[2m the[0m[2m sequence[0m[2m is[0m[2m invalid[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Consider[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 5[0m[2m2[0m[2m cub[0m[2med[0m[2m?"[0m[2m →[0m[2m tokens[0m[2m [[0m[2m5[0m[2m2[0m[2m],[0m[2m leftover[0m[2m "[0m[2mc[0m[2mub[0m[2med[0m[2m"[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m ✓[0m[2m ([0m[2mtest[0m[2m expects[0m[2m unknown[0m[2m operation[0m[2m).[0m[2m
+
+[0m[2mWhat[0m[2m about[0m[2m a[0m[2m question[0m[2m like[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 1[0m[2m plus[0m[2m 2[0m[2m cub[0m[2med[0m[2m?"[0m[2m?[0m[2m Not[0m[2m in[0m[2m tests[0m[2m.[0m[2m My[0m[2m rule[0m[2m:[0m[2m leftover[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m need[0m[2m to[0m[2m strip[0m[2m "[0m[2mWhat[0m[2m is[0m[2m"[0m[2m prefix[0m[2m.[0m[2m "[0m[2mWho[0m[2m is[0m[2m the[0m[2m President[0m[2m..."[0m[2m doesn[0m[2m't[0m[2m start[0m[2m with[0m[2m "[0m[2mWhat[0m[2m is[0m[2m"[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mRegex[0m[2m token[0m[2mization[0m[2m:[0m[2m use[0m[2m re[0m[2m.findall[0m[2m with[0m[2m pattern[0m[2m r[0m[2m'-[0m[2m?\[0m[2md[0m[2m+[0m[2m|[0m[2mplus[0m[2m|[0m[2mminus[0m[2m|[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m|[0m[2mdiv[0m[2mided[0m[2m by[0m[2m'[0m[2m against[0m[2m the[0m[2m lower[0m[2mcased[0m[2m body[0m[2m?[0m[2m Case[0m[2m:[0m[2m tests[0m[2m are[0m[2m all[0m[2m lowercase[0m[2m.[0m[2m Keep[0m[2m as[0m[2m-is[0m[2m.[0m[2m
+
+[0m[2mTo[0m[2m detect[0m[2m leftover[0m[2m words[0m[2m:[0m[2m use[0m[2m re[0m[2m.split[0m[2m or[0m[2m find[0m[2miter[0m[2m to[0m[2m get[0m[2m spans[0m[2m.[0m[2m Match[0m[2med[0m[2m span[0m[2m coverage[0m[2m:[0m[2m check[0m[2m that[0m[2m all[0m[2m characters[0m[2m in[0m[2m body[0m[2m that[0m[2m aren[0m[2m't[0m[2m whitespace[0m[2m are[0m[2m within[0m[2m matches[0m[2m.[0m[2m Sim[0m[2mpler[0m[2m:[0m[2m use[0m[2m find[0m[2miter[0m[2m and[0m[2m check[0m[2m that[0m[2m all[0m[2m matched[0m[2m tokens[0m[2m are[0m[2m in[0m[2m expected[0m[2m positions[0m[2m...[0m[2m Alternative[0m[2m:[0m[2m use[0m[2m re[0m[2m.sub[0m[2m to[0m[2m remove[0m[2m matched[0m[2m tokens[0m[2m and[0m[2m see[0m[2m if[0m[2m any[0m[2m non[0m[2m-wh[0m[2mitespace[0m[2m words[0m[2m remain[0m[2m.[0m[2m
+
+[0m[2mbody[0m[2m =[0m[2m "[0m[2m5[0m[2m2[0m[2m cub[0m[2med[0m[2m"[0m[2m →[0m[2m remove[0m[2m r[0m[2m'[0m[2m(\[0m[2md[0m[2m+[0m[2m|[0m[2mplus[0m[2m|[0m[2mminus[0m[2m|[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m|[0m[2mdiv[0m[2mided[0m[2m by[0m[2m)'[0m[2m →[0m[2m "[0m[2m cub[0m[2med[0m[2m "[0m[2m →[0m[2m strip[0m[2m →[0m[2m "[0m[2mc[0m[2mub[0m[2med[0m[2m"[0m[2m remains[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m.[0m[2m
+
+[0m[2mNote[0m[2m:[0m[2m "[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m"[0m[2m —[0m[2m regex[0m[2m altern[0m[2mation[0m[2m order[0m[2m:[0m[2m put[0m[2m multi[0m[2m-word[0m[2m first[0m[2m,[0m[2m no[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mOne[0m[2m subtle[0m[2m point[0m[2m:[0m[2m "[0m[2mdiv[0m[2mided[0m[2m by[0m[2m"[0m[2m contains[0m[2m "[0m[2mby[0m[2m"[0m[2m —[0m[2m no[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m:[0m[2m "-[0m[2m1[0m[2m"[0m[2m matches[0m[2m '-[0m[2m?\[0m[2md[0m[2m+'.[0m[2m "[0m[2m1[0m[2m plus[0m[2m 2[0m[2m 1[0m[2m"[0m[2m body[0m[2m "[0m[2m1[0m[2m plus[0m[2m 2[0m[2m 1[0m[2m"[0m[2m →[0m[2m all[0m[2m tokens[0m[2m match[0m[2m,[0m[2m no[0m[2m leftover[0m[2m.[0m[2m Sequence[0m[2m:[0m[2m N[0m[2m O[0m[2m N[0m[2m N[0m[2m →[0m[2m syntax[0m[2m error[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2m"[0m[2m7[0m[2m plus[0m[2m multiplied[0m[2m by[0m[2m -[0m[2m2[0m[2m"[0m[2m body[0m[2m "[0m[2m7[0m[2m plus[0m[2m multiplied[0m[2m by[0m[2m -[0m[2m2[0m[2m"[0m[2m →[0m[2m tokens[0m[2m:[0m[2m 7[0m[2m,[0m[2m plus[0m[2m,[0m[2m multiplied[0m[2m by[0m[2m,[0m[2m -[0m[2m2[0m[2m →[0m[2m sequence[0m[2m N[0m[2m O[0m[2m O[0m[2m N[0m[2m →[0m[2m syntax[0m[2m error[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mEvaluation[0m[2m:[0m[2m apply[0m[2m operators[0m[2m left[0m[2m to[0m[2m right[0m[2m.[0m[2m
+
+[0m[2mValidation[0m[2m:[0m[2m token[0m[2m count[0m[2m must[0m[2m be[0m[2m odd[0m[2m;[0m[2m even[0m[2m indices[0m[2m are[0m[2m numbers[0m[2m,[0m[2m odd[0m[2m indices[0m[2m are[0m[2m operators[0m[2m.[0m[2m Otherwise[0m[2m syntax[0m[2m error[0m[2m.[0m[2m
+
+[0m[2mNow[0m[2m,[0m[2m what[0m[2m about[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 1[0m[2m plus[0m[2m 2[0m[2m?"[0m[2m —[0m[2m normal[0m[2m.[0m[2m And[0m[2m non[0m[2m-"[0m[2mWhat[0m[2m is[0m[2m"[0m[2m questions[0m[2m with[0m[2m a[0m[2m number[0m[2m?[0m[2m Not[0m[2m in[0m[2m tests[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m,[0m[2m the[0m[2m prefix[0m[2m:[0m[2m exactly[0m[2m "[0m[2mWhat[0m[2m is[0m[2m "?[0m[2m Question[0m[2m:[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 5[0m[2m?"[0m[2m →[0m[2m body[0m[2m =[0m[2m "[0m[2m5[0m[2m".[0m[2m Use[0m[2m:[0m[2m if[0m[2m not[0m[2m question[0m[2m.startswith[0m[2m("[0m[2mWhat[0m[2m is[0m[2m")[0m[2m →[0m[2m unknown[0m[2m operation[0m[2m.[0m[2m Otherwise[0m[2m body[0m[2m =[0m[2m question[0m[2m[[0m[2m7[0m[2m:].[0m[2mstrip[0m[2m()[0m[2m —[0m[2m actually[0m[2m "[0m[2mWhat[0m[2m is[0m[2m"[0m[2m is[0m[2m 7[0m[2m characters[0m[2m,[0m[2m then[0m[2m strip[0m[2m leading[0m[2m space[0m[2m.[0m[2m Strip[0m[2m trailing[0m[2m "?[0m[2m".[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m what[0m[2m about[0m[2m a[0m[2m question[0m[2m that[0m[2m starts[0m[2m with[0m[2m "[0m[2mWhat[0m[2m is[0m[2m"[0m[2m but[0m[2m body[0m[2m is[0m[2m empty[0m[2m →[0m[2m syntax[0m[2m error[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m consider[0m[2m:[0m[2m what[0m[2m if[0m[2m the[0m[2m body[0m[2m contains[0m[2m a[0m[2m word[0m[2m that[0m[2m's[0m[2m part[0m[2m of[0m[2m a[0m[2m number[0m[2m?[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mImplementation[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mimport[0m[2m re[0m[2m
+
+[0m[2m_OPER[0m[2mATIONS[0m[2m =[0m[2m {[0m[2m
+[0m[2m   [0m[2m "[0m[2mplus[0m[2m":[0m[2m lambda[0m[2m a[0m[2m,[0m[2m b[0m[2m:[0m[2m a[0m[2m +[0m[2m b[0m[2m,[0m[2m
+[0m[2m   [0m[2m "[0m[2mminus[0m[2m":[0m[2m lambda[0m[2m a[0m[2m,[0m[2m b[0m[2m:[0m[2m a[0m[2m -[0m[2m b[0m[2m,[0m[2m
+[0m[2m   [0m[2m "[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m":[0m[2m lambda[0m[2m a[0m[2m,[0m[2m b[0m[2m:[0m[2m a[0m[2m *[0m[2m b[0m[2m,[0m[2m
+[0m[2m   [0m[2m "[0m[2mdiv[0m[2mided[0m[2m by[0m[2m":[0m[2m lambda[0m[2m a[0m[2m,[0m[2m b[0m[2m:[0m[2m a[0m[2m //[0m[2m b[0m[2m,[0m[2m
+[0m[2m}[0m[2m
+
+[0m[2m_TOKEN[0m[2m_RE[0m[2m =[0m[2m re[0m[2m.compile[0m[2m(r[0m[2m"[0m[2m(\[0m[2md[0m[2m+[0m[2m|-[0m[2m?\[0m[2md[0m[2m+[0m[2m|[0m[2mplus[0m[2m|[0m[2mminus[0m[2m|[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m|[0m[2mdiv[0m[2mided[0m[2m by[0m[2m)",[0m[2m re[0m[2m.IGNORE[0m[2mCASE[0m[2m)[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mWait[0m[2m,[0m[2m -[0m[2m?\[0m[2md[0m[2m+[0m[2m covers[0m[2m \[0m[2md[0m[2m+[0m[2m so[0m[2m just[0m[2m r[0m[2m'-[0m[2m?\[0m[2md[0m[2m+[0m[2m|[0m[2mplus[0m[2m|[0m[2mminus[0m[2m|[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m|[0m[2mdiv[0m[2mided[0m[2m by[0m[2m'.[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m answer[0m[2m(question[0m[2m):[0m[2m
+[0m[2m   [0m[2m if[0m[2m not[0m[2m question[0m[2m.startswith[0m[2m("[0m[2mWhat[0m[2m is[0m[2m"):[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2munknown[0m[2m operation[0m[2m")[0m[2m
+[0m[2m   [0m[2m body[0m[2m =[0m[2m question[0m[2m[len[0m[2m("[0m[2mWhat[0m[2m is[0m[2m"):[0m[2m].[0m[2mstrip[0m[2m().[0m[2mrstrip[0m[2m("?[0m[2m").[0m[2mstrip[0m[2m()[0m[2m
+[0m[2m   [0m[2m tokens[0m[2m =[0m[2m [[0m[2mt[0m[2m for[0m[2m t[0m[2m,[0m[2m in[0m[2m _[0m[2mTOKEN[0m[2m_RE[0m[2m.findall[0m[2m(body[0m[2m,[0m[2m re[0m[2m.IGNORE[0m[2mCASE[0m[2m)][0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m find[0m[2mall[0m[2m with[0m[2m a[0m[2m single[0m[2m group[0m[2m returns[0m[2m the[0m[2m group[0m[2m strings[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+
+[0m[2mLeft[0m[2mover[0m[2m check[0m[2m:[0m[2m
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2m   [0m[2m leftover[0m[2m =[0m[2m _[0m[2mTOKEN[0m[2m_RE[0m[2m.sub[0m[2m("",[0m[2m body[0m[2m)[0m[2m
+[0m[2m   [0m[2m if[0m[2m any[0m[2m(w[0m[2m for[0m[2m w[0m[2m in[0m[2m leftover[0m[2m.split[0m[2m()):[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2munknown[0m[2m operation[0m[2m")[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mThen[0m[2m validate[0m[2m the[0m[2m sequence[0m[2m:[0m[2m
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2m   [0m[2m if[0m[2m len[0m[2m(tokens[0m[2m)[0m[2m ==[0m[2m 0[0m[2m or[0m[2m len[0m[2m(tokens[0m[2m)[0m[2m %[0m[2m 2[0m[2m ==[0m[2m 0[0m[2m:[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2msyntax[0m[2m error[0m[2m")[0m[2m
+[0m[2m   [0m[2m result[0m[2m =[0m[2m None[0m[2m
+[0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m token[0m[2m in[0m[2m enumerate[0m[2m(tokens[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m i[0m[2m %[0m[2m 2[0m[2m ==[0m[2m 0[0m[2m:[0m[2m
+[0m[2m           [0m[2m if[0m[2m token[0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m:[0m[2m  #[0m[2m operator[0m[2m in[0m[2m number[0m[2m position[0m[2m
+[0m[2m               [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2msyntax[0m[2m error[0m[2m")[0m[2m
+[0m[2m           [0m[2m result[0m[2m =[0m[2m int[0m[2m(token[0m[2m)[0m[2m
+[0m[2m       [0m[2m else[0m[2m:[0m[2m
+[0m[2m           [0m[2m if[0m[2m token[0m[2m not[0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m:[0m[2m  #[0m[2m number[0m[2m in[0m[2m operator[0m[2m position[0m[2m
+[0m[2m               [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2msyntax[0m[2m error[0m[2m")[0m[2m
+[0m[2m           [0m[2m result[0m[2m =[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m[token[0m[2m]([0m[2mresult[0m[2m,[0m[2m int[0m[2m(tokens[0m[2m[i[0m[2m+[0m[2m1[0m[2m]))[0m[2m
+[0m[2m   [0m[2m return[0m[2m result[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mWait[0m[2m —[0m[2m since[0m[2m a[0m[2m number[0m[2m in[0m[2m operator[0m[2m position[0m[2m and[0m[2m an[0m[2m operator[0m[2m in[0m[2m number[0m[2m position[0m[2m are[0m[2m mutually[0m[2m exclusive[0m[2m given[0m[2m the[0m[2m token[0m[2m types[0m[2m ([0m[2meach[0m[2m token[0m[2m is[0m[2m either[0m[2m a[0m[2m number[0m[2m or[0m[2m an[0m[2m operator[0m[2m),[0m[2m the[0m[2m len[0m[2m%[0m[2m2[0m[2m check[0m[2m plus[0m[2m the[0m[2m per[0m[2m-position[0m[2m check[0m[2m covers[0m[2m everything[0m[2m:[0m[2m
+
+[0m[2m-[0m[2m Starts[0m[2m with[0m[2m operator[0m[2m:[0m[2m "[0m[2mplus[0m[2m 1[0m[2m 2[0m[2m"[0m[2m →[0m[2m odd[0m[2m length[0m[2m 3[0m[2m,[0m[2m position[0m[2m 0[0m[2m is[0m[2m operator[0m[2m →[0m[2m syntax[0m[2m error[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m "[0m[2m1[0m[2m plus[0m[2m 2[0m[2m 1[0m[2m"[0m[2m →[0m[2m 4[0m[2m tokens[0m[2m →[0m[2m even[0m[2m →[0m[2m syntax[0m[2m error[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m note[0m[2m:[0m[2m len[0m[2m%[0m[2m2[0m[2m==[0m[2m0[0m[2m →[0m[2m syntax[0m[2m error[0m[2m,[0m[2m then[0m[2m even[0m[2m positions[0m[2m must[0m[2m be[0m[2m numbers[0m[2m,[0m[2m odd[0m[2m positions[0m[2m must[0m[2m be[0m[2m operators[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m,[0m[2m if[0m[2m body[0m[2m is[0m[2m empty[0m[2m,[0m[2m tokens[0m[2m are[0m[2m empty[0m[2m →[0m[2m syntax[0m[2m error[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mDivision[0m[2m:[0m[2m integer[0m[2m division[0m[2m,[0m[2m truncate[0m[2m toward[0m[2m zero[0m[2m?[0m[2m "-[0m[2m1[0m[2m2[0m[2m divided[0m[2m by[0m[2m 2[0m[2m divided[0m[2m by[0m[2m -[0m[2m3[0m[2m":[0m[2m -[0m[2m1[0m[2m2[0m[2m//[0m[2m2[0m[2m =[0m[2m -[0m[2m6[0m[2m,[0m[2m -[0m[2m6[0m[2m//-[0m[2m3[0m[2m =[0m[2m 2[0m[2m ✓[0m[2m.[0m[2m "[0m[2m3[0m[2m3[0m[2m divided[0m[2m by[0m[2m -[0m[2m3[0m[2m"[0m[2m =[0m[2m -[0m[2m1[0m[2m1[0m[2m ✓[0m[2m.[0m[2m Python[0m[2m's[0m[2m //[0m[2m is[0m[2m floor[0m[2m division[0m[2m:[0m[2m 3[0m[2m3[0m[2m//-[0m[2m3[0m[2m =[0m[2m -[0m[2m1[0m[2m1[0m[2m exact[0m[2m,[0m[2m no[0m[2m problem[0m[2m.[0m[2m "[0m[2mWhat[0m[2m is[0m[2m -[0m[2m3[0m[2m plus[0m[2m 7[0m[2m multiplied[0m[2m by[0m[2m -[0m[2m2[0m[2m?[0m[2m":[0m[2m -[0m[2m3[0m[2m+[0m[2m7[0m[2m=[0m[2m4[0m[2m,[0m[2m 4[0m[2m*-[0m[2m2[0m[2m=-[0m[2m8[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mUse[0m[2m //[0m[2m ([0m[2mcanonical[0m[2m data[0m[2m only[0m[2m has[0m[2m exact[0m[2m divisions[0m[2m;[0m[2m the[0m[2m standard[0m[2m solution[0m[2m uses[0m[2m //[0m[2m).[0m[2m Actually[0m[2m,[0m[2m to[0m[2m be[0m[2m safe[0m[2m for[0m[2m non[0m[2m-ex[0m[2mact[0m[2m divisions[0m[2m,[0m[2m Python[0m[2m track[0m[2m solutions[0m[2m generally[0m[2m use[0m[2m `[0m[2ma[0m[2m //[0m[2m b[0m[2m`[0m[2m...[0m[2m The[0m[2m canonical[0m[2m data[0m[2m for[0m[2m this[0m[2m problem[0m[2m uses[0m[2m only[0m[2m exact[0m[2m divisions[0m[2m,[0m[2m so[0m[2m no[0m[2m issue[0m[2m.[0m[2m Keep[0m[2m //.[0m[2m
+
+[0m[2mCase[0m[2m sensitivity[0m[2m:[0m[2m tests[0m[2m are[0m[2m all[0m[2m lowercase[0m[2m;[0m[2m add[0m[2m re[0m[2m.IGNORE[0m[2mCASE[0m[2m just[0m[2m in[0m[2m case[0m[2m.[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m one[0m[2m thing[0m[2m:[0m[2m token[0m[2m "[0m[2mmulti[0m[2mplied[0m[2m"[0m[2m without[0m[2m "[0m[2mby[0m[2m"[0m[2m —[0m[2m e[0m[2m.g[0m[2m.,[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 2[0m[2m multiplied[0m[2m 3[0m[2m?"[0m[2m →[0m[2m tokens[0m[2m [[0m[2m2[0m[2m,[0m[2m 3[0m[2m][0m[2m →[0m[2m len[0m[2m 2[0m[2m,[0m[2m even[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m probably[0m[2m should[0m[2m be[0m[2m unknown[0m[2m operation[0m[2m,[0m[2m but[0m[2m not[0m[2m in[0m[2m tests[0m[2m.[0m[2m Fine[0m[2m.[0m[2m
+
+[0m[2mWait[0m[2m,[0m[2m another[0m[2m edge[0m[2m:[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 1[0m[2m plus[0m[2m 2[0m[2m 1[0m[2m?"[0m[2m leftover[0m[2m is[0m[2m empty[0m[2m,[0m[2m len[0m[2m 4[0m[2m is[0m[2m even[0m[2m →[0m[2m syntax[0m[2m error[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m's[0m[2m write[0m[2m it[0m[2m and[0m[2m run[0m[2m the[0m[2m tests[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mNow[0m[32m I[0m[32m'll[0m[32m implement[0m[32m the[0m[32m solution[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mWrite wordy.py[0m
+[2m  ⎿ 38 lines written[0m
+[2m  ⎿ +38 -0[0m
+[32m  + [34mimport[39;49;00m[37m [39;49;00m[04m[36mre[39;49;00m[37m[39;49;00m[0m
+[32m  + [0m
+[32m  + _OPERATIONS = {[37m[39;49;00m[0m
+[32m  +     [33m"[39;49;00m[33mplus[39;49;00m[33m"[39;49;00m: [34mlambda[39;49;00m a, b: a + b,[37m[39;49;00m[0m
+[32m  +     [33m"[39;49;00m[33mminus[39;49;00m[33m"[39;49;00m: [34mlambda[39;49;00m a, b: a - b,[37m[39;49;00m[0m
+[32m  +     [33m"[39;49;00m[33mmultiplied by[39;49;00m[33m"[39;49;00m: [34mlambda[39;49;00m a, b: a * b,[37m[39;49;00m[0m
+[32m  +     [33m"[39;49;00m[33mdivided by[39;49;00m[33m"[39;49;00m: [34mlambda[39;49;00m a, b: a // b,[37m[39;49;00m[0m
+[32m  + }[37m[39;49;00m[0m
+[32m  + [0m
+[32m  + _TOKEN_RE = re.compile([33mr[39;49;00m[33m"[39;49;00m[33m-?[39;49;00m[33m\[39;49;00m[33md+|plus|minus|multiplied by|divided by[39;49;00m[33m"[39;49;00m, re.IGNORECASE)[37m[39;49;00m[0m
+[32m  + [0m
+[32m  + [0m
+[2m     … +26 more diff lines[0m
+[2mWait[0m[2m,[0m[2m there[0m[2m's[0m[2m a[0m[2m subtle[0m[2m bug[0m[2m:[0m[2m in[0m[2m the[0m[2m operator[0m[2m check[0m[2m,[0m[2m I[0m[2m'm[0m[2m using[0m[2m token[0m[2m.lower[0m[2m(),[0m[2m but[0m[2m the[0m[2m dict[0m[2m keys[0m[2m are[0m[2m lowercase[0m[2m and[0m[2m I[0m[2m'm[0m[2m using[0m[2m re[0m[2m.IGNORE[0m[2mCASE[0m[2m,[0m[2m so[0m[2m the[0m[2m tokens[0m[2m could[0m[2m end[0m[2m up[0m[2m being[0m[2m "[0m[2mPlus[0m[2m".[0m[2m token[0m[2m.lower[0m[2m()[0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m handles[0m[2m that[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m wait[0m[2m:[0m[2m a[0m[2m token[0m[2m in[0m[2m an[0m[2m even[0m[2m position[0m[2m that[0m[2m's[0m[2m an[0m[2m operator[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Example[0m[2m:[0m[2m "[0m[2mplus[0m[2m 1[0m[2m 2[0m[2m"[0m[2m →[0m[2m tokens[0m[2m [[0m[2mplus[0m[2m,[0m[2m 1[0m[2m,[0m[2m 2[0m[2m],[0m[2m i[0m[2m=[0m[2m0[0m[2m is[0m[2m an[0m[2m operator[0m[2m →[0m[2m syntax[0m[2m error[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m run[0m[2m the[0m[2m tests[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q wordy_test.py[0m
+[33m  ⎿ exit 1][0m
+[2mBug[0m[2m:[0m[2m my[0m[2m regex[0m[2m pattern[0m[2m `-[0m[2m?\[0m[2md[0m[2m+[0m[2m|[0m[2mplus[0m[2m|[0m[2m...[0m[2m`[0m[2m has[0m[2m a[0m[2m group[0m[2m?[0m[2m No[0m[2m wait[0m[2m,[0m[2m I[0m[2m wrote[0m[2m `[0m[2mre[0m[2m.compile[0m[2m(r[0m[2m"-[0m[2m?\[0m[2md[0m[2m+[0m[2m|[0m[2mplus[0m[2m|[0m[2mminus[0m[2m|[0m[2mmulti[0m[2mplied[0m[2m by[0m[2m|[0m[2mdiv[0m[2mided[0m[2m by[0m[2m",[0m[2m ...[0m[2m)`[0m[2m —[0m[2m no[0m[2m capture[0m[2m groups[0m[2m.[0m[2m But[0m[2m `[0m[2mfind[0m[2mall[0m[2m`[0m[2m on[0m[2m a[0m[2m pattern[0m[2m with[0m[2m no[0m[2m groups[0m[2m returns[0m[2m a[0m[2m list[0m[2m of[0m[2m strings[0m[2m,[0m[2m so[0m[2m `[0m[2mfor[0m[2m token[0m[2m,[0m[2m in[0m[2m ...[0m[2m`[0m[2m fails[0m[2m on[0m[2m strings[0m[2m longer[0m[2m than[0m[2m 1[0m[2m character[0m[2m.[0m[2m That[0m[2m's[0m[2m it[0m[2m![0m[2m A[0m[2m pattern[0m[2m without[0m[2m groups[0m[2m returns[0m[2m a[0m[2m list[0m[2m of[0m[2m matched[0m[2m strings[0m[2m,[0m[2m not[0m[2m tuples[0m[2m.[0m[2m My[0m[2m unpack[0m[2ming[0m[2m `[0m[2mtoken[0m[2m,[0m[2m in[0m[2m`[0m[2m breaks[0m[2m.[0m[2m
+
+[0m[2mFix[0m[2m:[0m[2m `[0m[2mtokens[0m[2m =[0m[2m _[0m[2mTOKEN[0m[2m_RE[0m[2m.findall[0m[2m(body[0m[2m)`[0m[2m —[0m[2m this[0m[2m gives[0m[2m strings[0m[2m.[0m[2m Then[0m[2m lowercase[0m[2m them[0m[2m for[0m[2m the[0m[2m lookup[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mThe[0m[32m regex[0m[32m has[0m[32m no[0m[32m capture[0m[32m groups[0m[32m,[0m[32m so[0m[32m `[0m[32mfind[0m[32mall[0m[32m`[0m[32m returns[0m[32m plain[0m[32m strings[0m[32m,[0m[32m not[0m[32m tuples[0m[32m.[0m[32m Fix[0m[32ming[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit wordy.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -     tokens = [token [34mfor[39;49;00m token, [35min[39;49;00m _TOKEN_RE.findall(body)][37m[39;49;00m[0m
+[32m  +     tokens = [token.lower() [34mfor[39;49;00m token [35min[39;49;00m _TOKEN_RE.findall(body)][37m[39;49;00m[0m
+[2mThe[0m[2m token[0m[2m is[0m[2m currently[0m[2m lowercase[0m[2m,[0m[2m so[0m[2m the[0m[2m `.[0m[2mlower[0m[2m()`[0m[2m calls[0m[2m inside[0m[2m the[0m[2m loop[0m[2m are[0m[2m redundant[0m[2m but[0m[2m harmless[0m[2m.[0m[2m Actually[0m[2m,[0m[2m let[0m[2m's[0m[2m simplify[0m[2m —[0m[2m it[0m[2m's[0m[2m fine[0m[2m as[0m[2m is[0m[2m,[0m[2m but[0m[2m I[0m[2m'll[0m[2m remove[0m[2m the[0m[2m redundant[0m[2m .[0m[2mlower[0m[2m()[0m[2m to[0m[2m clean[0m[2m things[0m[2m up[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit wordy.py[0m
+[2m  ⎿ +3 -3[0m
+[2m            [34mif[39;49;00m i % [34m2[39;49;00m == [34m0[39;49;00m:[37m[39;49;00m[0m
+[31m  -             [34mif[39;49;00m token.lower() [35min[39;49;00m _OPERATIONS:[37m[39;49;00m[0m
+[32m  +             [34mif[39;49;00m token [35min[39;49;00m _OPERATIONS:[37m[39;49;00m[0m
+[2m                    [34mraise[39;49;00m [36mValueError[39;49;00m([33m"[39;49;00m[33msyntax error[39;49;00m[33m"[39;49;00m)[37m[39;49;00m[0m
+[2m                result = [36mint[39;49;00m(token)[37m[39;49;00m[0m
+[2m            [34melse[39;49;00m:[37m[39;49;00m[0m
+[31m  -             [34mif[39;49;00m token.lower() [35mnot[39;49;00m [35min[39;49;00m _OPERATIONS:[37m[39;49;00m[0m
+[32m  +             [34mif[39;49;00m token [35mnot[39;49;00m [35min[39;49;00m _OPERATIONS:[37m[39;49;00m[0m
+[2m                    [34mraise[39;49;00m [36mValueError[39;49;00m([33m"[39;49;00m[33msyntax error[39;49;00m[33m"[39;49;00m)[37m[39;49;00m[0m
+[31m  -             result = _OPERATIONS[token.lower()](result, [36mint[39;49;00m(tokens[i + [34m1[39;49;00m]))[37m[39;49;00m[0m
+[32m  +             result = _OPERATIONS[token](result, [36mint[39;49;00m(tokens[i + [34m1[39;49;00m]))[37m[39;49;00m[0m
+[2mWait[0m[2m —[0m[2m `[0m[2mint[0m[2m(token[0m[2m)[0m[2m`,[0m[2m where[0m[2m token[0m[2m could[0m[2m possibly[0m[2m be[0m[2m an[0m[2m operator[0m[2m word[0m[2m...[0m[2m but[0m[2m this[0m[2m branch[0m[2m only[0m[2m runs[0m[2m when[0m[2m token[0m[2m is[0m[2m not[0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m,[0m[2m i[0m[2m.e[0m[2m.,[0m[2m when[0m[2m it[0m[2m's[0m[2m a[0m[2m numeric[0m[2m string[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+
+[0m[2mRunning[0m[2m the[0m[2m tests[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q wordy_test.py[0m
+[33m  ⎿ exit 1][0m
+[2mInteresting[0m[2m —[0m[2m the[0m[2m result[0m[2m is[0m[2m just[0m[2m the[0m[2m last[0m[2m number[0m[2m,[0m[2m and[0m[2m the[0m[2m operator[0m[2m isn[0m[2m't[0m[2m being[0m[2m applied[0m[2m.[0m[2m "[0m[2mWhat[0m[2m is[0m[2m 1[0m[2m plus[0m[2m 1[0m[2m?"[0m[2m returns[0m[2m 1[0m[2m.[0m[2m That[0m[2m means[0m[2m `[0m[2mfind[0m[2mall[0m[2m`[0m[2m must[0m[2m have[0m[2m only[0m[2m returned[0m[2m [[0m[2m1[0m[2m,[0m[2m 1[0m[2m][0m[2m…[0m[2m no[0m[2m wait[0m[2m,[0m[2m if[0m[2m the[0m[2m result[0m[2m is[0m[2m 1[0m[2m,[0m[2m then[0m[2m…[0m[2m let[0m[2m me[0m[2m think[0m[2m.[0m[2m
+
+[0m[2mOh[0m[2m![0m[2m I[0m[2m got[0m[2m it[0m[2m.[0m[2m The[0m[2m regex[0m[2m:[0m[2m `-[0m[2m?\[0m[2md[0m[2m+[0m[2m|[0m[2mplus[0m[2m|[0m[2m...[0m[2m`[0m[2m —[0m[2m the[0m[2m altern[0m[2mation[0m[2m is[0m[2m `-[0m[2m?\[0m[2md[0m[2m+[0m[2m|[0m[2mplus[0m[2m`.[0m[2m For[0m[2m "[0m[2m1[0m[2m plus[0m[2m 1[0m[2m",[0m[2m find[0m[2mall[0m[2m returns[0m[2m ['[0m[2m1[0m[2m',[0m[2m '[0m[2mplus[0m[2m',[0m[2m '[0m[2m1[0m[2m'].[0m[2m len[0m[2m 3[0m[2m,[0m[2m odd[0m[2m.[0m[2m i[0m[2m=[0m[2m0[0m[2m:[0m[2m '[0m[2m1[0m[2m'[0m[2m is[0m[2m not[0m[2m in[0m[2m ops[0m[2m →[0m[2m result[0m[2m=[0m[2m1[0m[2m.[0m[2m i[0m[2m=[0m[2m1[0m[2m:[0m[2m '[0m[2mplus[0m[2m'[0m[2m is[0m[2m in[0m[2m ops[0m[2m →[0m[2m result[0m[2m =[0m[2m 1[0m[2m+[0m[2m1[0m[2m=[0m[2m2[0m[2m.[0m[2m Should[0m[2m be[0m[2m 2[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m the[0m[2m result[0m[2m is[0m[2m 1[0m[2m.[0m[2m So[0m[2m did[0m[2m the[0m[2m operator[0m[2m branch[0m[2m not[0m[2m execute[0m[2m?[0m[2m Or[0m[2m…[0m[2m wait[0m[2m —[0m[2m `[0m[2mresult[0m[2m`[0m[2m is[0m[2m the[0m[2m last[0m[2m token[0m[2m processed[0m[2m?[0m[2m For[0m[2m i[0m[2m=[0m[2m2[0m[2m:[0m[2m even[0m[2m →[0m[2m result[0m[2m =[0m[2m int[0m[2m(token[0m[2m)[0m[2m =[0m[2m 1[0m[2m.[0m[2m Ah[0m[2m,[0m[2m bug[0m[2m found[0m[2m:[0m[2m for[0m[2m even[0m[2m indices[0m[2m ([0m[2mnumbers[0m[2m),[0m[2m I[0m[2m'm[0m[2m over[0m[2mwriting[0m[2m `[0m[2mresult[0m[2m`[0m[2m with[0m[2m the[0m[2m new[0m[2m number[0m[2m instead[0m[2m of[0m[2m keeping[0m[2m it[0m[2m as[0m[2m the[0m[2m next[0m[2m operand[0m[2m![0m[2m In[0m[2m the[0m[2m operator[0m[2m branch[0m[2m I[0m[2m use[0m[2m `[0m[2mint[0m[2m(tokens[0m[2m[i[0m[2m+[0m[2m1[0m[2m])[0m[2m`[0m[2m as[0m[2m the[0m[2m right[0m[2m-hand[0m[2m operand[0m[2m,[0m[2m but[0m[2m then[0m[2m when[0m[2m the[0m[2m loop[0m[2m advances[0m[2m to[0m[2m the[0m[2m next[0m[2m even[0m[2m i[0m[2m,[0m[2m it[0m[2m sets[0m[2m `[0m[2mresult[0m[2m =[0m[2m int[0m[2m(token[0m[2m)[0m[2m`,[0m[2m c[0m[2mlobber[0m[2ming[0m[2m the[0m[2m computed[0m[2m result[0m[2m.[0m[2m
+
+[0m[2mFix[0m[2m:[0m[2m on[0m[2m an[0m[2m even[0m[2m-index[0m[2m number[0m[2m token[0m[2m,[0m[2m only[0m[2m set[0m[2m result[0m[2m when[0m[2m it[0m[2m's[0m[2m the[0m[2m first[0m[2m token[0m[2m ([0m[2mresult[0m[2m is[0m[2m None[0m[2m).[0m[2m Otherwise[0m[2m it[0m[2m's[0m[2m a[0m[2m right[0m[2m-hand[0m[2m operand[0m[2m that[0m[2m's[0m[2m already[0m[2m been[0m[2m consumed[0m[2m…[0m[2m actually[0m[2m,[0m[2m a[0m[2m cleaner[0m[2m approach[0m[2m:[0m[2m iterate[0m[2m the[0m[2m pairs[0m[2m explicitly[0m[2m.[0m[2m
+
+[0m[2mRew[0m[2mriting[0m[2m the[0m[2m loop[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2m   [0m[2m result[0m[2m =[0m[2m int[0m[2m(tokens[0m[2m[[0m[2m0[0m[2m])[0m[2m
+[0m[2m   [0m[2m for[0m[2m i[0m[2m in[0m[2m range[0m[2m([0m[2m1[0m[2m,[0m[2m len[0m[2m(tokens[0m[2m),[0m[2m 2[0m[2m):[0m[2m
+[0m[2m       [0m[2m op[0m[2m =[0m[2m tokens[0m[2m[i[0m[2m][0m[2m
+[0m[2m       [0m[2m assert[0m[2m op[0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m ([0m[2malready[0m[2m validated[0m[2m)[0m[2m
+[0m[2m       [0m[2m result[0m[2m =[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m[op[0m[2m]([0m[2mresult[0m[2m,[0m[2m int[0m[2m(tokens[0m[2m[i[0m[2m +[0m[2m 1[0m[2m]))[0m[2m
+[0m[2m   [0m[2m return[0m[2m result[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mAnd[0m[2m the[0m[2m validation[0m[2m:[0m[2m tokens[0m[2m[[0m[2m0[0m[2m][0m[2m must[0m[2m be[0m[2m a[0m[2m number[0m[2m,[0m[2m all[0m[2m even[0m[2m positions[0m[2m must[0m[2m be[0m[2m numbers[0m[2m,[0m[2m and[0m[2m odd[0m[2m positions[0m[2m must[0m[2m be[0m[2m operators[0m[2m.[0m[2m Let[0m[2m me[0m[2m re[0m[2mstructure[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2m   [0m[2m if[0m[2m not[0m[2m tokens[0m[2m or[0m[2m any[0m[2m(tokens[0m[2m[i[0m[2m][0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m for[0m[2m i[0m[2m in[0m[2m range[0m[2m([0m[2m0[0m[2m,[0m[2m len[0m[2m(tokens[0m[2m),[0m[2m 2[0m[2m))[0m[2m or[0m[2m any[0m[2m(tokens[0m[2m[i[0m[2m][0m[2m not[0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m for[0m[2m i[0m[2m in[0m[2m range[0m[2m([0m[2m1[0m[2m,[0m[2m len[0m[2m(tokens[0m[2m),[0m[2m 2[0m[2m)):[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2msyntax[0m[2m error[0m[2m")[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mNote[0m[2m:[0m[2m len[0m[2m%[0m[2m2[0m[2m==[0m[2m0[0m[2m is[0m[2m covered[0m[2m:[0m[2m when[0m[2m len[0m[2m is[0m[2m even[0m[2m,[0m[2m the[0m[2m last[0m[2m index[0m[2m ([0m[2modd[0m[2m)[0m[2m is[0m[2m a[0m[2m number[0m[2m →[0m[2m caught[0m[2m by[0m[2m the[0m[2m second[0m[2m any[0m[2m.[0m[2m Good[0m[2m,[0m[2m so[0m[2m the[0m[2m len[0m[2m%[0m[2m2[0m[2m check[0m[2m is[0m[2m redundant[0m[2m.[0m[2m I[0m[2m'll[0m[2m keep[0m[2m the[0m[2m structure[0m[2m clean[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mThe[0m[32m number[0m[32m branch[0m[32m over[0m[32mwrites[0m[32m the[0m[32m accumulated[0m[32m result[0m[32m with[0m[32m each[0m[32m trailing[0m[32m operand[0m[32m.[0m[32m Rew[0m[32mriting[0m[32m the[0m[32m evaluation[0m[32m loop[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit wordy.py[0m
+[2m  ⎿ +8 -11[0m
+[31m  -     [34mif[39;49;00m [36mlen[39;49;00m(tokens) == [34m0[39;49;00m [35mor[39;49;00m [36mlen[39;49;00m(tokens) % [34m2[39;49;00m == [34m0[39;49;00m:[37m[39;49;00m[0m
+[32m  +     [34mif[39;49;00m [35mnot[39;49;00m tokens [35mor[39;49;00m [36many[39;49;00m([37m[39;49;00m[0m
+[32m  +         (i % [34m2[39;49;00m == [34m0[39;49;00m [35mand[39;49;00m token [35min[39;49;00m _OPERATIONS)[37m[39;49;00m[0m
+[32m  +         [35mor[39;49;00m (i % [34m2[39;49;00m == [34m1[39;49;00m [35mand[39;49;00m token [35mnot[39;49;00m [35min[39;49;00m _OPERATIONS)[37m[39;49;00m[0m
+[32m  +         [34mfor[39;49;00m i, token [35min[39;49;00m [36menumerate[39;49;00m(tokens)[37m[39;49;00m[0m
+[32m  +     ):[37m[39;49;00m[0m
+[2m            [34mraise[39;49;00m [36mValueError[39;49;00m([33m"[39;49;00m[33msyntax error[39;49;00m[33m"[39;49;00m)[37m[39;49;00m[0m
+[2m    [0m
+[31m  -     result = [34mNone[39;49;00m[37m[39;49;00m[0m
+[31m  -     [34mfor[39;49;00m i, token [35min[39;49;00m [36menumerate[39;49;00m(tokens):[37m[39;49;00m[0m
+[31m  -         [34mif[39;49;00m i % [34m2[39;49;00m == [34m0[39;49;00m:[37m[39;49;00m[0m
+[31m  -             [34mif[39;49;00m token [35min[39;49;00m _OPERATIONS:[37m[39;49;00m[0m
+[31m  -                 [34mraise[39;49;00m [36mValueError[39;49;00m([33m"[39;49;00m[33msyntax error[39;49;00m[33m"[39;49;00m)[37m[39;49;00m[0m
+[31m  -             result = [36mint[39;49;00m(token)[37m[39;49;00m[0m
+[31m  -         [34melse[39;49;00m:[37m[39;49;00m[0m
+[31m  -             [34mif[39;49;00m token [35mnot[39;49;00m [35min[39;49;00m _OPERATIONS:[37m[39;49;00m[0m
+[31m  -                 [34mraise[39;49;00m [36mValueError[39;49;00m([33m"[39;49;00m[33msyntax error[39;49;00m[33m"[39;49;00m)[37m[39;49;00m[0m
+[31m  -             result = _OPERATIONS[token](result, [36mint[39;49;00m(tokens[i + [34m1[39;49;00m]))[37m[39;49;00m[0m
+[32m  +     result = [36mint[39;49;00m(tokens[[34m0[39;49;00m])[37m[39;49;00m[0m
+[32m  +     [34mfor[39;49;00m i [35min[39;49;00m [36mrange[39;49;00m([34m1[39;49;00m, [36mlen[39;49;00m(tokens), [34m2[39;49;00m):[37m[39;49;00m[0m
+[32m  +         result = _OPERATIONS[tokens[i]](result, [36mint[39;49;00m(tokens[i + [34m1[39;49;00m]))[37m[39;49;00m[0m
+[2m        [34mreturn[39;49;00m result[37m[39;49;00m[0m
+[2mNote[0m[2m:[0m[2m When[0m[2m len[0m[2m(tokens[0m[2m)[0m[2m is[0m[2m even[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m "[0m[2m1[0m[2m plus[0m[2m"),[0m[2m the[0m[2m last[0m[2m index[0m[2m is[0m[2m odd[0m[2m →[0m[2m the[0m[2m token[0m[2m is[0m[2m a[0m[2m number[0m[2m,[0m[2m not[0m[2m included[0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m →[0m[2m syntax[0m[2m error[0m[2m.[0m[2m When[0m[2m len[0m[2m is[0m[2m odd[0m[2m and[0m[2m starts[0m[2m with[0m[2m an[0m[2m operator[0m[2m →[0m[2m index[0m[2m 0[0m[2m is[0m[2m an[0m[2m operator[0m[2m →[0m[2m error[0m[2m.[0m[2m When[0m[2m two[0m[2m numbers[0m[2m are[0m[2m consecutive[0m[2m →[0m[2m an[0m[2m even[0m[2m index[0m[2m is[0m[2m an[0m[2m operator[0m[2m →[0m[2m error[0m[2m.[0m[2m All[0m[2m covered[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q wordy_test.py[0m
+[33m  ⎿ exit 1][0m
+[2m"[0m[2m1[0m[2m plus[0m[2m"[0m[2m →[0m[2m tokens[0m[2m [[0m[2m1[0m[2m,[0m[2m plus[0m[2m][0m[2m →[0m[2m len[0m[2m 2[0m[2m,[0m[2m even[0m[2m.[0m[2m In[0m[2m my[0m[2m any[0m[2m()[0m[2m check[0m[2m:[0m[2m i[0m[2m=[0m[2m1[0m[2m is[0m[2m odd[0m[2m,[0m[2m token[0m[2m "[0m[2mplus[0m[2m"[0m[2m is[0m[2m included[0m[2m in[0m[2m _[0m[2mOPER[0m[2mATIONS[0m[2m →[0m[2m the[0m[2m second[0m[2m condition[0m[2m is[0m[2m false[0m[2m;[0m[2m the[0m[2m first[0m[2m condition[0m[2m is[0m[2m also[0m[2m false[0m[2m.[0m[2m In[0m[2m other[0m[2m words[0m[2m,[0m[2m when[0m[2m the[0m[2m number[0m[2m of[0m[2m tokens[0m[2m is[0m[2m even[0m[2m,[0m[2m if[0m[2m it[0m[2m ends[0m[2m with[0m[2m an[0m[2m operator[0m[2m,[0m[2m it[0m[2m slips[0m[2m through[0m[2m —[0m[2m this[0m[2m is[0m[2m a[0m[2m "[0m[2mmissing[0m[2m operand[0m[2m"[0m[2m →[0m[2m should[0m[2m result[0m[2m in[0m[2m a[0m[2m syntax[0m[2m error[0m[2m.[0m[2m Add[0m[2m `[0m[2mlen[0m[2m(tokens[0m[2m)[0m[2m %[0m[2m 2[0m[2m ==[0m[2m 0[0m[2m`[0m[2m to[0m[2m the[0m[2m error[0m[2m condition[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mEven[0m[32m token[0m[32m count[0m[32m ending[0m[32m in[0m[32m an[0m[32m operator[0m[32m ("[0m[32m1[0m[32m plus[0m[32m")[0m[32m slips[0m[32m through[0m[32m —[0m[32m adding[0m[32m that[0m[32m check[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit wordy.py[0m
+[2m  ⎿ +1 -1[0m
+[31m  -     [34mif[39;49;00m [35mnot[39;49;00m tokens [35mor[39;49;00m [36many[39;49;00m([37m[39;49;00m[0m
+[32m  +     [34mif[39;49;00m [36mlen[39;49;00m(tokens) % [34m2[39;49;00m == [34m0[39;49;00m [35mor[39;49;00m [35mnot[39;49;00m tokens [35mor[39;49;00m [36many[39;49;00m([37m[39;49;00m[0m
+[2mWait[0m[2m —[0m[2m but[0m[2m in[0m[2m the[0m[2m case[0m[2m of[0m[2m len[0m[2m(tokens[0m[2m)==[0m[2m0[0m[2m,[0m[2m the[0m[2m `[0m[2mlen[0m[2m(tokens[0m[2m)[0m[2m %[0m[2m 2[0m[2m ==[0m[2m 0[0m[2m`[0m[2m →[0m[2m 0[0m[2m %[0m[2m 2[0m[2m ==[0m[2m 0[0m[2m →[0m[2m True[0m[2m,[0m[2m so[0m[2m `[0m[2mnot[0m[2m tokens[0m[2m`[0m[2m is[0m[2m redundant[0m[2m,[0m[2m but[0m[2m it[0m[2m's[0m[2m harmless[0m[2m.[0m[2m No[0m[2m problem[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q wordy_test.py[0m
+[2m  ⎿ .........................                                                [100%][0m
+[2m     25 passed in 0.01s[0m
+[2mAll[0m[2m 2[0m[2m5[0m[2m tests[0m[2m passed[0m[2m.[0m[2m Update[0m[2m the[0m[2m TODO[0m[2m and[0m[2m complete[0m[2m it[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mAll[0m[32m 2[0m[32m5[0m[32m tests[0m[32m pass[0m[32m.[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mPlan[0m
+[2m  [x] Read instructions.md, wordy.py, wordy_test.py[0m
+[2m  [x] Implement solution in wordy.py[0m
+[2m  [x] Run pytest until tests pass[0m
+[2mDone[0m[2m.[0m[2m The[0m[2m test[0m[2m file[0m[2m is[0m[2m unchanged[0m[2m ([0m[2mI[0m[2m only[0m[2m wrote[0m[2m word[0m[2my[0m[2m.py[0m[2m).[0m[2m I[0m[2m'll[0m[2m run[0m[2m done[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0mloading Qwen3.8-27B-4bit [explicitly requested (CHAD_MODEL override)] ...
+ready in 2.3s | context 262144 tokens (compact at 260096)

@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "model": "Qwen3.8-27B-UD-Q3_K_XL-DFlash2-MLX",
+    "download_mode": "model already cached, offline guard engaged",
+    "hardware": "Apple M5 Pro, 48 GB",
+    "load_s": 1.9417457580566406,
+    "big_ram_note": null
+  },
+  "results": [
+    {
+      "name": "casual_typo_fix",
+      "passed": true,
+      "wall": 12.4,
+      "timed_out": false,
+      "tok_per_s": 46.6,
+      "gen_tokens": 230,
+      "ttft_s": 0.42
+    },
+    {
+      "name": "add_function",
+      "passed": true,
+      "wall": 10.7,
+      "timed_out": false,
+      "tok_per_s": 42.1,
+      "gen_tokens": 345,
+      "ttft_s": null
+    },
+    {
+      "name": "locate_and_fix",
+      "passed": true,
+      "wall": 21.7,
+      "timed_out": false,
+      "tok_per_s": 44.2,
+      "gen_tokens": 772,
+      "ttft_s": null
+    },
+    {
+      "name": "fix_bug_midtext",
+      "passed": true,
+      "wall": 22.4,
+      "timed_out": false,
+      "tok_per_s": 39.4,
+      "gen_tokens": 722,
+      "ttft_s": null
+    }
+  ]
+}

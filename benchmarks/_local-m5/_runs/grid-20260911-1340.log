@@ -1,0 +1,72 @@
+[13:40:28] === phase 1/2: pi arms (m532 server up), reps=1 ===
+[13:40:28] starting m532 server
+[13:40:33] server up: Qwen3.8-27B-local
+sampler proxy up on http://127.0.0.1:8080 -> http://127.0.0.1:8888
+chad under test: /Users/gtonic/src/chad/.venv/bin/chad (chad 2.0.3)
+  pi+m532          bowling        fail   114.0s  prefill   15058  gen   2136  tests 0/31
+  pi+m532-lean     bowling        fail    97.4s  prefill    7795  gen   2195  tests 0/31
+  pi+m532          grade-school   PASS    56.6s  prefill   13685  gen    676  tests 20/20
+  pi+m532-lean     grade-school   PASS    37.6s  prefill    6194  gen    639  tests 20/20
+  pi+m532          affine-cipher  PASS    63.1s  prefill   13459  gen    845  tests 16/16
+  pi+m532-lean     affine-cipher  PASS    39.7s  prefill    5873  gen    825  tests 16/16
+  pi+m532          transpose      fail   113.8s  prefill   12145  gen   2134  tests 0/12
+  pi+m532-lean     transpose      PASS   161.0s  prefill    8901  gen   3303  tests 12/12
+  pi+m532          wordy          PASS   122.9s  prefill   14609  gen   2297  tests 25/25
+  pi+m532-lean     wordy          PASS   127.7s  prefill   13032  gen   2539  tests 25/25
+  pi+m532          book-store     PASS   257.0s  prefill   19166  gen   4571  tests 20/20
+  pi+m532-lean     book-store     PASS   116.3s  prefill    7856  gen   2317  tests 20/20
+  pi+m532          dominoes       PASS   119.7s  prefill   16229  gen   1785  tests 13/13
+  pi+m532-lean     dominoes       PASS    52.2s  prefill    5834  gen    674  tests 13/13
+  pi+m532          go-counting    fail   185.0s  prefill   15132  gen   3570  tests 8/11
+  pi+m532-lean     go-counting    PASS   105.4s  prefill    7533  gen   2497  tests 11/11
+sampler agreement OK: 79 requests, one parameter set, arms ['pi+m532', 'pi+m532-lean']
+sampler proxy stopped (m532 left running)
+[14:12:17] === phase 2/2: chad arms (server down) ===
+[14:12:17] server stopped; letting the GPU settle
+chad under test: /Users/gtonic/src/chad/.venv/bin/chad (chad 2.0.3)
+  chad+mlx         bowling        PASS   264.6s  prefill    5466  gen  10732  tests 31/31
+  chad+mlx-4bit    bowling        PASS   393.0s  prefill    4890  gen  12743  tests 31/31
+  chad+mlx         grade-school   PASS    28.9s  prefill    2270  gen    682  tests 20/20
+  chad+mlx-4bit    grade-school   PASS    56.2s  prefill    2369  gen   1381  tests 20/20
+  chad+mlx         affine-cipher  PASS   125.4s  prefill    5650  gen   3527  tests 16/16
+  chad+mlx-4bit    affine-cipher  PASS    68.7s  prefill    2258  gen   2112  tests 16/16
+  chad+mlx         transpose      PASS   227.9s  prefill    3202  gen   6766  tests 12/12
+  chad+mlx-4bit    transpose      PASS   163.7s  prefill    2346  gen   5175  tests 12/12
+  chad+mlx         wordy          PASS   303.9s  prefill    7310  gen   8157  tests 25/25
+  chad+mlx-4bit    wordy          PASS   183.0s  prefill    8411  gen   4971  tests 25/25
+  chad+mlx         book-store     PASS   209.1s  prefill    4201  gen   5373  tests 20/20
+  chad+mlx-4bit    book-store     PASS    45.6s  prefill    2103  gen   1308  tests 20/20
+  chad+mlx         dominoes       PASS   446.0s  prefill    5499  gen  11285  tests 13/13
+  chad+mlx-4bit    dominoes       PASS    69.0s  prefill    2200  gen   1707  tests 13/13
+  chad+mlx         go-counting    PASS   718.4s  prefill   14136  gen  15617  tests 11/11
+  chad+mlx-4bit    go-counting    PASS    98.0s  prefill    2353  gen   2215  tests 11/11
+[15:09:18] === table ===
+
+### Harness x engine — same tasks, same weights, same laptop
+
+| Arm             | Passed | Tests   | Median wall (passed) | Total prefill | Total generated | Timeouts |
+|-----------------|--------|---------|----------------------|---------------|-----------------|----------|
+| chad+mlx *      | 8/8    | 148/148 | 265s                 | 47,734        | 62,139          | 0        |
+| chad+mlx-4bit * | 8/8    | 148/148 | 98s                  | 26,930        | 31,612          | 0        |
+| pi+m532         | 5/8    | 102/148 | 120s                 | 119,483       | 18,014          | 0        |
+| pi+m532-lean    | 7/8    | 117/148 | 105s                 | 63,018        | 14,989          | 0        |
+
+`*` token counts are the harness's own, not llama-server's: the MLX arm is in-process
+and no server sees it. Cached tokens are subtracted so both columns mean the same thing.
+
+Sampler, forced identically on every arm (proxy for the llama arms, `CHAD_*` for the
+MLX arms, cross-checked): min_p 0.05, presence_penalty 0.0, repeat_penalty 1.0, temperature 1.0, top_k 20, top_p 0.95
+
+### Per task (wall seconds if passed; otherwise tests passed, `T` = timed out)
+
+| Task          | chad+mlx | chad+mlx-4bit | pi+m532 | pi+m532-lean |
+|---------------|----------|---------------|---------|--------------|
+| bowling       | 265      | 393           | x 0/31  | x 0/31       |
+| grade-school  | 29       | 56            | 57      | 38           |
+| affine-cipher | 125      | 69            | 63      | 40           |
+| transpose     | 228      | 164           | x 0/12  | 161          |
+| wordy         | 304      | 183           | 123     | 128          |
+| book-store    | 209      | 46            | 257     | 116          |
+| dominoes      | 446      | 69            | 120     | 52           |
+| go-counting   | 718      | 98            | x 8/11  | 105          |
+[15:09:18] done — rows in /Users/gtonic/src/chad/benchmarks/_local-m5/_runs/grid.json, turns in /Users/gtonic/src/chad/benchmarks/_local-m5/_runs/turns.jsonl, log /Users/gtonic/src/chad/benchmarks/_local-m5/_runs/grid-20260911-1340.log

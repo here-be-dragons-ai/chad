@@ -1,0 +1,26 @@
+{
+  "pi+m532": {
+    "ok": true,
+    "why": "ok",
+    "wall_s": 48.2,
+    "passed": true,
+    "prefill": 13588,
+    "generated": 547
+  },
+  "chad+mlx": {
+    "ok": true,
+    "why": "ok",
+    "wall_s": 39.1,
+    "passed": true,
+    "prefill": 2739,
+    "generated": 1049
+  },
+  "chad+mlx-4bit": {
+    "ok": true,
+    "why": "ok",
+    "wall_s": 36.4,
+    "passed": true,
+    "prefill": 2347,
+    "generated": 942
+  }
+}

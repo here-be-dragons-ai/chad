@@ -1,0 +1,650 @@
+# launched 2026-09-11T14:16:59 wall 393.0s
+[2m  [warm start: 2,204 prefix tokens from disk cache; 328 project tokens prefilled in 0.9s][0m
+[2mI[0m[2m'll[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m files[0m[2m:[0m[2m instructions[0m[2m.md[0m[2m,[0m[2m bowling[0m[2m.py[0m[2m,[0m[2m and[0m[2m bowling[0m[2m_test[0m[2m.py[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m[32m
+[0m[32m
+[0m
+[32m●[0m [1mPlan[0m
+[2m  [~] Read instructions.md, bowling.py, bowling_test.py[0m
+[2m  [ ] Run baseline tests to see failures[0m
+[2m  [ ] Implement bowling scoring in bowling.py[0m
+[2m  [ ] Verify full test suite passes[0m
+
+[32m●[0m [1mRun  cat instructions.md[0m
+[2m  ⎿ # Instructions[0m
+[2m     [0m
+[2m     Score a bowling game.[0m
+[2m     [0m
+[2m     Bowling is a game where players roll a heavy ball to knock down pins arranged in a triangle.[0m
+[2m     Write code to keep track of the score of a game of bowling.[0m
+[2m     … +50 lines[0m
+
+[32m●[0m [1mRun  cat bowling.py; echo ---; wc -l bowling_test.py bowling.py[0m
+[2m  ⎿ class BowlingGame:[0m
+[2m         def __init__(self):[0m
+[2m             pass[0m
+[2m     [0m
+[2m         def roll(self, pins):[0m
+[2m             pass[0m
+[2m     … +7 lines[0m
+[2mOkay[0m[2m,[0m[2m so[0m[2m in[0m[2m order[0m[2m to[0m[2m understand[0m[2m what[0m[2m the[0m[2m test[0m[2m expects[0m[2m,[0m[2m let[0m[2m's[0m[2m go[0m[2m ahead[0m[2m and[0m[2m read[0m[2m the[0m[2m test[0m[2m file[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  cat bowling_test.py[0m
+[2m  ⎿ # These tests are auto-generated with test data from:[0m
+[2m     # https://github.com/exercism/problem-specifications/tree/main/exercises/bowling/canonical-data.json[0m
+[2m     # File last updated on 2023-07-21[0m
+[2m     [0m
+[2m     import unittest[0m
+[2m     [0m
+[2m     … +207 lines[0m
+[2mStandard[0m[2m bowling[0m[2m.[0m[2m What[0m[2m the[0m[2m tests[0m[2m require[0m[2m is[0m[2m:[0m[2m
+
+[0m[2m-[0m[2m `[0m[2mroll[0m[2m(p[0m[2mins[0m[2m)[0m[2m`:[0m[2m raise[0m[2m an[0m[2m exception[0m[2m if[0m[2m pins[0m[2m are[0m[2m out[0m[2m of[0m[2m the[0m[2m [[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m][0m[2m range[0m[2m,[0m[2m if[0m[2m it[0m[2m exceeds[0m[2m 1[0m[2m0[0m[2m in[0m[2m a[0m[2m frame[0m[2m ([0m[2mtwo[0m[2m rolls[0m[2m in[0m[2m a[0m[2m frame[0m[2m totaling[0m[2m more[0m[2m than[0m[2m 1[0m[2m0[0m[2m),[0m[2m if[0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m ([0m[2m1[0m[2m0[0m[2m frames[0m[2m complete[0m[2m),[0m[2m or[0m[2m for[0m[2m bonus[0m[2m roll[0m[2m rules[0m[2m:[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m if[0m[2m a[0m[2m spare[0m[2m is[0m[2m scored[0m[2m on[0m[2m the[0m[2m second[0m[2m bonus[0m[2m roll[0m[2m,[0m[2m the[0m[2m sum[0m[2m of[0m[2m the[0m[2m 2[0m[2mnd[0m[2m and[0m[2m 3[0m[2mrd[0m[2m bonus[0m[2m rolls[0m[2m cannot[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m;[0m[2m if[0m[2m the[0m[2m second[0m[2m bonus[0m[2m roll[0m[2m is[0m[2m a[0m[2m strike[0m[2m,[0m[2m the[0m[2m third[0m[2m bonus[0m[2m roll[0m[2m cannot[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m ([0m[2mactually[0m[2m if[0m[2m it[0m[2m's[0m[2m a[0m[2m strike[0m[2m,[0m[2m any[0m[2m value[0m[2m 1[0m[2m0[0m[2m or[0m[2m less[0m[2m is[0m[2m allowed[0m[2m).[0m[2m
+[0m[2m-[0m[2m `[0m[2mscore[0m[2m()[0m[2m`:[0m[2m raise[0m[2m an[0m[2m exception[0m[2m if[0m[2m the[0m[2m game[0m[2m is[0m[2m incomplete[0m[2m ([0m[2mincluding[0m[2m missing[0m[2m bonus[0m[2m rolls[0m[2m).[0m[2m
+
+[0m[2mThe[0m[2m simplest[0m[2m,[0m[2m most[0m[2m robust[0m[2m approach[0m[2m:[0m[2m track[0m[2m the[0m[2m rolls[0m[2m list[0m[2m,[0m[2m and[0m[2m also[0m[2m track[0m[2m frames[0m[2m via[0m[2m a[0m[2m state[0m[2m machine[0m[2m.[0m[2m Implement[0m[2m it[0m[2m with[0m[2m a[0m[2m simple[0m[2m state[0m[2m machine[0m[2m:[0m[2m
+
+[0m[2m-[0m[2m self[0m[2m.[0m[2mrolls[0m[2m =[0m[2m [][0m[2m
+[0m[2m-[0m[2m Track[0m[2m the[0m[2m frame[0m[2m number[0m[2m and[0m[2m the[0m[2m pin[0m[2m count[0m[2m of[0m[2m the[0m[2m first[0m[2m roll[0m[2m in[0m[2m the[0m[2m current[0m[2m frame[0m[2m.[0m[2m
+
+[0m[2mStandard[0m[2m approach[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mclass[0m[2m Bowling[0m[2mGame[0m[2m:[0m[2m
+[0m[2m   [0m[2m def[0m[2m __[0m[2minit[0m[2m__([0m[2mself[0m[2m):[0m[2m
+[0m[2m       [0m[2m self[0m[2m.[0m[2mrolls[0m[2m =[0m[2m [][0m[2m
+[0m[2m       [0m[2m self[0m[2m._[0m[2mframe[0m[2m =[0m[2m 0[0m[2m
+[0m[2m       [0m[2m self[0m[2m._[0m[2mfirst[0m[2m =[0m[2m 0[0m[2m
+
+[0m[2m   [0m[2m def[0m[2m roll[0m[2m(self[0m[2m,[0m[2m pins[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m not[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m Exception[0m[2m("[0m[2mpins[0m[2m out[0m[2m of[0m[2m range[0m[2m")[0m[2m
+[0m[2m       [0m[2m #[0m[2m Determine[0m[2m whether[0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m
+[0m[2m       [0m[2m ...[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mActually[0m[2m,[0m[2m more[0m[2m simply[0m[2m:[0m[2m use[0m[2m a[0m[2m well[0m[2m-known[0m[2m algorithm[0m[2m that[0m[2m tracks[0m[2m rolls[0m[2m and[0m[2m determines[0m[2m frame[0m[2m boundaries[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m writing[0m[2m it[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mclass[0m[2m Bowling[0m[2mGame[0m[2m:[0m[2m
+[0m[2m   [0m[2m def[0m[2m __[0m[2minit[0m[2m__([0m[2mself[0m[2m):[0m[2m
+[0m[2m       [0m[2m self[0m[2m.[0m[2mrolls[0m[2m =[0m[2m [][0m[2m
+
+[0m[2m   [0m[2m def[0m[2m roll[0m[2m(self[0m[2m,[0m[2m pins[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m not[0m[2m ([0m[2mis[0m[2minstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m int[0m[2m)[0m[2m and[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m):[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m(f[0m[2m"[0m[2mpins[0m[2m must[0m[2m be[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m,[0m[2m got[0m[2m {[0m[2mpins[0m[2m![0m[2mr[0m[2m}")[0m[2m
+[0m[2m       [0m[2m rolls[0m[2m =[0m[2m self[0m[2m.[0m[2mrolls[0m[2m
+[0m[2m       [0m[2m if[0m[2m self[0m[2m._[0m[2mcomplete[0m[2m():[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mgame[0m[2m is[0m[2m over[0m[2m")[0m[2m
+[0m[2m       [0m[2m #[0m[2m Check[0m[2m that[0m[2m a[0m[2m frame[0m[2m doesn[0m[2m't[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m
+[0m[2m       [0m[2m #[0m[2m Find[0m[2m the[0m[2m current[0m[2m frame[0m[2m's[0m[2m rolls[0m[2m
+[0m[2m       [0m[2m idx[0m[2m =[0m[2m 0[0m[2m
+[0m[2m       [0m[2m frame[0m[2m =[0m[2m 0[0m[2m
+[0m[2m       [0m[2m #[0m[2m Traverse[0m[2m the[0m[2m frames[0m[2m to[0m[2m find[0m[2m the[0m[2m current[0m[2m position[0m[2m
+[0m[2m       [0m[2m ...[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mAlternative[0m[2m simple[0m[2m approach[0m[2m:[0m[2m track[0m[2m per[0m[2m-frame[0m[2m state[0m[2m with[0m[2m a[0m[2m list[0m[2m of[0m[2m frames[0m[2m.[0m[2m But[0m[2m the[0m[2m clean[0m[2mest[0m[2m and[0m[2m most[0m[2m widely[0m[2m used[0m[2m solution[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mclass[0m[2m Bowling[0m[2mGame[0m[2m:[0m[2m
+[0m[2m   [0m[2m def[0m[2m __[0m[2minit[0m[2m__([0m[2mself[0m[2m):[0m[2m
+[0m[2m       [0m[2m self[0m[2m.[0m[2mrolls[0m[2m =[0m[2m [][0m[2m
+[0m[2m       [0m[2m self[0m[2m.frames[0m[2m =[0m[2m [][0m[2m  [0m[2m #[0m[2m List[0m[2m of[0m[2m frames[0m[2m,[0m[2m each[0m[2m frame[0m[2m is[0m[2m a[0m[2m list[0m[2m of[0m[2m rolls[0m[2m
+
+[0m[2m   [0m[2m def[0m[2m _[0m[2mcurrent[0m[2m_frame[0m[2m(self[0m[2m):[0m[2m
+[0m[2m       [0m[2m return[0m[2m self[0m[2m.frames[0m[2m[-[0m[2m1[0m[2m][0m[2m if[0m[2m self[0m[2m.frames[0m[2m else[0m[2m [][0m[2m
+
+[0m[2m   [0m[2m def[0m[2m roll[0m[2m(self[0m[2m,[0m[2m pins[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m not[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m(...)[0m[2m
+[0m[2m       [0m[2m if[0m[2m self[0m[2m._[0m[2mgame[0m[2m_complete[0m[2m():[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m(...)[0m[2m
+[0m[2m       [0m[2m #[0m[2m Frame[0m[2m constraint[0m[2m:[0m[2m in[0m[2m frames[0m[2m other[0m[2m than[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m,[0m[2m the[0m[2m frame[0m[2m must[0m[2m not[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m
+[0m[2m       [0m[2m if[0m[2m len[0m[2m(self[0m[2m.frames[0m[2m)[0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m len[0m[2m(self[0m[2m._[0m[2mcurrent[0m[2m_frame[0m[2m())[0m[2m ==[0m[2m 1[0m[2m and[0m[2m sum[0m[2m(self[0m[2m._[0m[2mcurrent[0m[2m_frame[0m[2m())[0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m(...)[0m[2m
+[0m[2m       [0m[2m #[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m bonus[0m[2m rule[0m[2m:[0m[2m if[0m[2m the[0m[2m current[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m has[0m[2m 2[0m[2m rolls[0m[2m and[0m[2m the[0m[2m first[0m[2m is[0m[2m not[0m[2m a[0m[2m strike[0m[2m...[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m let[0m[2m me[0m[2m think[0m[2m about[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m rules[0m[2m:[0m[2m
+[0m[2m-[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m 0[0m[2m rolls[0m[2m so[0m[2m far[0m[2m:[0m[2m any[0m[2m pin[0m[2m count[0m[2m is[0m[2m fine[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2mst[0m[2m roll[0m[2m =[0m[2m 1[0m[2m0[0m[2m ([0m[2mstrike[0m[2m):[0m[2m 2[0m[2m bonus[0m[2m rolls[0m[2m allowed[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2mst[0m[2m +[0m[2m 2[0m[2mnd[0m[2m =[0m[2m 1[0m[2m0[0m[2m ([0m[2msp[0m[2mare[0m[2m):[0m[2m 1[0m[2m bonus[0m[2m roll[0m[2m allowed[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2mst[0m[2m +[0m[2m 2[0m[2mnd[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m game[0m[2m over[0m[2m,[0m[2m no[0m[2m bonus[0m[2m.[0m[2m
+[0m[2m-[0m[2m Bonus[0m[2m roll[0m[2m 1[0m[2m ([0m[2mafter[0m[2m a[0m[2m strike[0m[2m):[0m[2m if[0m[2m bonus[0m[2m roll[0m[2m 1[0m[2m is[0m[2m a[0m[2m strike[0m[2m,[0m[2m bonus[0m[2m roll[0m[2m 2[0m[2m can[0m[2m be[0m[2m anything[0m[2m;[0m[2m if[0m[2m it[0m[2m's[0m[2m not[0m[2m a[0m[2m strike[0m[2m,[0m[2m then[0m[2m bonus[0m[2m roll[0m[2m 1[0m[2m +[0m[2m bonus[0m[2m roll[0m[2m 2[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m.[0m[2m
+[0m[2m-[0m[2m Bonus[0m[2m roll[0m[2m 2[0m[2m:[0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m.[0m[2m
+
+[0m[2mTests[0m[2m:[0m[2m
+[0m[2m-[0m[2m After[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m roll[0m[2m([0m[2m1[0m[2m1[0m[2m)[0m[2m should[0m[2m raise[0m[2m an[0m[2m exception[0m[2m →[0m[2m range[0m[2m check[0m[2m.[0m[2m
+[0m[2m-[0m[2m After[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 5[0m[2m],[0m[2m roll[0m[2m([0m[2m6[0m[2m)[0m[2m should[0m[2m raise[0m[2m an[0m[2m exception[0m[2m ([0m[2m5[0m[2m+[0m[2m6[0m[2m >[0m[2m 1[0m[2m0[0m[2m).[0m[2m
+[0m[2m-[0m[2m After[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m],[0m[2m roll[0m[2m([0m[2m1[0m[2m1[0m[2m)[0m[2m should[0m[2m raise[0m[2m an[0m[2m exception[0m[2m ([0m[2mrange[0m[2m).[0m[2m
+[0m[2m-[0m[2m After[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 6[0m[2m],[0m[2m roll[0m[2m([0m[2m1[0m[2m0[0m[2m)[0m[2m should[0m[2m raise[0m[2m an[0m[2m exception[0m[2m.[0m[2m
+[0m[2m-[0m[2m After[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 6[0m[2m][0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m;[0m[2m score[0m[2m()[0m[2m works[0m[2m,[0m[2m 2[0m[2m6[0m[2m.[0m[2m
+[0m[2m-[0m[2m After[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 3[0m[2m,[0m[2m 2[0m[2m][0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m;[0m[2m roll[0m[2m([0m[2m2[0m[2m)[0m[2m should[0m[2m raise[0m[2m an[0m[2m exception[0m[2m.[0m[2m
+[0m[2m-[0m[2m After[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 2[0m[2m][0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m;[0m[2m roll[0m[2m([0m[2m2[0m[2m)[0m[2m should[0m[2m raise[0m[2m an[0m[2m exception[0m[2m.[0m[2m
+[0m[2m-[0m[2m After[0m[2m 1[0m[2m0[0m[2m complete[0m[2m frames[0m[2m [[0m[2m0[0m[2m,[0m[2m0[0m[2m]*[0m[2m1[0m[2m0[0m[2m,[0m[2m roll[0m[2m([0m[2m0[0m[2m)[0m[2m should[0m[2m raise[0m[2m an[0m[2m exception[0m[2m.[0m[2m
+
+[0m[2mSc[0m[2moring[0m[2m:[0m[2m standard[0m[2m per[0m[2m-frame[0m[2m with[0m[2m bonuses[0m[2m.[0m[2m Also[0m[2m,[0m[2m score[0m[2m()[0m[2m must[0m[2m raise[0m[2m an[0m[2m exception[0m[2m if[0m[2m the[0m[2m game[0m[2m is[0m[2m incomplete[0m[2m,[0m[2m or[0m[2m if[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m's[0m[2m bonus[0m[2m is[0m[2m incomplete[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m after[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m,[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m is[0m[2m incomplete[0m[2m;[0m[2m after[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m1[0m[2m0[0m[2m][0m[2m is[0m[2m incomplete[0m[2m;[0m[2m after[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m][0m[2m is[0m[2m incomplete[0m[2m).[0m[2m
+
+[0m[2mThe[0m[2m exception[0m[2m must[0m[2m match[0m[2m the[0m[2m regex[0m[2m r[0m[2m".[0m[2m+"[0m[2m —[0m[2m meaning[0m[2m any[0m[2m exception[0m[2m with[0m[2m a[0m[2m message[0m[2m works[0m[2m.[0m[2m ValueError[0m[2m with[0m[2m a[0m[2m message[0m[2m works[0m[2m with[0m[2m assert[0m[2mRaises[0m[2mRegex[0m[2m(Exception[0m[2m,[0m[2m r[0m[2m".[0m[2m+")[0m[2m —[0m[2m assert[0m[2mRaises[0m[2mRegex[0m[2m requires[0m[2m the[0m[2m exception[0m[2m to[0m[2m have[0m[2m a[0m[2m string[0m[2m-[0m[2mable[0m[2m message[0m[2m;[0m[2m ValueError[0m[2m("[0m[2m...[0m[2m")[0m[2m is[0m[2m fine[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m write[0m[2m the[0m[2m implementation[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mclass[0m[2m Bowling[0m[2mGame[0m[2m:[0m[2m
+[0m[2m   [0m[2m """[0m[2mKe[0m[2meps[0m[2m track[0m[2m of[0m[2m and[0m[2m scores[0m[2m a[0m[2m bowling[0m[2m game[0m[2m."""[0m[2m
+
+[0m[2m   [0m[2m def[0m[2m __[0m[2minit[0m[2m__([0m[2mself[0m[2m):[0m[2m
+[0m[2m       [0m[2m self[0m[2m.[0m[2mrolls[0m[2m =[0m[2m [][0m[2m
+[0m[2m       [0m[2m self[0m[2m.frames[0m[2m =[0m[2m [][0m[2m  #[0m[2m each[0m[2m frame[0m[2m:[0m[2m list[0m[2m of[0m[2m pins[0m[2m knocked[0m[2m down[0m[2m in[0m[2m that[0m[2m frame[0m[2m's[0m[2m rolls[0m[2m
+
+[0m[2m   [0m[2m def[0m[2m roll[0m[2m(self[0m[2m,[0m[2m pins[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m not[0m[2m isinstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m int[0m[2m)[0m[2m or[0m[2m isinstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m bool[0m[2m)[0m[2m or[0m[2m not[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mroll[0m[2m must[0m[2m be[0m[2m between[0m[2m 0[0m[2m and[0m[2m 1[0m[2m0[0m[2m")[0m[2m
+[0m[2m       [0m[2m if[0m[2m self[0m[2m._[0m[2mcomplete[0m[2m():[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mcannot[0m[2m roll[0m[2m after[0m[2m the[0m[2m game[0m[2m is[0m[2m over[0m[2m")[0m[2m
+
+[0m[2m       [0m[2m frame[0m[2m =[0m[2m self[0m[2m.frames[0m[2m[-[0m[2m1[0m[2m][0m[2m if[0m[2m self[0m[2m.frames[0m[2m else[0m[2m [][0m[2m
+[0m[2m       [0m[2m if[0m[2m len[0m[2m(frame[0m[2m)[0m[2m ==[0m[2m 0[0m[2m:[0m[2m
+[0m[2m           [0m[2m if[0m[2m len[0m[2m(self[0m[2m.frames[0m[2m)[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m               [0m[2m self[0m[2m.frames[0m[2m.append[0m[2m([][0m[2m)[0m[2m
+[0m[2m               [0m[2m frame[0m[2m =[0m[2m self[0m[2m.frames[0m[2m[-[0m[2m1[0m[2m][0m[2m
+[0m[2m           [0m[2m else[0m[2m:[0m[2m
+[0m[2m               [0m[2m #[0m[2m Should[0m[2mn[0m[2m't[0m[2m happen[0m[2m if[0m[2m complete[0m[2m()[0m[2m is[0m[2m correct[0m[2m
+[0m[2m               [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mcannot[0m[2m roll[0m[2m after[0m[2m the[0m[2m game[0m[2m is[0m[2m over[0m[2m")[0m[2m
+[0m[2m       [0m[2m ...[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m this[0m[2m is[0m[2m getting[0m[2m complex[0m[2m.[0m[2m Let[0m[2m me[0m[2m simplify[0m[2m:[0m[2m manage[0m[2m a[0m[2m single[0m[2m flat[0m[2m list[0m[2m of[0m[2m rolls[0m[2m,[0m[2m plus[0m[2m a[0m[2m helper[0m[2m that[0m[2m walks[0m[2m the[0m[2m rolls[0m[2m to[0m[2m determine[0m[2m frames[0m[2m and[0m[2m completion[0m[2m.[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mclass[0m[2m Bowling[0m[2mGame[0m[2m:[0m[2m
+[0m[2m   [0m[2m def[0m[2m __[0m[2minit[0m[2m__([0m[2mself[0m[2m):[0m[2m
+[0m[2m       [0m[2m self[0m[2m.[0m[2mrolls[0m[2m =[0m[2m [][0m[2m
+
+[0m[2m   [0m[2m #[0m[2m --[0m[2m internal[0m[2m helpers[0m[2m ------------------------------------------------[0m[2m-[0m[2m
+
+[0m[2m   [0m[2m @[0m[2mstaticmethod[0m[2m
+[0m[2m   [0m[2m def[0m[2m _[0m[2mframes[0m[2m([0m[2mrolls[0m[2m):[0m[2m
+[0m[2m       [0m[2m """[0m[2mY[0m[2mield[0m[2m ([0m[2mrolls[0m[2m_in[0m[2m_frame[0m[2m,[0m[2m is[0m[2m_st[0m[2mri[0m[2mken[0m[2m_[0m[2m1[0m[2m0[0m[2mth[0m[2m...)[0m[2m —[0m[2m simply[0m[2m yields[0m[2m lists[0m[2m of[0m[2m pins[0m[2m per[0m[2m frame[0m[2m."""[0m[2m
+[0m[2m       [0m[2m frames[0m[2m =[0m[2m [][0m[2m
+[0m[2m       [0m[2m i[0m[2m =[0m[2m 0[0m[2m
+[0m[2m       [0m[2m n[0m[2m =[0m[2m len[0m[2m([0m[2mrolls[0m[2m)[0m[2m
+[0m[2m       [0m[2m while[0m[2m i[0m[2m [0m[2m< n[0m[2m and[0m[2m len[0m[2m(frames[0m[2m)[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m if[0m[2m rolls[0m[2m[i[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m               [0m[2m frames[0m[2m.append[0m[2m([[0m[2mrolls[0m[2m[i[0m[2m]])[0m[2m
+[0m[2m               [0m[2m i[0m[2m +=[0m[2m 1[0m[2m
+[0m[2m           [0m[2m else[0m[2m:[0m[2m
+[0m[2m               [0m[2m frame[0m[2m =[0m[2m [[0m[2mrolls[0m[2m[i[0m[2m]][0m[2m
+[0m[2m               [0m[2m i[0m[2m +=[0m[2m 1[0m[2m
+[0m[2m               [0m[2m if[0m[2m i[0m[2m [0m[2m< n[0m[2m:[0m[2m
+[0m[2m                   [0m[2m frame[0m[2m.append[0m[2m([0m[2mrolls[0m[2m[i[0m[2m])[0m[2m
+[0m[2m                   [0m[2m i[0m[2m +=[0m[2m 1[0m[2m
+[0m[2m               [0m[2m frames[0m[2m.append[0m[2m(frame[0m[2m)[0m[2m
+[0m[2m       [0m[2m return[0m[2m frames[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mWait[0m[2m,[0m[2m but[0m[2m a[0m[2m frame[0m[2m of[0m[2m a[0m[2m single[0m[2m roll[0m[2m [[0m[2mx[0m[2m][0m[2m where[0m[2m x[0m[2m [0m[2m< 1[0m[2m0[0m[2m means[0m[2m an[0m[2m incomplete[0m[2m frame[0m[2m ([0m[2mgame[0m[2m incomplete[0m[2m).[0m[2m
+
+[0m[2mCompletion[0m[2m check[0m[2m:[0m[2m
+[0m[2m-[0m[2m frames[0m[2m =[0m[2m _[0m[2mframes[0m[2m([0m[2mrolls[0m[2m)[0m[2m
+[0m[2m-[0m[2m If[0m[2m len[0m[2m(frames[0m[2m)[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m not[0m[2m complete[0m[2m.[0m[2m
+[0m[2m-[0m[2m If[0m[2m len[0m[2m(frames[0m[2m[[0m[2m9[0m[2m])[0m[2m ==[0m[2m 1[0m[2m:[0m[2m complete[0m[2m only[0m[2m if[0m[2m that[0m[2m roll[0m[2m ==[0m[2m 1[0m[2m0[0m[2m...[0m[2m no[0m[2m wait[0m[2m.[0m[2m If[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m has[0m[2m 1[0m[2m roll[0m[2m of[0m[2m 1[0m[2m0[0m[2m,[0m[2m that[0m[2m's[0m[2m a[0m[2m strike[0m[2m →[0m[2m 2[0m[2m more[0m[2m rolls[0m[2m needed[0m[2m.[0m[2m If[0m[2m it[0m[2m's[0m[2m 1[0m[2m roll[0m[2m of[0m[2m less[0m[2m than[0m[2m 1[0m[2m0[0m[2m,[0m[2m one[0m[2m more[0m[2m roll[0m[2m needed[0m[2m.[0m[2m So[0m[2m a[0m[2m single[0m[2m-roll[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m never[0m[2m complete[0m[2m.[0m[2m
+[0m[2m-[0m[2m If[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m has[0m[2m 2[0m[2m rolls[0m[2m:[0m[2m sum[0m[2m ==[0m[2m 1[0m[2m0[0m[2m ([0m[2msp[0m[2mare[0m[2m or[0m[2m 1[0m[2m0[0m[2m+[0m[2m0[0m[2m?[0m[2m no[0m[2m wait[0m[2m)[0m[2m —[0m[2m let[0m[2m me[0m[2m think[0m[2m.[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m rolls[0m[2m:[0m[2m
+[0m[2m  -[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m →[0m[2m needs[0m[2m 2[0m[2m more[0m[2m.[0m[2m
+[0m[2m  -[0m[2m [[0m[2ma[0m[2m,[0m[2m b[0m[2m][0m[2m with[0m[2m a[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m if[0m[2m a[0m[2m +[0m[2m b[0m[2m ==[0m[2m 1[0m[2m0[0m[2m ([0m[2msp[0m[2mare[0m[2m)[0m[2m →[0m[2m needs[0m[2m 1[0m[2m more[0m[2m;[0m[2m if[0m[2m a[0m[2m +[0m[2m b[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m complete[0m[2m.[0m[2m
+[0m[2m  -[0m[2m [[0m[2ma[0m[2m,[0m[2m b[0m[2m][0m[2m with[0m[2m a[0m[2m ==[0m[2m 1[0m[2m0[0m[2m ([0m[2mstrike[0m[2m):[0m[2m if[0m[2m b[0m[2m ==[0m[2m 1[0m[2m0[0m[2m →[0m[2m needs[0m[2m 1[0m[2m more[0m[2m;[0m[2m if[0m[2m b[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m needs[0m[2m 1[0m[2m more[0m[2m,[0m[2m but[0m[2m with[0m[2m the[0m[2m constraint[0m[2m that[0m[2m b[0m[2m +[0m[2m c[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m.[0m[2m
+[0m[2m  -[0m[2m In[0m[2m short[0m[2m,[0m[2m [[0m[2ma[0m[2m,b[0m[2m][0m[2m with[0m[2m a[0m[2m ==[0m[2m 1[0m[2m0[0m[2m always[0m[2m needs[0m[2m 1[0m[2m more[0m[2m.[0m[2m
+[0m[2m  -[0m[2m 3[0m[2m rolls[0m[2m:[0m[2m complete[0m[2m.[0m[2m
+
+[0m[2mActually[0m[2m,[0m[2m the[0m[2m standard[0m[2m:[0m[2m after[0m[2m 2[0m[2m rolls[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m:[0m[2m
+[0m[2m-[0m[2m a[0m[2m +[0m[2m b[0m[2m ==[0m[2m 1[0m[2m0[0m[2m and[0m[2m a[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m spare[0m[2m →[0m[2m 1[0m[2m more[0m[2m
+[0m[2m-[0m[2m a[0m[2m ==[0m[2m 1[0m[2m0[0m[2m →[0m[2m strike[0m[2m →[0m[2m 1[0m[2m more[0m[2m
+[0m[2m-[0m[2m a[0m[2m +[0m[2m b[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m complete[0m[2m.[0m[2m
+
+[0m[2mSo[0m[2m a[0m[2m 2[0m[2m-roll[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m complete[0m[2m only[0m[2m when[0m[2m a[0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m a[0m[2m +[0m[2m b[0m[2m [0m[2m< 1[0m[2m0[0m[2m.[0m[2m
+
+[0m[2mFor[0m[2m roll[0m[2m()[0m[2m validation[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m know[0m[2m the[0m[2m current[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m context[0m[2m:[0m[2m
+[0m[2m-[0m[2m If[0m[2m we[0m[2m're[0m[2m about[0m[2m to[0m[2m make[0m[2m the[0m[2m 1[0m[2mst[0m[2m roll[0m[2m of[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m:[0m[2m any[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m is[0m[2m fine[0m[2m.[0m[2m
+[0m[2m-[0m[2m If[0m[2m we[0m[2m're[0m[2m about[0m[2m to[0m[2m make[0m[2m the[0m[2m 2[0m[2mnd[0m[2m roll[0m[2m of[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m ([0m[2mfirst[0m[2m roll[0m[2m is[0m[2m known[0m[2m):[0m[2m if[0m[2m first[0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m any[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m is[0m[2m fine[0m[2m.[0m[2m If[0m[2m first[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m pins[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m -[0m[2m first[0m[2m ([0m[2mbut[0m[2m since[0m[2m pins[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m,[0m[2m we[0m[2m also[0m[2m check[0m[2m the[0m[2m sum[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m;[0m[2m e[0m[2m.g[0m[2m.,[0m[2m first[0m[2m=[0m[2m5[0m[2m,[0m[2m pins[0m[2m=[0m[2m6[0m[2m →[0m[2m sum[0m[2m 1[0m[2m1[0m[2m →[0m[2m invalid[0m[2m;[0m[2m the[0m[2m test[0m[2m expects[0m[2m an[0m[2m exception[0m[2m for[0m[2m roll[0m[2m([0m[2m6[0m[2m)[0m[2m after[0m[2m 5[0m[2m in[0m[2m an[0m[2m early[0m[2m frame[0m[2m).[0m[2m
+[0m[2m-[0m[2m If[0m[2m we[0m[2m're[0m[2m about[0m[2m to[0m[2m make[0m[2m the[0m[2m 3[0m[2mrd[0m[2m roll[0m[2m ([0m[2mbonus[0m[2m)[0m[2m of[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m:[0m[2m if[0m[2m rolls[0m[2m[-[0m[2m1[0m[2m][0m[2m ([0m[2mbonus[0m[2m 1[0m[2m)[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m pins[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m -[0m[2m rolls[0m[2m[-[0m[2m1[0m[2m][0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m after[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 5[0m[2m],[0m[2m roll[0m[2m([0m[2m6[0m[2m)[0m[2m →[0m[2m 5[0m[2m+[0m[2m6[0m[2m=[0m[2m1[0m[2m1[0m[2m invalid[0m[2m;[0m[2m after[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 6[0m[2m],[0m[2m roll[0m[2m([0m[2m1[0m[2m0[0m[2m)[0m[2m →[0m[2m 6[0m[2m+[0m[2m1[0m[2m0[0m[2m=[0m[2m1[0m[2m6[0m[2m invalid[0m[2m).[0m[2m If[0m[2m rolls[0m[2m[-[0m[2m1[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m any[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m is[0m[2m fine[0m[2m ([0m[2mafter[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m1[0m[2m0[0m[2m],[0m[2m roll[0m[2m([0m[2m1[0m[2m1[0m[2m)[0m[2m invalid[0m[2m by[0m[2m range[0m[2m;[0m[2m roll[0m[2m([0m[2m6[0m[2m)[0m[2m is[0m[2m fine[0m[2m →[0m[2m score[0m[2m 2[0m[2m6[0m[2m ✓[0m[2m).[0m[2m
+
+[0m[2mFor[0m[2m frames[0m[2m 1[0m[2m-[0m[2m9[0m[2m,[0m[2m 2[0m[2mnd[0m[2m roll[0m[2m:[0m[2m pins[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m -[0m[2m first[0m[2m.[0m[2m
+
+[0m[2mGeneric[0m[2m approach[0m[2m for[0m[2m roll[0m[2m():[0m[2m
+[0m[2m1[0m[2m.[0m[2m Range[0m[2m check[0m[2m:[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m,[0m[2m otherwise[0m[2m raise[0m[2m.[0m[2m
+[0m[2m2[0m[2m.[0m[2m frames[0m[2m =[0m[2m self[0m[2m._[0m[2mframes[0m[2m(self[0m[2m.[0m[2mrolls[0m[2m);[0m[2m determine[0m[2m current[0m[2m frame[0m[2m number[0m[2m =[0m[2m len[0m[2m(frames[0m[2m);[0m[2m if[0m[2m current[0m[2m frame[0m[2m is[0m[2m complete[0m[2m ([0m[2mlen[0m[2m ≥[0m[2m 2[0m[2m,[0m[2m or[0m[2m 1[0m[2m roll[0m[2m ==[0m[2m 1[0m[2m0[0m[2m)[0m[2m →[0m[2m open[0m[2m a[0m[2m new[0m[2m one[0m[2m;[0m[2m but[0m[2m if[0m[2m frame[0m[2m number[0m[2m >=[0m[2m 1[0m[2m0[0m[2m →[0m[2m game[0m[2m over[0m[2m →[0m[2m raise[0m[2m "[0m[2mcannot[0m[2m roll[0m[2m after[0m[2m the[0m[2m game[0m[2m is[0m[2m over[0m[2m".[0m[2m
+[0m[2m3[0m[2m.[0m[2m If[0m[2m current[0m[2m frame[0m[2m is[0m[2m in[0m[2m progress[0m[2m ([0m[2m1[0m[2m roll[0m[2m so[0m[2m far[0m[2m,[0m[2m not[0m[2m a[0m[2m strike[0m[2m):[0m[2m check[0m[2m first[0m[2m +[0m[2m pins[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m,[0m[2m otherwise[0m[2m raise[0m[2m.[0m[2m
+[0m[2m4[0m[2m.[0m[2m Append[0m[2m.[0m[2m
+
+[0m[2mWait[0m[2m,[0m[2m but[0m[2m for[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m bonus[0m[2m 3[0m[2mrd[0m[2m roll[0m[2m:[0m[2m the[0m[2m "[0m[2mcurrent[0m[2m frame[0m[2m"[0m[2m has[0m[2m 2[0m[2m rolls[0m[2m.[0m[2m The[0m[2m rule[0m[2m depends[0m[2m on[0m[2m whether[0m[2m rolls[0m[2m[-[0m[2m1[0m[2m][0m[2m ([0m[2mbonus[0m[2m 1[0m[2m)[0m[2m is[0m[2m a[0m[2m strike[0m[2m.[0m[2m As[0m[2m above[0m[2m:[0m[2m if[0m[2m the[0m[2m last[0m[2m roll[0m[2m [0m[2m< 1[0m[2m0[0m[2m,[0m[2m then[0m[2m last[0m[2m +[0m[2m pins[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m note[0m[2m:[0m[2m for[0m[2m frames[0m[2m 1[0m[2m-[0m[2m9[0m[2m,[0m[2m after[0m[2m 1[0m[2m roll[0m[2m of[0m[2m 1[0m[2m0[0m[2m ([0m[2mstrike[0m[2m),[0m[2m the[0m[2m frame[0m[2m is[0m[2m complete[0m[2m,[0m[2m so[0m[2m a[0m[2m new[0m[2m frame[0m[2m opens[0m[2m.[0m[2m For[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m after[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m x[0m[2m],[0m[2m the[0m[2m frame[0m[2m is[0m[2m incomplete[0m[2m ([0m[2mneeds[0m[2m a[0m[2m 3[0m[2mrd[0m[2m roll[0m[2m)[0m[2m —[0m[2m my[0m[2m _[0m[2mframes[0m[2m function[0m[2m:[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m a[0m[2m strike[0m[2m produces[0m[2m [[0m[2m1[0m[2m0[0m[2m],[0m[2m and[0m[2m the[0m[2m next[0m[2m roll[0m[2m...[0m[2m hmm[0m[2m,[0m[2m my[0m[2m _[0m[2mframes[0m[2m app[0m[2mends[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m for[0m[2m a[0m[2m strike[0m[2m and[0m[2m moves[0m[2m to[0m[2m the[0m[2m next[0m[2m frame[0m[2m;[0m[2m it[0m[2m doesn[0m[2m't[0m[2m model[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m's[0m[2m bonus[0m[2m.[0m[2m So[0m[2m _[0m[2mframes[0m[2m can[0m[2m't[0m[2m directly[0m[2m be[0m[2m used[0m[2m to[0m[2m determine[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m completion[0m[2m.[0m[2m Let[0m[2m me[0m[2m handle[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m separately[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m define[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m _[0m[2mframe[0m[2m_state[0m[2m(self[0m[2m):[0m[2m
+[0m[2m   [0m[2m """[0m[2mReturn[0m[2m ([0m[2mframe[0m[2m_number[0m[2m,[0m[2m rolls[0m[2m_in[0m[2m_current[0m[2m_frame[0m[2m)[0m[2m based[0m[2m on[0m[2m self[0m[2m.[0m[2mrolls[0m[2m.[0m[2m
+[0m[2m   [0m[2m For[0m[2m frames[0m[2m 1[0m[2m-[0m[2m9[0m[2m;[0m[2m for[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m return[0m[2m all[0m[2m rolls[0m[2m of[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m."""[0m[2m
+[0m[2m   [0m[2m rolls[0m[2m =[0m[2m self[0m[2m.[0m[2mrolls[0m[2m
+[0m[2m   [0m[2m i[0m[2m =[0m[2m 0[0m[2m
+[0m[2m   [0m[2m for[0m[2m frame[0m[2m in[0m[2m range[0m[2m([0m[2m1[0m[2m0[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m i[0m[2m >=[0m[2m len[0m[2m([0m[2mrolls[0m[2m):[0m[2m
+[0m[2m           [0m[2m return[0m[2m frame[0m[2m,[0m[2m [][0m[2m
+[0m[2m       [0m[2m if[0m[2m frame[0m[2m [0m[2m< 9[0m[2m:[0m[2m
+[0m[2m           [0m[2m if[0m[2m rolls[0m[2m[i[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m               [0m[2m i[0m[2m +=[0m[2m 1[0m[2m
+[0m[2m           [0m[2m else[0m[2m:[0m[2m
+[0m[2m               [0m[2m i[0m[2m +=[0m[2m 2[0m[2m
+[0m[2m       [0m[2m else[0m[2m:[0m[2m
+[0m[2m           [0m[2m return[0m[2m 9[0m[2m,[0m[2m rolls[0m[2m[i[0m[2m:][0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m,[0m[2m None[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mHmm[0m[2m wait[0m[2m,[0m[2m for[0m[2m frames[0m[2m 0[0m[2m-[0m[2m8[0m[2m ([0m[2mfirst[0m[2m 9[0m[2m frames[0m[2m):[0m[2m a[0m[2m strike[0m[2m consumes[0m[2m 1[0m[2m roll[0m[2m,[0m[2m otherwise[0m[2m 2[0m[2m rolls[0m[2m.[0m[2m Then[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m everything[0m[2m remaining[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m be[0m[2m careful[0m[2m:[0m[2m if[0m[2m rolls[0m[2m run[0m[2m out[0m[2m in[0m[2m the[0m[2m middle[0m[2m of[0m[2m the[0m[2m 9[0m[2mth[0m[2m frame[0m[2m,[0m[2m that[0m[2m frame[0m[2m is[0m[2m in[0m[2m progress[0m[2m with[0m[2m 1[0m[2m roll[0m[2m.[0m[2m The[0m[2m loop[0m[2m:[0m[2m for[0m[2m frame[0m[2m in[0m[2m range[0m[2m([0m[2m9[0m[2m):[0m[2m if[0m[2m i[0m[2m >=[0m[2m len[0m[2m([0m[2mrolls[0m[2m):[0m[2m return[0m[2m frame[0m[2m,[0m[2m [].[0m[2m Then[0m[2m after[0m[2m the[0m[2m 9[0m[2m frames[0m[2m,[0m[2m return[0m[2m 9[0m[2m,[0m[2m rolls[0m[2m[i[0m[2m:].[0m[2m
+
+[0m[2mBut[0m[2m there[0m[2m's[0m[2m a[0m[2m subtle[0m[2m point[0m[2m:[0m[2m a[0m[2m non[0m[2m-st[0m[2mrike[0m[2m frame[0m[2m consumes[0m[2m 2[0m[2m rolls[0m[2m even[0m[2m if[0m[2m only[0m[2m 1[0m[2m exists[0m[2m ([0m[2min[0m[2mcomplete[0m[2m frame[0m[2m)[0m[2m —[0m[2m i[0m[2m +=[0m[2m 2[0m[2m goes[0m[2m past[0m[2m the[0m[2m end[0m[2m,[0m[2m and[0m[2m on[0m[2m the[0m[2m next[0m[2m iteration[0m[2m i[0m[2m >=[0m[2m len[0m[2m →[0m[2m return[0m[2m the[0m[2m next[0m[2m frame[0m[2m with[0m[2m [].[0m[2m Good[0m[2m —[0m[2m that[0m[2m correctly[0m[2m means[0m[2m the[0m[2m current[0m[2m frame[0m[2m is[0m[2m incomplete[0m[2m.[0m[2m
+
+[0m[2mThen[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m roll[0m[2m(self[0m[2m,[0m[2m pins[0m[2m):[0m[2m
+[0m[2m   [0m[2m if[0m[2m not[0m[2m isinstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m int[0m[2m)[0m[2m or[0m[2m isinstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m bool[0m[2m)[0m[2m or[0m[2m not[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mpins[0m[2m must[0m[2m be[0m[2m between[0m[2m 0[0m[2m and[0m[2m 1[0m[2m0[0m[2m")[0m[2m
+[0m[2m   [0m[2m frame[0m[2m,[0m[2m current[0m[2m =[0m[2m self[0m[2m._[0m[2mframe[0m[2m_state[0m[2m()[0m[2m
+[0m[2m   [0m[2m if[0m[2m frame[0m[2m is[0m[2m None[0m[2m:[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mgame[0m[2m is[0m[2m already[0m[2m complete[0m[2m")[0m[2m
+[0m[2m   [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 2[0m[2m and[0m[2m frame[0m[2m [0m[2m< 9[0m[2m:[0m[2m
+[0m[2m       [0m[2m #[0m[2m Can[0m[2m't[0m[2m happen[0m[2m if[0m[2m frame[0m[2m_state[0m[2m is[0m[2m correct[0m[2m?[0m[2m For[0m[2m frames[0m[2m 1[0m[2m-[0m[2m9[0m[2m,[0m[2m current[0m[2m can[0m[2m only[0m[2m be[0m[2m 0[0m[2m or[0m[2m 1[0m[2m rolls[0m[2m.[0m[2m Actually[0m[2m,[0m[2m if[0m[2m 2[0m[2m rolls[0m[2m are[0m[2m present[0m[2m,[0m[2m the[0m[2m frame[0m[2m is[0m[2m complete[0m[2m and[0m[2m the[0m[2m loop[0m[2m would[0m[2m advance[0m[2m.[0m[2m So[0m[2m current[0m[2m can[0m[2m only[0m[2m be[0m[2m 0[0m[2m or[0m[2m 1[0m[2m for[0m[2m frames[0m[2m [0m[2m< 9[0m[2m.[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m(...)[0m[2m  #[0m[2m unreachable[0m[2m
+[0m[2m   [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 1[0m[2m and[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mframe[0m[2m cannot[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m pins[0m[2m")[0m[2m
+[0m[2m   [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m >=[0m[2m 2[0m[2m:[0m[2m
+[0m[2m       [0m[2m #[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m bonus[0m[2m
+[0m[2m       [0m[2m if[0m[2m frame[0m[2m [0m[2m< 9[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ...[0m[2m #[0m[2m unreachable[0m[2m
+[0m[2m       [0m[2m if[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mbonus[0m[2m rolls[0m[2m after[0m[2m a[0m[2m strike[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m cannot[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m")[0m[2m
+[0m[2m   [0m[2m self[0m[2m.[0m[2mrolls[0m[2m.append[0m[2m(p[0m[2mins[0m[2m)[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mWait[0m[2m,[0m[2m there[0m[2m's[0m[2m a[0m[2m subtle[0m[2m issue[0m[2m with[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m bonus[0m[2m when[0m[2m current[0m[2m =[0m[2m [[0m[2ma[0m[2m,[0m[2m b[0m[2m],[0m[2m a[0m[2m +[0m[2m b[0m[2m [0m[2m< 1[0m[2m0[0m[2m ([0m[2mno[0m[2m bonus[0m[2m).[0m[2m In[0m[2m that[0m[2m case[0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m →[0m[2m frame[0m[2m is[0m[2m None[0m[2m?[0m[2m Let[0m[2m me[0m[2m verify[0m[2m:[0m[2m after[0m[2m 9[0m[2m frames[0m[2m,[0m[2m return[0m[2m ([0m[2m9[0m[2m,[0m[2m rolls[0m[2m[i[0m[2m:[0m[2m]).[0m[2m If[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m][0m[2m ([0m[2mopen[0m[2m frame[0m[2m,[0m[2m complete[0m[2m),[0m[2m frame[0m[2m_state[0m[2m returns[0m[2m ([0m[2m9[0m[2m,[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m]),[0m[2m and[0m[2m a[0m[2m new[0m[2m roll[0m[2m should[0m[2m be[0m[2m rejected[0m[2m as[0m[2m "[0m[2mgame[0m[2m over[0m[2m".[0m[2m So[0m[2m in[0m[2m roll[0m[2m():[0m[2m if[0m[2m frame[0m[2m ==[0m[2m 9[0m[2m and[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 2[0m[2m and[0m[2m sum[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m game[0m[2m complete[0m[2m →[0m[2m raise[0m[2m.[0m[2m Similarly[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 3[0m[2m →[0m[2m complete[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m re[0m[2mstructure[0m[2m roll[0m[2m():[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m roll[0m[2m(self[0m[2m,[0m[2m pins[0m[2m):[0m[2m
+[0m[2m   [0m[2m if[0m[2m not[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m(...)[0m[2m
+[0m[2m   [0m[2m frame[0m[2m,[0m[2m current[0m[2m =[0m[2m self[0m[2m._[0m[2mframe[0m[2m_state[0m[2m()[0m[2m
+[0m[2m   [0m[2m if[0m[2m frame[0m[2m is[0m[2m None[0m[2m:[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mgame[0m[2m is[0m[2m already[0m[2m complete[0m[2m")[0m[2m
+[0m[2m   [0m[2m if[0m[2m frame[0m[2m [0m[2m< 9[0m[2m:[0m[2m
+[0m[2m       [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 1[0m[2m and[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mtwo[0m[2m rolls[0m[2m in[0m[2m a[0m[2m frame[0m[2m cannot[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m pins[0m[2m")[0m[2m
+[0m[2m   [0m[2m else[0m[2m:[0m[2m
+[0m[2m       [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m >=[0m[2m 2[0m[2m:[0m[2m
+[0m[2m           [0m[2m #[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m:[0m[2m determine[0m[2m whether[0m[2m a[0m[2m bonus[0m[2m roll[0m[2m is[0m[2m allowed[0m[2m
+[0m[2m           [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m >=[0m[2m 3[0m[2m or[0m[2m ([0m[2mlen[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 2[0m[2m and[0m[2m sum[0m[2m(current[0m[2m)[0m[2m [0m[2m< 1[0m[2m0[0m[2m):[0m[2m
+[0m[2m               [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mgame[0m[2m is[0m[2m already[0m[2m complete[0m[2m")[0m[2m
+[0m[2m           [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 2[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m               [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mbonus[0m[2m roll[0m[2m after[0m[2m a[0m[2m non[0m[2m-st[0m[2mrike[0m[2m bonus[0m[2m cannot[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m pins[0m[2m")[0m[2m
+[0m[2m       [0m[2m elif[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 1[0m[2m and[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mtwo[0m[2m rolls[0m[2m in[0m[2m a[0m[2m frame[0m[2m cannot[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m pins[0m[2m")[0m[2m
+[0m[2m   [0m[2m self[0m[2m.[0m[2mrolls[0m[2m.append[0m[2m(p[0m[2mins[0m[2m)[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mWait[0m[2m:[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m with[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 2[0m[2m:[0m[2m
+[0m[2m-[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m ([0m[2mstrike[0m[2m)[0m[2m →[0m[2m bonus[0m[2m roll[0m[2m always[0m[2m allowed[0m[2m ([0m[2m1[0m[2m0[0m[2mth[0m[2m frame[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m x[0m[2m]:[0m[2m if[0m[2m x[0m[2m ==[0m[2m 1[0m[2m0[0m[2m →[0m[2m 3[0m[2mrd[0m[2m can[0m[2m be[0m[2m anything[0m[2m;[0m[2m if[0m[2m x[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m 3[0m[2mrd[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m -[0m[2m x[0m[2m).[0m[2m
+[0m[2m-[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m sum[0m[2m ==[0m[2m 1[0m[2m0[0m[2m ([0m[2msp[0m[2mare[0m[2m)[0m[2m →[0m[2m 1[0m[2m bonus[0m[2m roll[0m[2m,[0m[2m any[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m ([0m[2msp[0m[2mare[0m[2m bonus[0m[2m has[0m[2m no[0m[2m upper[0m[2m limit[0m[2m beyond[0m[2m 1[0m[2m0[0m[2m).[0m[2m
+[0m[2m-[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m sum[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m game[0m[2m complete[0m[2m.[0m[2m
+[0m[2m-[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m is[0m[2m covered[0m[2m by[0m[2m the[0m[2m first[0m[2m case[0m[2m.[0m[2m
+
+[0m[2mMy[0m[2m check[0m[2m:[0m[2m len[0m[2m ==[0m[2m 2[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m →[0m[2m raise[0m[2m.[0m[2m Verify[0m[2m:[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 5[0m[2m][0m[2m +[0m[2m 6[0m[2m →[0m[2m 1[0m[2m1[0m[2m >[0m[2m 1[0m[2m0[0m[2m raise[0m[2m ✓[0m[2m.[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m][0m[2m +[0m[2m 1[0m[2m1[0m[2m →[0m[2m already[0m[2m caught[0m[2m by[0m[2m range[0m[2m check[0m[2m ✓[0m[2m.[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m][0m[2m +[0m[2m 6[0m[2m →[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m so[0m[2m allowed[0m[2m ✓[0m[2m.[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m][0m[2m sum[0m[2m 1[0m[2m0[0m[2m →[0m[2m spare[0m[2m;[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m ==[0m[2m 3[0m[2m [0m[2m< 1[0m[2m0[0m[2m;[0m[2m pins[0m[2m=[0m[2m7[0m[2m →[0m[2m 1[0m[2m0[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m allowed[0m[2m ✓[0m[2m ([0m[2mtest[0m[2m:[0m[2m [[0m[2m0[0m[2m..[0m[2m0[0m[2m,[0m[2m 7[0m[2m,[0m[2m3[0m[2m,[0m[2m7[0m[2m][0m[2m score[0m[2m 1[0m[2m7[0m[2m ✓[0m[2m).[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m][0m[2m +[0m[2m 4[0m[2m →[0m[2m sum[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m raise[0m[2m ✓[0m[2m ([0m[2mtest[0m[2m:[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m,[0m[2m2[0m[2m][0m[2m complete[0m[2m,[0m[2m roll[0m[2m([0m[2m2[0m[2m)[0m[2m should[0m[2m raise[0m[2m —[0m[2m wait[0m[2m,[0m[2m that[0m[2m test[0m[2m is[0m[2m rolls[0m[2m =[0m[2m [...[0m[2m,[0m[2m 7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 2[0m[2m][0m[2m and[0m[2m then[0m[2m roll[0m[2m([0m[2m2[0m[2m).[0m[2m So[0m[2m current[0m[2m is[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m,[0m[2m2[0m[2m][0m[2m len[0m[2m 3[0m[2m →[0m[2m complete[0m[2m ✓[0m[2m).[0m[2m
+
+[0m[2mHmm[0m[2m wait[0m[2m,[0m[2m for[0m[2m a[0m[2m spare[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m],[0m[2m the[0m[2m 3[0m[2mrd[0m[2m roll[0m[2m is[0m[2m the[0m[2m spare[0m[2m bonus[0m[2m:[0m[2m any[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m is[0m[2m allowed[0m[2m.[0m[2m My[0m[2m check[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m]+[0m[2mpins[0m[2m >[0m[2m 1[0m[2m0[0m[2m would[0m[2m reject[0m[2m e[0m[2m.g[0m[2m.[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m][0m[2m +[0m[2m 8[0m[2m →[0m[2m 1[0m[2m1[0m[2m >[0m[2m 1[0m[2m0[0m[2m →[0m[2m raise[0m[2m.[0m[2m But[0m[2m a[0m[2m spare[0m[2m bonus[0m[2m roll[0m[2m of[0m[2m 8[0m[2m after[0m[2m 3[0m[2m is[0m[2m...[0m[2m 3[0m[2m +[0m[2m 8[0m[2m =[0m[2m 1[0m[2m1[0m[2m >[0m[2m 1[0m[2m0[0m[2m.[0m[2m Is[0m[2m that[0m[2m allowed[0m[2m?[0m[2m In[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m after[0m[2m a[0m[2m spare[0m[2m,[0m[2m the[0m[2m bonus[0m[2m roll[0m[2m can[0m[2m knock[0m[2m down[0m[2m up[0m[2m to[0m[2m 1[0m[2m0[0m[2m pins[0m[2m ([0m[2mall[0m[2m remaining[0m[2m pins[0m[2m are[0m[2m reset[0m[2m...[0m[2m no[0m[2m wait[0m[2m).[0m[2m
+
+[0m[2mActual[0m[2m bowling[0m[2m:[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m after[0m[2m a[0m[2m spare[0m[2m,[0m[2m 1[0m[2m0[0m[2m pins[0m[2m are[0m[2m reset[0m[2m and[0m[2m the[0m[2m bonus[0m[2m roll[0m[2m can[0m[2m be[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m.[0m[2m So[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 8[0m[2m][0m[2m is[0m[2m legal[0m[2m![0m[2m The[0m[2m test[0m[2m "[0m[2mtest[0m[2m_[0m[2mrolling[0m[2m_a[0m[2m_s[0m[2mpare[0m[2m_with[0m[2m_the[0m[2m_two[0m[2m_roll[0m[2m_bonus[0m[2m_does[0m[2m_not[0m[2m_get[0m[2m_a[0m[2m_bonus[0m[2m_roll[0m[2m"[0m[2m is[0m[2m [[0m[2m0[0m[2m..[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 7[0m[2m,[0m[2m 3[0m[2m][0m[2m →[0m[2m a[0m[2m strike[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m,[0m[2m then[0m[2m 7[0m[2m,[0m[2m 3[0m[2m →[0m[2m the[0m[2m 2[0m[2mnd[0m[2m bonus[0m[2m is[0m[2m a[0m[2m spare[0m[2m but[0m[2m doesn[0m[2m't[0m[2m give[0m[2m a[0m[2m 3[0m[2mrd[0m[2m roll[0m[2m.[0m[2m Score[0m[2m 2[0m[2m0[0m[2m.[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m so[0m[2m what[0m[2m about[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 8[0m[2m]?[0m[2m The[0m[2m test[0m[2m "[0m[2mtest[0m[2m_the[0m[2m_second[0m[2m_bonus[0m[2m_[0m[2mrolls[0m[2m_after[0m[2m_a[0m[2m_strike[0m[2m..."[0m[2m is[0m[2m after[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 6[0m[2m],[0m[2m roll[0m[2m([0m[2m1[0m[2m0[0m[2m)[0m[2m should[0m[2m raise[0m[2m.[0m[2m Because[0m[2m after[0m[2m a[0m[2m strike[0m[2m,[0m[2m if[0m[2m the[0m[2m first[0m[2m bonus[0m[2m ([0m[2m6[0m[2m)[0m[2m is[0m[2m not[0m[2m a[0m[2m strike[0m[2m,[0m[2m the[0m[2m second[0m[2m bonus[0m[2m must[0m[2m be[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m -[0m[2m 6[0m[2m =[0m[2m 4[0m[2m.[0m[2m This[0m[2m is[0m[2m the[0m[2m real[0m[2m rule[0m[2m:[0m[2m if[0m[2m the[0m[2m first[0m[2m bonus[0m[2m is[0m[2m not[0m[2m a[0m[2m strike[0m[2m,[0m[2m the[0m[2m remaining[0m[2m pins[0m[2m ([0m[2m1[0m[2m0[0m[2m -[0m[2m 6[0m[2m =[0m[2m 4[0m[2m)[0m[2m determine[0m[2m the[0m[2m max[0m[2m of[0m[2m the[0m[2m second[0m[2m bonus[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m for[0m[2m a[0m[2m spare[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m ([[0m[2m7[0m[2m,[0m[2m3[0m[2m]):[0m[2m the[0m[2m pins[0m[2m are[0m[2m reset[0m[2m for[0m[2m the[0m[2m bonus[0m[2m roll[0m[2m,[0m[2m so[0m[2m the[0m[2m bonus[0m[2m can[0m[2m be[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m.[0m[2m So[0m[2m my[0m[2m check[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m would[0m[2m incorrectly[0m[2m reject[0m[2m a[0m[2m spare[0m[2m's[0m[2m bonus[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 8[0m[2m].[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m redo[0m[2m:[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m len[0m[2m ==[0m[2m 2[0m[2m:[0m[2m
+[0m[2m-[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m ([0m[2m1[0m[2m0[0m[2mth[0m[2m frame[0m[2m strike[0m[2m):[0m[2m if[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m 3[0m[2mrd[0m[2m roll[0m[2m is[0m[2m any[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m.[0m[2m If[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m 3[0m[2mrd[0m[2m roll[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m -[0m[2m current[0m[2m[[0m[2m1[0m[2m].[0m[2m
+[0m[2m-[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m  -[0m[2m sum[0m[2m ==[0m[2m 1[0m[2m0[0m[2m ([0m[2msp[0m[2mare[0m[2m):[0m[2m 3[0m[2mrd[0m[2m roll[0m[2m is[0m[2m any[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m.[0m[2m
+[0m[2m  -[0m[2m sum[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m game[0m[2m over[0m[2m.[0m[2m
+
+[0m[2mNone[0m[2m of[0m[2m the[0m[2m canonical[0m[2m tests[0m[2m test[0m[2m a[0m[2m spare[0m[2m's[0m[2m bonus[0m[2m exceeding[0m[2m the[0m[2m remaining[0m[2m pins[0m[2m...[0m[2m let[0m[2m me[0m[2m check[0m[2m:[0m[2m "[0m[2mtest[0m[2m_a[0m[2m_s[0m[2mpare[0m[2m_in[0m[2m_the[0m[2m_last[0m[2m_frame[0m[2m_get[0m[2ms[0m[2m_a[0m[2m_one[0m[2m_roll[0m[2m_bonus[0m[2m_that[0m[2m_is[0m[2m_count[0m[2med[0m[2m_once[0m[2m":[0m[2m [[0m[2m0[0m[2m×[0m[2m1[0m[2m8[0m[2m,[0m[2m 7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 7[0m[2m][0m[2m →[0m[2m spare[0m[2m,[0m[2m bonus[0m[2m 7[0m[2m.[0m[2m 7[0m[2m ≤[0m[2m 1[0m[2m0[0m[2m is[0m[2m fine[0m[2m under[0m[2m either[0m[2m rule[0m[2m.[0m[2m No[0m[2m test[0m[2m covers[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m,[0m[2m8[0m[2m].[0m[2m But[0m[2m to[0m[2m be[0m[2m correct[0m[2m,[0m[2m let[0m[2m me[0m[2m implement[0m[2m the[0m[2m real[0m[2m rule[0m[2m.[0m[2m
+
+[0m[2mSo[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mif[0m[2m frame[0m[2m ==[0m[2m 9[0m[2m:[0m[2m
+[0m[2m   [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 0[0m[2m:[0m[2m
+[0m[2m       [0m[2m pass[0m[2m  #[0m[2m any[0m[2m is[0m[2m fine[0m[2m
+[0m[2m   [0m[2m elif[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 1[0m[2m:[0m[2m
+[0m[2m       [0m[2m if[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m(...)[0m[2m
+[0m[2m       [0m[2m #[0m[2m if[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m any[0m[2m is[0m[2m fine[0m[2m
+[0m[2m   [0m[2m else[0m[2m:[0m[2m  #[0m[2m len[0m[2m >=[0m[2m 2[0m[2m
+[0m[2m       [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 2[0m[2m and[0m[2m sum[0m[2m(current[0m[2m)[0m[2m [0m[2m< 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mgame[0m[2m is[0m[2m already[0m[2m complete[0m[2m")[0m[2m
+[0m[2m       [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m >=[0m[2m 3[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mgame[0m[2m is[0m[2m already[0m[2m complete[0m[2m")[0m[2m
+[0m[2m       [0m[2m if[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m1[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mcannot[0m[2m score[0m[2m more[0m[2m than[0m[2m the[0m[2m remaining[0m[2m pins[0m[2m")[0m[2m
+[0m[2m   [0m[2m self[0m[2m.[0m[2mrolls[0m[2m.append[0m[2m(p[0m[2mins[0m[2m)[0m[2m
+[0m[2m   [0m[2m return[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mFor[0m[2m frames[0m[2m 0[0m[2m-[0m[2m8[0m[2m:[0m[2m current[0m[2m is[0m[2m 0[0m[2m or[0m[2m 1[0m[2m;[0m[2m if[0m[2m 1[0m[2m and[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m and[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m +[0m[2m pins[0m[2m >[0m[2m 1[0m[2m0[0m[2m →[0m[2m raise[0m[2m.[0m[2m ([0m[2mIf[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m,[0m[2m the[0m[2m frame[0m[2m is[0m[2m complete[0m[2m and[0m[2m a[0m[2m new[0m[2m frame[0m[2m would[0m[2m open[0m[2m,[0m[2m so[0m[2m current[0m[2m would[0m[2m be[0m[2m 0[0m[2m.[0m[2m Good[0m[2m.)[0m[2m
+
+[0m[2mWait[0m[2m —[0m[2m can[0m[2m frame[0m[2m [0m[2m< 9[0m[2m have[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 2[0m[2m?[0m[2m In[0m[2m my[0m[2m _[0m[2mframe[0m[2m_state[0m[2m,[0m[2m a[0m[2m non[0m[2m-st[0m[2mrike[0m[2m consumes[0m[2m 2[0m[2m and[0m[2m a[0m[2m strike[0m[2m consumes[0m[2m 1[0m[2m,[0m[2m so[0m[2m after[0m[2m processing[0m[2m each[0m[2m complete[0m[2m frame[0m[2m,[0m[2m current[0m[2m is[0m[2m 0[0m[2m or[0m[2m 1[0m[2m.[0m[2m But[0m[2m if[0m[2m the[0m[2m game[0m[2m is[0m[2m in[0m[2m a[0m[2m weird[0m[2m state[0m[2m...[0m[2m no[0m[2m,[0m[2m since[0m[2m we[0m[2m validate[0m[2m every[0m[2m roll[0m[2m,[0m[2m it[0m[2m can[0m[2m't[0m[2m happen[0m[2m.[0m[2m Still[0m[2m,[0m[2m let[0m[2m me[0m[2m add[0m[2m a[0m[2m safety[0m[2m raise[0m[2m for[0m[2m len[0m[2m >=[0m[2m 2[0m[2m in[0m[2m frames[0m[2m [0m[2m< 9[0m[2m →[0m[2m "[0m[2mgame[0m[2m is[0m[2m already[0m[2m complete[0m[2m"[0m[2m ([0m[2mun[0m[2mreachable[0m[2m,[0m[2m but[0m[2m safe[0m[2m).[0m[2m
+
+[0m[2mNow[0m[2m _[0m[2mframe[0m[2m_state[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m _[0m[2mframe[0m[2m_state[0m[2m(self[0m[2m):[0m[2m
+[0m[2m   [0m[2m rolls[0m[2m =[0m[2m self[0m[2m.[0m[2mrolls[0m[2m
+[0m[2m   [0m[2m i[0m[2m =[0m[2m 0[0m[2m
+[0m[2m   [0m[2m for[0m[2m frame[0m[2m in[0m[2m range[0m[2m([0m[2m9[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m i[0m[2m >=[0m[2m len[0m[2m([0m[2mrolls[0m[2m):[0m[2m
+[0m[2m           [0m[2m return[0m[2m frame[0m[2m,[0m[2m [][0m[2m
+[0m[2m       [0m[2m if[0m[2m rolls[0m[2m[i[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m i[0m[2m +=[0m[2m 1[0m[2m
+[0m[2m       [0m[2m else[0m[2m:[0m[2m
+[0m[2m           [0m[2m i[0m[2m +=[0m[2m 2[0m[2m
+[0m[2m   [0m[2m if[0m[2m i[0m[2m >=[0m[2m len[0m[2m([0m[2mrolls[0m[2m):[0m[2m
+[0m[2m       [0m[2m return[0m[2m 9[0m[2m,[0m[2m [][0m[2m
+[0m[2m   [0m[2m return[0m[2m 9[0m[2m,[0m[2m rolls[0m[2m[i[0m[2m:][0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mHmm[0m[2m wait[0m[2m:[0m[2m after[0m[2m 9[0m[2m frames[0m[2m,[0m[2m if[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m has[0m[2m 0[0m[2m rolls[0m[2m →[0m[2m ([0m[2m9[0m[2m,[0m[2m []).[0m[2m But[0m[2m can[0m[2m the[0m[2m game[0m[2m be[0m[2m complete[0m[2m before[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m?[0m[2m No[0m[2m —[0m[2m the[0m[2m game[0m[2m always[0m[2m has[0m[2m 1[0m[2m0[0m[2m frames[0m[2m.[0m[2m The[0m[2m game[0m[2m is[0m[2m complete[0m[2m only[0m[2m when[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m complete[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m wait[0m[2m:[0m[2m can[0m[2m a[0m[2m game[0m[2m be[0m[2m "[0m[2mcomplete[0m[2m"[0m[2m with[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [][0m[2m?[0m[2m No[0m[2m —[0m[2m an[0m[2m empty[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m means[0m[2m the[0m[2m game[0m[2m is[0m[2m incomplete[0m[2m ([0m[2mneeds[0m[2m at[0m[2m least[0m[2m 1[0m[2m roll[0m[2m).[0m[2m But[0m[2m could[0m[2m all[0m[2m 9[0m[2m frames[0m[2m be[0m[2m complete[0m[2m and[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m empty[0m[2m?[0m[2m That[0m[2m's[0m[2m 1[0m[2m8[0m[2m or[0m[2m 1[0m[2m9[0m[2m rolls[0m[2m...[0m[2m e[0m[2m.g[0m[2m.,[0m[2m [[0m[2m0[0m[2m,[0m[2m0[0m[2m][0m[2m ×[0m[2m 9[0m[2m =[0m[2m 1[0m[2m8[0m[2m rolls[0m[2m,[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m empty[0m[2m →[0m[2m incomplete[0m[2m,[0m[2m need[0m[2m 2[0m[2m more[0m[2m.[0m[2m Correct[0m[2m.[0m[2m
+
+[0m[2mNext[0m[2m score[0m[2m():[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m score[0m[2m(self[0m[2m):[0m[2m
+[0m[2m   [0m[2m if[0m[2m not[0m[2m self[0m[2m._[0m[2mcomplete[0m[2m():[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2mgame[0m[2m is[0m[2m incomplete[0m[2m")[0m[2m
+[0m[2m   [0m[2m #[0m[2m Compute[0m[2m the[0m[2m score[0m[2m
+[0m[2m   [0m[2m rolls[0m[2m =[0m[2m self[0m[2m.[0m[2mrolls[0m[2m
+[0m[2m   [0m[2m score[0m[2m =[0m[2m 0[0m[2m
+[0m[2m   [0m[2m #[0m[2m For[0m[2m frames[0m[2m 1[0m[2m-[0m[2m9[0m[2m:[0m[2m find[0m[2m the[0m[2m frame[0m[2m's[0m[2m roll[0m[2m indices[0m[2m
+[0m[2m   [0m[2m i[0m[2m =[0m[2m 0[0m[2m
+[0m[2m   [0m[2m for[0m[2m frame[0m[2m in[0m[2m range[0m[2m([0m[2m9[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m rolls[0m[2m[i[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m score[0m[2m +=[0m[2m 1[0m[2m0[0m[2m +[0m[2m rolls[0m[2m[i[0m[2m+[0m[2m1[0m[2m][0m[2m +[0m[2m rolls[0m[2m[i[0m[2m+[0m[2m2[0m[2m][0m[2m
+[0m[2m           [0m[2m i[0m[2m +=[0m[2m 1[0m[2m
+[0m[2m       [0m[2m elif[0m[2m rolls[0m[2m[i[0m[2m][0m[2m +[0m[2m rolls[0m[2m[i[0m[2m+[0m[2m1[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m           [0m[2m score[0m[2m +=[0m[2m 1[0m[2m0[0m[2m +[0m[2m rolls[0m[2m[i[0m[2m+[0m[2m2[0m[2m][0m[2m
+[0m[2m           [0m[2m i[0m[2m +=[0m[2m 2[0m[2m
+[0m[2m       [0m[2m else[0m[2m:[0m[2m
+[0m[2m           [0m[2m score[0m[2m +=[0m[2m rolls[0m[2m[i[0m[2m][0m[2m +[0m[2m rolls[0m[2m[i[0m[2m+[0m[2m1[0m[2m][0m[2m
+[0m[2m           [0m[2m i[0m[2m +=[0m[2m 2[0m[2m
+[0m[2m   [0m[2m #[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m:[0m[2m sum[0m[2m the[0m[2m remaining[0m[2m rolls[0m[2m
+[0m[2m   [0m[2m score[0m[2m +=[0m[2m sum[0m[2m([0m[2mrolls[0m[2m[i[0m[2m:])[0m[2m
+[0m[2m   [0m[2m return[0m[2m score[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mWait[0m[2m —[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m sum[0m[2m of[0m[2m all[0m[2m rolls[0m[2m of[0m[2m that[0m[2m frame[0m[2m:[0m[2m [[0m[2mX[0m[2m,[0m[2m 5[0m[2m,[0m[2m 3[0m[2m][0m[2m →[0m[2m 1[0m[2m8[0m[2m?[0m[2m No[0m[2m wait[0m[2m,[0m[2m the[0m[2m total[0m[2m for[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m sum[0m[2m of[0m[2m its[0m[2m rolls[0m[2m:[0m[2m X[0m[2m5[0m[2m/[0m[2m =[0m[2m 1[0m[2m0[0m[2m+[0m[2m5[0m[2m+[0m[2m5[0m[2m =[0m[2m 2[0m[2m0[0m[2m ✓[0m[2m.[0m[2m XXX[0m[2m =[0m[2m 3[0m[2m0[0m[2m ✓[0m[2m.[0m[2m The[0m[2m instructions[0m[2m say[0m[2m "[0m[2mthe[0m[2m total[0m[2m for[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m the[0m[2m total[0m[2m number[0m[2m of[0m[2m pins[0m[2m knocked[0m[2m down[0m[2m".[0m[2m So[0m[2m sum[0m[2m([0m[2mrolls[0m[2m[i[0m[2m:])[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m wait[0m[2m,[0m[2m a[0m[2m subtle[0m[2m point[0m[2m about[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m:[0m[2m the[0m[2m sum[0m[2m of[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m just[0m[2m the[0m[2m pins[0m[2m,[0m[2m no[0m[2m bonus[0m[2m calculation[0m[2m needed[0m[2m since[0m[2m the[0m[2m bonus[0m[2m rolls[0m[2m are[0m[2m already[0m[2m included[0m[2m in[0m[2m the[0m[2m frame[0m[2m's[0m[2m rolls[0m[2m.[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2m_complete[0m[2m():[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m _[0m[2mcomplete[0m[2m(self[0m[2m):[0m[2m
+[0m[2m   [0m[2m frame[0m[2m,[0m[2m current[0m[2m =[0m[2m self[0m[2m._[0m[2mframe[0m[2m_state[0m[2m()[0m[2m
+[0m[2m   [0m[2m if[0m[2m frame[0m[2m [0m[2m< 9[0m[2m:[0m[2m
+[0m[2m       [0m[2m return[0m[2m False[0m[2m
+[0m[2m   [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m [0m[2m< 2[0m[2m:[0m[2m
+[0m[2m       [0m[2m return[0m[2m False[0m[2m
+[0m[2m   [0m[2m if[0m[2m len[0m[2m(current[0m[2m)[0m[2m ==[0m[2m 3[0m[2m:[0m[2m
+[0m[2m       [0m[2m return[0m[2m True[0m[2m
+[0m[2m   [0m[2m #[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m with[0m[2m 2[0m[2m rolls[0m[2m
+[0m[2m   [0m[2m a[0m[2m,[0m[2m b[0m[2m =[0m[2m current[0m[2m
+[0m[2m   [0m[2m if[0m[2m a[0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m       [0m[2m return[0m[2m False[0m[2m  #[0m[2m needs[0m[2m 2[0m[2mnd[0m[2m bonus[0m[2m
+[0m[2m   [0m[2m if[0m[2m a[0m[2m +[0m[2m b[0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m       [0m[2m return[0m[2m False[0m[2m  #[0m[2m spare[0m[2m needs[0m[2m a[0m[2m bonus[0m[2m
+[0m[2m   [0m[2m return[0m[2m True[0m[2m  #[0m[2m open[0m[2m frame[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mVerify[0m[2m test[0m[2m cases[0m[2m:[0m[2m
+[0m[2m-[0m[2m [][0m[2m →[0m[2m frame[0m[2m 0[0m[2m [0m[2m< 9[0m[2m →[0m[2m incomplete[0m[2m →[0m[2m score[0m[2m()[0m[2m raises[0m[2m ✓[0m[2m ([0m[2mun[0m[2mstarted[0m[2m game[0m[2m).[0m[2m
+[0m[2m-[0m[2m [[0m[2m0[0m[2m,[0m[2m 0[0m[2m][0m[2m →[0m[2m frame[0m[2m 0[0m[2m...[0m[2m wait[0m[2m:[0m[2m rolls[0m[2m =[0m[2m [[0m[2m0[0m[2m,[0m[2m0[0m[2m].[0m[2m frame[0m[2m 0[0m[2m:[0m[2m rolls[0m[2m[[0m[2m0[0m[2m][0m[2m =[0m[2m 0[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m i[0m[2m =[0m[2m 2[0m[2m.[0m[2m frame[0m[2m 1[0m[2m:[0m[2m i[0m[2m >=[0m[2m len[0m[2m?[0m[2m i[0m[2m=[0m[2m2[0m[2m,[0m[2m len[0m[2m=[0m[2m2[0m[2m →[0m[2m return[0m[2m ([0m[2m1[0m[2m,[0m[2m []).[0m[2m frame[0m[2m [0m[2m< 9[0m[2m →[0m[2m incomplete[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m]:[0m[2m 9[0m[2m frames[0m[2m =[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m,[0m[2m i[0m[2m =[0m[2m 1[0m[2m8[0m[2m,[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m →[0m[2m len[0m[2m 1[0m[2m →[0m[2m incomplete[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m]:[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m][0m[2m →[0m[2m a[0m[2m ==[0m[2m 1[0m[2m0[0m[2m →[0m[2m incomplete[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m]:[0m[2m a[0m[2m [0m[2m< 1[0m[2m0[0m[2m,[0m[2m a[0m[2m+b[0m[2m ==[0m[2m 1[0m[2m0[0m[2m →[0m[2m incomplete[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 7[0m[2m][0m[2m →[0m[2m len[0m[2m 3[0m[2m →[0m[2m complete[0m[2m;[0m[2m score[0m[2m:[0m[2m 9[0m[2m frames[0m[2m are[0m[2m 0[0m[2m,[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m 7[0m[2m+[0m[2m3[0m[2m+[0m[2m7[0m[2m =[0m[2m 1[0m[2m7[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 7[0m[2m,[0m[2m 1[0m[2m]:[0m[2m complete[0m[2m;[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m 1[0m[2m8[0m[2m;[0m[2m total[0m[2m 1[0m[2m8[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 7[0m[2m,[0m[2m 3[0m[2m]:[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m 2[0m[2m0[0m[2m ✓[0m[2m ([0m[2mthe[0m[2m test[0m[2m expects[0m[2m 2[0m[2m0[0m[2m —[0m[2m "[0m[2mrolling[0m[2m a[0m[2m spare[0m[2m on[0m[2m the[0m[2m 2[0m[2mnd[0m[2m bonus[0m[2m roll[0m[2m doesn[0m[2m't[0m[2m give[0m[2m a[0m[2m bonus[0m[2m roll[0m[2m").[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m][0m[2m →[0m[2m 3[0m[2m0[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m7[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 1[0m[2m][0m[2m →[0m[2m wait[0m[2m,[0m[2m the[0m[2m test[0m[2m "[0m[2mlast[0m[2m two[0m[2m strikes[0m[2m followed[0m[2m by[0m[2m only[0m[2m last[0m[2m bonus[0m[2m with[0m[2m non[0m[2m-st[0m[2mrike[0m[2m points[0m[2m":[0m[2m rolls[0m[2m =[0m[2m [[0m[2m0[0m[2m×[0m[2m1[0m[2m7[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 1[0m[2m][0m[2m =[0m[2m 2[0m[2m1[0m[2m rolls[0m[2m.[0m[2m 9[0m[2m frames[0m[2m:[0m[2m 8[0m[2m frames[0m[2m of[0m[2m [[0m[2m0[0m[2m,[0m[2m0[0m[2m][0m[2m =[0m[2m 1[0m[2m6[0m[2m zeros[0m[2m,[0m[2m then[0m[2m frame[0m[2m 8[0m[2m ([0m[2mthe[0m[2m 9[0m[2mth[0m[2m):[0m[2m rolls[0m[2m[[0m[2m1[0m[2m6[0m[2m][0m[2m =[0m[2m 0[0m[2m,[0m[2m rolls[0m[2m[[0m[2m1[0m[2m7[0m[2m][0m[2m =[0m[2m 1[0m[2m0[0m[2m →[0m[2m sum[0m[2m 1[0m[2m0[0m[2m,[0m[2m spare[0m[2m.[0m[2m i[0m[2m →[0m[2m 1[0m[2m8[0m[2m.[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 1[0m[2m][0m[2m →[0m[2m len[0m[2m 3[0m[2m,[0m[2m complete[0m[2m.[0m[2m Score[0m[2m:[0m[2m 8[0m[2m frames[0m[2m are[0m[2m 0[0m[2m;[0m[2m 9[0m[2mth[0m[2m frame[0m[2m:[0m[2m spare[0m[2m 1[0m[2m0[0m[2m +[0m[2m next[0m[2m roll[0m[2m ([0m[2m1[0m[2m0[0m[2m)[0m[2m =[0m[2m 2[0m[2m0[0m[2m;[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m 1[0m[2m1[0m[2m.[0m[2m Total[0m[2m 3[0m[2m1[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m0[0m[2m×[0m[2m1[0m[2m8[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 7[0m[2m,[0m[2m 3[0m[2m]:[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 7[0m[2m,[0m[2m 3[0m[2m][0m[2m →[0m[2m 2[0m[2m0[0m[2m ✓[0m[2m ([0m[2mthe[0m[2m test[0m[2m "[0m[2ma[0m[2m strike[0m[2m with[0m[2m a[0m[2m 1[0m[2m-roll[0m[2m bonus[0m[2m after[0m[2m a[0m[2m spare[0m[2m in[0m[2m the[0m[2m final[0m[2m frame[0m[2m doesn[0m[2m't[0m[2m get[0m[2m a[0m[2m bonus[0m[2m"[0m[2m is[0m[2m [[0m[2m0[0m[2m×[0m[2m1[0m[2m8[0m[2m,[0m[2m 7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 1[0m[2m0[0m[2m][0m[2m →[0m[2m 2[0m[2m0[0m[2m ✓[0m[2m).[0m[2m
+[0m[2m-[0m[2m Perfect[0m[2m game[0m[2m 1[0m[2m2[0m[2m rolls[0m[2m:[0m[2m 9[0m[2m frames[0m[2m each[0m[2m [[0m[2m1[0m[2m0[0m[2m],[0m[2m i[0m[2m =[0m[2m 9[0m[2m,[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m][0m[2m →[0m[2m complete[0m[2m.[0m[2m Score[0m[2m:[0m[2m each[0m[2m of[0m[2m the[0m[2m 9[0m[2m frames[0m[2m:[0m[2m 1[0m[2m0[0m[2m +[0m[2m 1[0m[2m0[0m[2m +[0m[2m 1[0m[2m0[0m[2m =[0m[2m 3[0m[2m0[0m[2m →[0m[2m 2[0m[2m7[0m[2m0[0m[2m;[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m 3[0m[2m0[0m[2m →[0m[2m 3[0m[2m0[0m[2m0[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m0[0m[2m,[0m[2m0[0m[2m][0m[2m×[0m[2m1[0m[2m0[0m[2m =[0m[2m 2[0m[2m0[0m[2m zeros[0m[2m:[0m[2m 9[0m[2m frames[0m[2m →[0m[2m i[0m[2m =[0m[2m 1[0m[2m8[0m[2m,[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [[0m[2m0[0m[2m,[0m[2m 0[0m[2m][0m[2m →[0m[2m a[0m[2m [0m[2m< 1[0m[2m0[0m[2m,[0m[2m sum[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m complete[0m[2m,[0m[2m score[0m[2m 0[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m3[0m[2m,[0m[2m6[0m[2m][0m[2m×[0m[2m1[0m[2m0[0m[2m:[0m[2m each[0m[2m frame[0m[2m 9[0m[2m,[0m[2m 9[0m[2m0[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 5[0m[2m,[0m[2m 3[0m[2m,[0m[2m 0[0m[2m×[0m[2m1[0m[2m6[0m[2m]:[0m[2m frame[0m[2m 0[0m[2m strike[0m[2m:[0m[2m 1[0m[2m0[0m[2m +[0m[2m 5[0m[2m +[0m[2m 3[0m[2m =[0m[2m 1[0m[2m8[0m[2m;[0m[2m i[0m[2m =[0m[2m 1[0m[2m.[0m[2m Frames[0m[2m 1[0m[2m-[0m[2m9[0m[2m:[0m[2m each[0m[2m [[0m[2m0[0m[2m,[0m[2m 0[0m[2m][0m[2m...[0m[2m wait[0m[2m,[0m[2m rolls[0m[2m[[0m[2m1[0m[2m:][0m[2m =[0m[2m [[0m[2m5[0m[2m,[0m[2m 3[0m[2m,[0m[2m 0[0m[2m,[0m[2m ...[0m[2m].[0m[2m Frame[0m[2m 1[0m[2m:[0m[2m rolls[0m[2m[[0m[2m1[0m[2m][0m[2m =[0m[2m 5[0m[2m,[0m[2m rolls[0m[2m[[0m[2m2[0m[2m][0m[2m =[0m[2m 3[0m[2m →[0m[2m sum[0m[2m 8[0m[2m →[0m[2m 8[0m[2m.[0m[2m Then[0m[2m 8[0m[2m frames[0m[2m of[0m[2m 0[0m[2m.[0m[2m Total[0m[2m =[0m[2m 1[0m[2m8[0m[2m +[0m[2m 8[0m[2m =[0m[2m 2[0m[2m6[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 5[0m[2m,[0m[2m 3[0m[2m,[0m[2m 0[0m[2m×[0m[2m1[0m[2m2[0m[2m]:[0m[2m frame[0m[2m 0[0m[2m:[0m[2m 1[0m[2m0[0m[2m+[0m[2m1[0m[2m0[0m[2m+[0m[2m1[0m[2m0[0m[2m =[0m[2m 3[0m[2m0[0m[2m;[0m[2m frame[0m[2m 1[0m[2m:[0m[2m 1[0m[2m0[0m[2m+[0m[2m5[0m[2m+[0m[2m3[0m[2m =[0m[2m 1[0m[2m8[0m[2m;[0m[2m frame[0m[2m 2[0m[2m:[0m[2m 1[0m[2m0[0m[2m+[0m[2m0[0m[2m+[0m[2m0[0m[2m =[0m[2m 1[0m[2m0[0m[2m;[0m[2m frames[0m[2m 3[0m[2m-[0m[2m8[0m[2m:[0m[2m 0[0m[2m×[0m[2m6[0m[2m.[0m[2m Total[0m[2m 5[0m[2m8[0m[2m?[0m[2m Wait[0m[2m,[0m[2m the[0m[2m test[0m[2m expects[0m[2m 8[0m[2m1[0m[2m.[0m[2m Let[0m[2m me[0m[2m recount[0m[2m:[0m[2m rolls[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 5[0m[2m,[0m[2m 3[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m][0m[2m —[0m[2m that[0m[2m's[0m[2m 1[0m[2m7[0m[2m rolls[0m[2m.[0m[2m Frames[0m[2m:[0m[2m frame[0m[2m 0[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m ([0m[2mstrike[0m[2m,[0m[2m i[0m[2m =[0m[2m 1[0m[2m),[0m[2m frame[0m[2m 1[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m ([0m[2mi[0m[2m =[0m[2m 2[0m[2m),[0m[2m frame[0m[2m 2[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m ([0m[2mi[0m[2m =[0m[2m 3[0m[2m),[0m[2m frame[0m[2m 3[0m[2m =[0m[2m [[0m[2m5[0m[2m,[0m[2m 3[0m[2m][0m[2m ([0m[2mi[0m[2m =[0m[2m 5[0m[2m),[0m[2m frames[0m[2m 4[0m[2m-[0m[2m8[0m[2m =[0m[2m [[0m[2m0[0m[2m,[0m[2m 0[0m[2m][0m[2m each[0m[2m →[0m[2m i[0m[2m =[0m[2m 1[0m[2m5[0m[2m,[0m[2m 1[0m[2m6[0m[2m,[0m[2m 1[0m[2m7[0m[2m...[0m[2m 5[0m[2m frames[0m[2m ×[0m[2m 2[0m[2m =[0m[2m 1[0m[2m0[0m[2m →[0m[2m i[0m[2m =[0m[2m 1[0m[2m5[0m[2m.[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m rolls[0m[2m[[0m[2m1[0m[2m5[0m[2m:][0m[2m =[0m[2m [[0m[2m0[0m[2m,[0m[2m 0[0m[2m][0m[2m →[0m[2m complete[0m[2m ([0m[2mopen[0m[2m).[0m[2m Score[0m[2m:[0m[2m frame[0m[2m 0[0m[2m =[0m[2m 1[0m[2m0[0m[2m +[0m[2m rolls[0m[2m[[0m[2m1[0m[2m][0m[2m +[0m[2m rolls[0m[2m[[0m[2m2[0m[2m][0m[2m =[0m[2m 1[0m[2m0[0m[2m+[0m[2m1[0m[2m0[0m[2m+[0m[2m1[0m[2m0[0m[2m =[0m[2m 3[0m[2m0[0m[2m;[0m[2m frame[0m[2m 1[0m[2m =[0m[2m 1[0m[2m0[0m[2m +[0m[2m rolls[0m[2m[[0m[2m2[0m[2m][0m[2m +[0m[2m rolls[0m[2m[[0m[2m3[0m[2m][0m[2m =[0m[2m 1[0m[2m0[0m[2m+[0m[2m1[0m[2m0[0m[2m+[0m[2m5[0m[2m =[0m[2m 2[0m[2m5[0m[2m;[0m[2m frame[0m[2m 2[0m[2m =[0m[2m 1[0m[2m0[0m[2m +[0m[2m rolls[0m[2m[[0m[2m3[0m[2m][0m[2m +[0m[2m rolls[0m[2m[[0m[2m4[0m[2m][0m[2m =[0m[2m 1[0m[2m0[0m[2m+[0m[2m5[0m[2m+[0m[2m3[0m[2m =[0m[2m 1[0m[2m8[0m[2m;[0m[2m frame[0m[2m 3[0m[2m =[0m[2m 8[0m[2m;[0m[2m frames[0m[2m 4[0m[2m-[0m[2m9[0m[2m =[0m[2m 0[0m[2m.[0m[2m Total[0m[2m =[0m[2m 3[0m[2m0[0m[2m+[0m[2m2[0m[2m5[0m[2m+[0m[2m1[0m[2m8[0m[2m+[0m[2m8[0m[2m =[0m[2m 8[0m[2m1[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m6[0m[2m,[0m[2m 4[0m[2m,[0m[2m 0[0m[2m×[0m[2m1[0m[2m8[0m[2m]:[0m[2m frame[0m[2m 0[0m[2m:[0m[2m spare[0m[2m 1[0m[2m0[0m[2m +[0m[2m rolls[0m[2m[[0m[2m2[0m[2m][0m[2m =[0m[2m 1[0m[2m0[0m[2m;[0m[2m rest[0m[2m is[0m[2m 0[0m[2m →[0m[2m 1[0m[2m0[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m6[0m[2m,[0m[2m 4[0m[2m,[0m[2m 3[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m×[0m[2m1[0m[2m6[0m[2m]:[0m[2m frame[0m[2m 0[0m[2m:[0m[2m 1[0m[2m0[0m[2m +[0m[2m 3[0m[2m =[0m[2m 1[0m[2m3[0m[2m;[0m[2m frame[0m[2m 1[0m[2m:[0m[2m 0[0m[2m...[0m[2m total[0m[2m 1[0m[2m3[0m[2m?[0m[2m Wait[0m[2m,[0m[2m the[0m[2m test[0m[2m expects[0m[2m 1[0m[2m6[0m[2m.[0m[2m rolls[0m[2m =[0m[2m [[0m[2m6[0m[2m,[0m[2m 4[0m[2m,[0m[2m 3[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m].[0m[2m Frame[0m[2m 0[0m[2m =[0m[2m [[0m[2m6[0m[2m,[0m[2m4[0m[2m][0m[2m spare[0m[2m →[0m[2m 1[0m[2m0[0m[2m +[0m[2m rolls[0m[2m[[0m[2m2[0m[2m][0m[2m =[0m[2m 1[0m[2m0[0m[2m +[0m[2m 3[0m[2m =[0m[2m 1[0m[2m3[0m[2m.[0m[2m i[0m[2m =[0m[2m 2[0m[2m.[0m[2m Frame[0m[2m 1[0m[2m =[0m[2m [[0m[2m3[0m[2m,[0m[2m 0[0m[2m][0m[2m open[0m[2m →[0m[2m 3[0m[2m.[0m[2m Frames[0m[2m 2[0m[2m-[0m[2m9[0m[2m:[0m[2m 0[0m[2m.[0m[2m Total[0m[2m 1[0m[2m3[0m[2m +[0m[2m 3[0m[2m =[0m[2m 1[0m[2m6[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m5[0m[2m,[0m[2m 5[0m[2m,[0m[2m 3[0m[2m,[0m[2m 7[0m[2m,[0m[2m 4[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m×[0m[2m1[0m[2m4[0m[2m]:[0m[2m frame[0m[2m 0[0m[2m spare[0m[2m →[0m[2m 1[0m[2m0[0m[2m +[0m[2m 3[0m[2m =[0m[2m 1[0m[2m3[0m[2m;[0m[2m frame[0m[2m 1[0m[2m spare[0m[2m [[0m[2m3[0m[2m,[0m[2m7[0m[2m][0m[2m →[0m[2m 1[0m[2m0[0m[2m +[0m[2m 4[0m[2m =[0m[2m 1[0m[2m4[0m[2m;[0m[2m frame[0m[2m 2[0m[2m [[0m[2m4[0m[2m,[0m[2m 0[0m[2m][0m[2m →[0m[2m 4[0m[2m;[0m[2m rest[0m[2m 0[0m[2m.[0m[2m Total[0m[2m 3[0m[2m1[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mRoll[0m[2m validation[0m[2m tests[0m[2m:[0m[2m
+[0m[2m-[0m[2m roll[0m[2m(-[0m[2m1[0m[2m)[0m[2m →[0m[2m range[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m roll[0m[2m([0m[2m1[0m[2m1[0m[2m)[0m[2m →[0m[2m range[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m5[0m[2m],[0m[2m roll[0m[2m([0m[2m6[0m[2m)[0m[2m →[0m[2m frame[0m[2m 0[0m[2m current[0m[2m =[0m[2m [[0m[2m5[0m[2m],[0m[2m 5[0m[2m+[0m[2m6[0m[2m =[0m[2m 1[0m[2m1[0m[2m →[0m[2m raise[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m],[0m[2m roll[0m[2m([0m[2m1[0m[2m1[0m[2m)[0m[2m →[0m[2m range[0m[2m ✓[0m[2m ([0m[2m1[0m[2m1[0m[2m >[0m[2m 1[0m[2m0[0m[2m is[0m[2m checked[0m[2m before[0m[2m the[0m[2m frame[0m[2m logic[0m[2m).[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 5[0m[2m],[0m[2m roll[0m[2m([0m[2m6[0m[2m):[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m current[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 5[0m[2m],[0m[2m len[0m[2m 2[0m[2m,[0m[2m sum[0m[2m 1[0m[2m5[0m[2m ≥[0m[2m 1[0m[2m0[0m[2m so[0m[2m not[0m[2m complete[0m[2m;[0m[2m a[0m[2m =[0m[2m 1[0m[2m0[0m[2m,[0m[2m b[0m[2m =[0m[2m 5[0m[2m [0m[2m< 1[0m[2m0[0m[2m,[0m[2m 5[0m[2m +[0m[2m 6[0m[2m =[0m[2m 1[0m[2m1[0m[2m →[0m[2m raise[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m],[0m[2m roll[0m[2m([0m[2m1[0m[2m1[0m[2m)[0m[2m →[0m[2m range[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 6[0m[2m],[0m[2m roll[0m[2m([0m[2m1[0m[2m0[0m[2m):[0m[2m b[0m[2m =[0m[2m 6[0m[2m,[0m[2m 6[0m[2m +[0m[2m 1[0m[2m0[0m[2m =[0m[2m 1[0m[2m6[0m[2m →[0m[2m raise[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m],[0m[2m roll[0m[2m([0m[2m6[0m[2m):[0m[2m allowed[0m[2m,[0m[2m append[0m[2m →[0m[2m score[0m[2m 2[0m[2m6[0m[2m ✓[0m[2m ([0m[2mnot[0m[2m a[0m[2m test[0m[2m that[0m[2m rolls[0m[2m 6[0m[2m after[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m1[0m[2m0[0m[2m][0m[2m...[0m[2m actually[0m[2m the[0m[2m test[0m[2m "[0m[2mtwo[0m[2m bonus[0m[2m rolls[0m[2m after[0m[2m a[0m[2m strike[0m[2m in[0m[2m the[0m[2m final[0m[2m frame[0m[2m can[0m[2m exceed[0m[2m 1[0m[2m0[0m[2m if[0m[2m one[0m[2m is[0m[2m a[0m[2m strike[0m[2m"[0m[2m rolls[0m[2m [[0m[2m0[0m[2m×[0m[2m1[0m[2m8[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 6[0m[2m][0m[2m then[0m[2m scores[0m[2m →[0m[2m 2[0m[2m6[0m[2m ✓[0m[2m).[0m[2m
+[0m[2m-[0m[2m [[0m[2m0[0m[2m×[0m[2m2[0m[2m0[0m[2m],[0m[2m roll[0m[2m([0m[2m0[0m[2m):[0m[2m _[0m[2mframe[0m[2m_state[0m[2m:[0m[2m 9[0m[2m frames[0m[2m ×[0m[2m 2[0m[2m =[0m[2m 1[0m[2m8[0m[2m →[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [[0m[2m0[0m[2m,[0m[2m 0[0m[2m].[0m[2m In[0m[2m roll[0m[2m:[0m[2m frame[0m[2m 9[0m[2m,[0m[2m len[0m[2m 2[0m[2m,[0m[2m sum[0m[2m 0[0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m raise[0m[2m "[0m[2mgame[0m[2m is[0m[2m already[0m[2m complete[0m[2m"[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m],[0m[2m score[0m[2m()[0m[2m →[0m[2m incomplete[0m[2m ✓[0m[2m.[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 1[0m[2m0[0m[2m][0m[2m score[0m[2m →[0m[2m incomplete[0m[2m ✓[0m[2m.[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m][0m[2m score[0m[2m →[0m[2m incomplete[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m0[0m[2m×[0m[2m1[0m[2m8[0m[2m,[0m[2m 7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 2[0m[2m][0m[2m roll[0m[2m([0m[2m2[0m[2m):[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m [[0m[2m7[0m[2m,[0m[2m 3[0m[2m,[0m[2m 2[0m[2m][0m[2m len[0m[2m 3[0m[2m →[0m[2m raise[0m[2m ✓[0m[2m.[0m[2m
+[0m[2m-[0m[2m [[0m[2m0[0m[2m×[0m[2m1[0m[2m8[0m[2m,[0m[2m 1[0m[2m0[0m[2m,[0m[2m 3[0m[2m,[0m[2m 2[0m[2m][0m[2m roll[0m[2m([0m[2m2[0m[2m):[0m[2m len[0m[2m 3[0m[2m →[0m[2m raise[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mThe[0m[2m test[0m[2m's[0m[2m assert[0m[2mRaises[0m[2mWith[0m[2mMessage[0m[2m uses[0m[2m assert[0m[2mRaises[0m[2mRegex[0m[2m(exception[0m[2m,[0m[2m r[0m[2m".[0m[2m+")[0m[2m —[0m[2m the[0m[2m exception[0m[2m must[0m[2m have[0m[2m a[0m[2m non[0m[2m-empty[0m[2m message[0m[2m.[0m[2m ValueError[0m[2m with[0m[2m a[0m[2m message[0m[2m ✓[0m[2m.[0m[2m Note[0m[2m:[0m[2m assert[0m[2mRaises[0m[2mRegex[0m[2m checks[0m[2m str[0m[2m(exception[0m[2m)[0m[2m against[0m[2m the[0m[2m regex[0m[2m;[0m[2m r[0m[2m".[0m[2m+"[0m[2m requires[0m[2m 1[0m[2m or[0m[2m more[0m[2m characters[0m[2m —[0m[2m a[0m[2m non[0m[2m-empty[0m[2m message[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m,[0m[2m the[0m[2m bool[0m[2m check[0m[2m:[0m[2m isinstance[0m[2m(True[0m[2m,[0m[2m int[0m[2m)[0m[2m is[0m[2m True[0m[2m;[0m[2m but[0m[2m the[0m[2m tests[0m[2m only[0m[2m pass[0m[2m integers[0m[2m.[0m[2m For[0m[2m cleanliness[0m[2m I[0m[2m'll[0m[2m keep[0m[2m the[0m[2m simple[0m[2m `[0m[2mnot[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m`[0m[2m check[0m[2m —[0m[2m actually[0m[2m,[0m[2m to[0m[2m be[0m[2m safe[0m[2m I[0m[2m'll[0m[2m use[0m[2m `[0m[2mif[0m[2m not[0m[2m isinstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m int[0m[2m)[0m[2m or[0m[2m isinstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m bool[0m[2m)[0m[2m or[0m[2m not[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m`.[0m[2m Hmm[0m[2m,[0m[2m more[0m[2m simply[0m[2m:[0m[2m `[0m[2mif[0m[2m isinstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m bool[0m[2m)[0m[2m or[0m[2m not[0m[2m isinstance[0m[2m(p[0m[2mins[0m[2m,[0m[2m int[0m[2m)[0m[2m or[0m[2m not[0m[2m 0[0m[2m <=[0m[2m pins[0m[2m <=[0m[2m 1[0m[2m0[0m[2m`.[0m[2m Well[0m[2m,[0m[2m the[0m[2m tests[0m[2m only[0m[2m use[0m[2m int[0m[2m.[0m[2m I[0m[2m'll[0m[2m include[0m[2m the[0m[2m isinstance[0m[2m check[0m[2m for[0m[2m robust[0m[2mness[0m[2m,[0m[2m but[0m[2m it[0m[2m's[0m[2m optional[0m[2m.[0m[2m Let[0m[2m me[0m[2m keep[0m[2m it[0m[2m simple[0m[2m.[0m[2m
+
+[0m[2mNow[0m[2m let[0m[2m me[0m[2m write[0m[2m bowling[0m[2m.py[0m[2m.[0m[2m Note[0m[2m:[0m[2m the[0m[2m tests[0m[2m import[0m[2m `[0m[2mfrom[0m[2m bowling[0m[2m import[0m[2m Bowling[0m[2mGame[0m[2m`.[0m[2m The[0m[2m file[0m[2m currently[0m[2m has[0m[2m a[0m[2m stub[0m[2m class[0m[2m.[0m[2m I[0m[2m'll[0m[2m overwrite[0m[2m the[0m[2m whole[0m[2m file[0m[2m with[0m[2m write[0m[2m.[0m[2m
+
+[0m[2mThen[0m[2m run[0m[2m pytest[0m[2m.[0m[2m
+
+[0m[2mOne[0m[2m more[0m[2m consideration[0m[2m:[0m[2m the[0m[2m test[0m[2m file[0m[2m has[0m[2m 2[0m[2m8[0m[2m tests[0m[2m.[0m[2m Also[0m[2m,[0m[2m "[0m[2mtest[0m[2m_c[0m[2mannot[0m[2m_roll[0m[2m_if[0m[2m_game[0m[2m_already[0m[2m_has[0m[2m_ten[0m[2m_frames[0m[2m"[0m[2m expects[0m[2m an[0m[2m exception[0m[2m from[0m[2m roll[0m[2m([0m[2m0[0m[2m)[0m[2m after[0m[2m a[0m[2m complete[0m[2m game[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m,[0m[2m verify[0m[2m the[0m[2m frame[0m[2m 9[0m[2m,[0m[2m len[0m[2m ==[0m[2m 1[0m[2m case[0m[2m in[0m[2m roll[0m[2m():[0m[2m current[0m[2m =[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m →[0m[2m any[0m[2m 0[0m[2m-[0m[2m1[0m[2m0[0m[2m allowed[0m[2m ✓[0m[2m ([0m[2mtest[0m[2m:[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m +[0m[2m [[0m[2m1[0m[2m0[0m[2m],[0m[2m then[0m[2m...[0m[2m the[0m[2m test[0m[2m rolls[0m[2m 7[0m[2m →[0m[2m allowed[0m[2m ✓[0m[2m;[0m[2m the[0m[2m test[0m[2m with[0m[2m 1[0m[2m1[0m[2m fails[0m[2m on[0m[2m range[0m[2m ✓[0m[2m).[0m[2m
+
+[0m[2mEdge[0m[2m:[0m[2m frame[0m[2m 9[0m[2m len[0m[2m 1[0m[2m current[0m[2m =[0m[2m [[0m[2m7[0m[2m][0m[2m ([0m[2msp[0m[2mare[0m[2m in[0m[2m progress[0m[2m)[0m[2m →[0m[2m roll[0m[2m([0m[2m3[0m[2m)[0m[2m →[0m[2m 7[0m[2m+[0m[2m3[0m[2m =[0m[2m 1[0m[2m0[0m[2m allowed[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mAlright[0m[2m,[0m[2m let[0m[2m me[0m[2m write[0m[2m the[0m[2m code[0m[2m.[0m[2m
+
+[0m[2mAlso[0m[2m,[0m[2m run[0m[2m a[0m[2m baseline[0m[2m test[0m[2m first[0m[2m?[0m[2m The[0m[2m instructions[0m[2m say[0m[2m to[0m[2m run[0m[2m the[0m[2m project[0m[2m's[0m[2m test[0m[2m command[0m[2m once[0m[2m before[0m[2m the[0m[2m first[0m[2m edit[0m[2m.[0m[2m Let[0m[2m me[0m[2m do[0m[2m that[0m[2m quickly[0m[2m ([0m[2mthe[0m[2m stub[0m[2m will[0m[2m fail[0m[2m everything[0m[2m).[0m[2m Then[0m[2m write[0m[2m the[0m[2m implementation[0m[2m,[0m[2m then[0m[2m re[0m[2m-run[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m combine[0m[2m:[0m[2m first[0m[2m run[0m[2m the[0m[2m baseline[0m[2m,[0m[2m then[0m[2m write[0m[2m,[0m[2m then[0m[2m run[0m[2m the[0m[2m full[0m[2m suite[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mI[0m[32m'm[0m[32m going[0m[32m to[0m[32m read[0m[32m the[0m[32m tests[0m[32m to[0m[32m check[0m[32m the[0m[32m exact[0m[32m expected[0m[32m behavior[0m[32m,[0m[32m run[0m[32m a[0m[32m baseline[0m[32m test[0m[32m,[0m[32m and[0m[32m then[0m[32m implement[0m[32m it[0m[32m.[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q bowling_test.py 2>&1 | tail -5[0m
+[2m  ⎿ FAILED bowling_test.py::BowlingTest::test_the_second_bonus_rolls_after_a_strike_in_the_last_frame_cannot_be_a_strike_if_the_first_one_is_not_a_strike[0m
+[2m     FAILED bowling_test.py::BowlingTest::test_two_bonus_rolls_after_a_strike_in_the_last_frame_can_score_more_than_10_points_if_one_is_a_strike[0m
+[2m     FAILED bowling_test.py::BowlingTest::test_two_bonus_rolls_after_a_strike_in_the_last_frame_cannot_score_more_than_10_points[0m
+[2m     FAILED bowling_test.py::BowlingTest::test_two_rolls_in_a_frame_cannot_score_more_than_10_points[0m
+[2m     31 failed in 0.06s[0m
+[2mBaseline[0m[2m:[0m[2m 3[0m[2m1[0m[2m failures[0m[2m ([0m[2mall[0m[2m of[0m[2m them[0m[2m).[0m[2m Now[0m[2m I[0m[2m'll[0m[2m implement[0m[2m the[0m[2m solution[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mBaseline[0m[32m confirmed[0m[32m:[0m[32m 3[0m[32m1[0m[32m failures[0m[32m with[0m[32m the[0m[32m stub[0m[32m.[0m[32m Now[0m[32m implementing[0m[32m the[0m[32m solution[0m[32m.[0m[32m
+
+[0m[32m
+[0m[32m
+[0m
+[32m●[0m [1mPlan[0m
+[2m  [x] Read instructions.md, bowling.py, bowling_test.py[0m
+[2m  [x] Run baseline tests to see failures[0m
+[2m  [~] Implement bowling scoring in bowling.py[0m
+[2m  [ ] Verify full test suite passes[0m
+
+[32m●[0m [1mWrite bowling.py[0m
+[2m  ⎿ 84 lines written[0m
+[2m  ⎿ +84 -0[0m
+[32m  + [34mclass[39;49;00m[37m [39;49;00m[04m[32mBowlingGame[39;49;00m:[37m[39;49;00m[0m
+[32m  +     [34mdef[39;49;00m[37m [39;49;00m[32m__init__[39;49;00m([36mself[39;49;00m):[37m[39;49;00m[0m
+[32m  +         [36mself[39;49;00m.rolls = [][37m[39;49;00m[0m
+[32m  + [0m
+[32m  +     [34mdef[39;49;00m[37m [39;49;00m[32mroll[39;49;00m([36mself[39;49;00m, pins):[37m[39;49;00m[0m
+[32m  +         [34mif[39;49;00m [35mnot[39;49;00m [36misinstance[39;49;00m(pins, [36mint[39;49;00m) [35mor[39;49;00m [36misinstance[39;49;00m(pins, [36mbool[39;49;00m) [35mor[39;49;00m [35mnot[39;49;00m [34m0[39;49;00m <= pins <= [34m10[39;49;00m:[37m[39;49;00m[0m
+[32m  +             [34mraise[39;49;00m [36mValueError[39;49;00m([33m"[39;49;00m[33ma roll must knock down between 0 and 10 pins[39;49;00m[33m"[39;49;00m)[37m[39;49;00m[0m
+[32m  + [0m
+[32m  +         frame, current = [36mself[39;49;00m._frame_state()[37m[39;49;00m[0m
+[32m  +         [34mif[39;49;00m frame [35mis[39;49;00m [34mNone[39;49;00m:[37m[39;49;00m[0m
+[32m  +             [34mraise[39;49;00m [36mValueError[39;49;00m([33m"[39;49;00m[33mcannot roll: the game is already complete[39;49;00m[33m"[39;49;00m)[37m[39;49;00m[0m
+[32m  + [0m
+[2m     … +72 more diff lines[0m
+[2mWait[0m[2m,[0m[2m there[0m[2m's[0m[2m a[0m[2m subtle[0m[2m issue[0m[2m with[0m[2m `_[0m[2mframe[0m[2m_state[0m[2m`[0m[2m and[0m[2m `_[0m[2mcomplete[0m[2m`.[0m[2m After[0m[2m 9[0m[2m frames[0m[2m,[0m[2m if[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m complete[0m[2m with[0m[2m an[0m[2m open[0m[2m frame[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m],[0m[2m `_[0m[2mframe[0m[2m_state[0m[2m`[0m[2m returns[0m[2m ([0m[2m9[0m[2m,[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m])[0m[2m —[0m[2m not[0m[2m None[0m[2m.[0m[2m Inside[0m[2m `[0m[2mroll[0m[2m()[0m[2m`,[0m[2m when[0m[2m frame[0m[2m==[0m[2m9[0m[2m and[0m[2m len[0m[2m>=[0m[2m2[0m[2m,[0m[2m it[0m[2m checks[0m[2m `[0m[2msum[0m[2m(current[0m[2m)[0m[2m [0m[2m< 1[0m[2m0[0m[2m`[0m[2m →[0m[2m raises[0m[2m an[0m[2m exception[0m[2m ✓[0m[2m,[0m[2m or[0m[2m len[0m[2m==[0m[2m3[0m[2m →[0m[2m raises[0m[2m an[0m[2m exception[0m[2m ✓[0m[2m.[0m[2m Good[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m in[0m[2m `_[0m[2mcomplete[0m[2m`,[0m[2m when[0m[2m frame[0m[2m 9[0m[2m and[0m[2m len[0m[2m(current[0m[2m)[0m[2m >=[0m[2m 2[0m[2m,[0m[2m it[0m[2m handles[0m[2m it[0m[2m correctly[0m[2m.[0m[2m When[0m[2m frame[0m[2m==[0m[2m9[0m[2m and[0m[2m len[0m[2m(current[0m[2m)[0m[2m [0m[2m< 2[0m[2m →[0m[2m False[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m wait[0m[2m —[0m[2m in[0m[2m `_[0m[2mframe[0m[2m_state[0m[2m`,[0m[2m when[0m[2m frame[0m[2m [0m[2m< 9[0m[2m,[0m[2m it[0m[2m returns[0m[2m ([0m[2mframe[0m[2m,[0m[2m [][0m[2m),[0m[2m but[0m[2m if[0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m...[0m[2m no[0m[2m,[0m[2m that[0m[2m can[0m[2m't[0m[2m happen[0m[2m.[0m[2m If[0m[2m the[0m[2m game[0m[2m is[0m[2m complete[0m[2m,[0m[2m we[0m[2m're[0m[2m in[0m[2m frame[0m[2m 9[0m[2m with[0m[2m 2[0m[2m-[0m[2m3[0m[2m rolls[0m[2m.[0m[2m
+
+[0m[2mOne[0m[2m edge[0m[2m case[0m[2m:[0m[2m `_[0m[2mframe[0m[2m_state[0m[2m`[0m[2m returns[0m[2m ([0m[2mframe[0m[2m,[0m[2m [])[0m[2m in[0m[2m frames[0m[2m 0[0m[2m-[0m[2m8[0m[2m when[0m[2m i[0m[2m >=[0m[2m len[0m[2m([0m[2mrolls[0m[2m).[0m[2m But[0m[2m for[0m[2m a[0m[2m frame[0m[2m with[0m[2m 1[0m[2m roll[0m[2m that[0m[2m isn[0m[2m't[0m[2m a[0m[2m strike[0m[2m,[0m[2m i[0m[2m +=[0m[2m 2[0m[2m skips[0m[2m over[0m[2m it[0m[2m,[0m[2m so[0m[2m that[0m[2m frame[0m[2m will[0m[2m be[0m[2m returned[0m[2m in[0m[2m the[0m[2m next[0m[2m iteration[0m[2m as[0m[2m ([0m[2mframe[0m[2m+[0m[2m1[0m[2m,[0m[2m []).[0m[2m So[0m[2m current[0m[2m will[0m[2m never[0m[2m be[0m[2m a[0m[2m non[0m[2m-st[0m[2mrike[0m[2m single[0m[2m roll[0m[2m...[0m[2m wait[0m[2m:[0m[2m if[0m[2m rolls[0m[2m =[0m[2m [[0m[2m5[0m[2m],[0m[2m then[0m[2m at[0m[2m frame[0m[2m 0[0m[2m,[0m[2m i[0m[2m=[0m[2m0[0m[2m [0m[2m< 1[0m[2m,[0m[2m rolls[0m[2m[[0m[2m0[0m[2m]=[0m[2m5[0m[2m ≠[0m[2m 1[0m[2m0[0m[2m →[0m[2m i[0m[2m=[0m[2m2[0m[2m.[0m[2m Frame[0m[2m 1[0m[2m:[0m[2m i[0m[2m=[0m[2m2[0m[2m >=[0m[2m 1[0m[2m →[0m[2m return[0m[2m ([0m[2m1[0m[2m,[0m[2m []).[0m[2m Hmm[0m[2m,[0m[2m this[0m[2m is[0m[2m a[0m[2m bug[0m[2m![0m[2m If[0m[2m rolls[0m[2m =[0m[2m [[0m[2m5[0m[2m][0m[2m ([0m[2m1[0m[2mst[0m[2m roll[0m[2m of[0m[2m frame[0m[2m 0[0m[2m is[0m[2m 5[0m[2m,[0m[2m incomplete[0m[2m frame[0m[2m),[0m[2m `_[0m[2mframe[0m[2m_state[0m[2m`[0m[2m returns[0m[2m ([0m[2m1[0m[2m,[0m[2m [])[0m[2m —[0m[2m meaning[0m[2m it[0m[2m says[0m[2m we[0m[2m're[0m[2m starting[0m[2m frame[0m[2m 1[0m[2m,[0m[2m and[0m[2m the[0m[2m [[0m[2m5[0m[2m][0m[2m gets[0m[2m completely[0m[2m dropped[0m[2m![0m[2m
+
+[0m[2mThen[0m[2m in[0m[2m `[0m[2mroll[0m[2m([0m[2m6[0m[2m)`[0m[2m after[0m[2m [[0m[2m5[0m[2m]:[0m[2m frame[0m[2m =[0m[2m 1[0m[2m,[0m[2m current[0m[2m =[0m[2m [][0m[2m →[0m[2m no[0m[2m validation[0m[2m against[0m[2m 5[0m[2m,[0m[2m just[0m[2m app[0m[2mends[0m[2m →[0m[2m rolls[0m[2m =[0m[2m [[0m[2m5[0m[2m,[0m[2m 6[0m[2m].[0m[2m This[0m[2m breaks[0m[2m the[0m[2m test[0m[2m "[0m[2mtwo[0m[2m rolls[0m[2m in[0m[2m a[0m[2m frame[0m[2m cannot[0m[2m score[0m[2m more[0m[2m than[0m[2m 1[0m[2m0[0m[2m points[0m[2m"[0m[2m which[0m[2m expects[0m[2m an[0m[2m exception[0m[2m for[0m[2m roll[0m[2m([0m[2m6[0m[2m)[0m[2m after[0m[2m [[0m[2m5[0m[2m][0m[2m![0m[2m
+
+[0m[2mWe[0m[2m need[0m[2m to[0m[2m fix[0m[2m the[0m[2m loop[0m[2m:[0m[2m if[0m[2m a[0m[2m frame[0m[2m has[0m[2m exactly[0m[2m 1[0m[2m roll[0m[2m and[0m[2m it[0m[2m's[0m[2m not[0m[2m a[0m[2m strike[0m[2m,[0m[2m return[0m[2m ([0m[2mframe[0m[2m,[0m[2m [[0m[2mthat[0m[2m roll[0m[2m])[0m[2m —[0m[2m i[0m[2m.e[0m[2m.,[0m[2m don[0m[2m't[0m[2m blindly[0m[2m i[0m[2m +=[0m[2m 2[0m[2m,[0m[2m but[0m[2m first[0m[2m check[0m[2m whether[0m[2m the[0m[2m 2[0m[2mnd[0m[2m roll[0m[2m exists[0m[2m.[0m[2m
+
+[0m[2mFix[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mfor[0m[2m frame[0m[2m in[0m[2m range[0m[2m([0m[2m9[0m[2m):[0m[2m
+[0m[2m   [0m[2m if[0m[2m i[0m[2m >=[0m[2m len[0m[2m([0m[2mrolls[0m[2m):[0m[2m
+[0m[2m       [0m[2m return[0m[2m frame[0m[2m,[0m[2m [][0m[2m
+[0m[2m   [0m[2m if[0m[2m rolls[0m[2m[i[0m[2m][0m[2m ==[0m[2m 1[0m[2m0[0m[2m:[0m[2m
+[0m[2m       [0m[2m i[0m[2m +=[0m[2m 1[0m[2m
+[0m[2m   [0m[2m elif[0m[2m i[0m[2m +[0m[2m 1[0m[2m >=[0m[2m len[0m[2m([0m[2mrolls[0m[2m):[0m[2m
+[0m[2m       [0m[2m return[0m[2m frame[0m[2m,[0m[2m [[0m[2mrolls[0m[2m[i[0m[2m]][0m[2m
+[0m[2m   [0m[2m else[0m[2m:[0m[2m
+[0m[2m       [0m[2m i[0m[2m +=[0m[2m 2[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mNow[0m[2m [[0m[2m5[0m[2m][0m[2m →[0m[2m frame[0m[2m 0[0m[2m,[0m[2m [[0m[2m5[0m[2m][0m[2m ✓[0m[2m.[0m[2m [[0m[2m5[0m[2m,[0m[2m6[0m[2m][0m[2m →[0m[2m frame[0m[2m 1[0m[2m,[0m[2m [][0m[2m ✓[0m[2m.[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m →[0m[2m frame[0m[2m 0[0m[2m:[0m[2m strike[0m[2m →[0m[2m i[0m[2m=[0m[2m1[0m[2m;[0m[2m frame[0m[2m 1[0m[2m:[0m[2m i[0m[2m >=[0m[2m len[0m[2m →[0m[2m ([0m[2m1[0m[2m,[0m[2m [])[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m's[0m[2m fix[0m[2m this[0m[2m in[0m[2m the[0m[2m file[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mWait[0m[32m —[0m[32m there[0m[32m's[0m[32m a[0m[32m bug[0m[32m in[0m[32m `_[0m[32mframe[0m[32m_state[0m[32m`:[0m[32m for[0m[32m rolls[0m[32m like[0m[32m `[[0m[32m5[0m[32m][0m[32m`[0m[32m ([0m[32man[0m[32m in[0m[32m-progress[0m[32m frame[0m[32m with[0m[32m only[0m[32m 1[0m[32m roll[0m[32m that[0m[32m isn[0m[32m't[0m[32m a[0m[32m strike[0m[32m),[0m[32m `[0m[32mi[0m[32m +=[0m[32m 2[0m[32m`[0m[32m skips[0m[32m past[0m[32m it[0m[32m and[0m[32m returns[0m[32m the[0m[32m *[0m[32mnext[0m[32m*[0m[32m frame[0m[32m as[0m[32m empty[0m[32m,[0m[32m so[0m[32m the[0m[32m pending[0m[32m 5[0m[32m gets[0m[32m lost[0m[32m and[0m[32m the[0m[32m frame[0m[32m-sum[0m[32m validation[0m[32m never[0m[32m fires[0m[32m.[0m[32m Fix[0m[32ming[0m[32m now[0m[32m.[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mEdit bowling.py[0m
+[2m  ⎿ +2 -0[0m
+[2m                [34mif[39;49;00m rolls[i] == [34m10[39;49;00m:[37m[39;49;00m[0m
+[2m                    i += [34m1[39;49;00m[37m[39;49;00m[0m
+[32m  +             [34melif[39;49;00m i + [34m1[39;49;00m >= [36mlen[39;49;00m(rolls):[37m[39;49;00m[0m
+[32m  +                 [34mreturn[39;49;00m frame, [rolls[i]][37m[39;49;00m[0m
+[2m                [34melse[39;49;00m:[37m[39;49;00m[0m
+[2m                    i += [34m2[39;49;00m[37m[39;49;00m[0m
+[2mWait[0m[2m,[0m[2m but[0m[2m there[0m[2m's[0m[2m a[0m[2m subtle[0m[2m point[0m[2m.[0m[2m In[0m[2m `_[0m[2mcomplete[0m[2m`,[0m[2m if[0m[2m frame[0m[2m 9[0m[2m and[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m is[0m[2m [[0m[2m5[0m[2m][0m[2m ([0m[2monly[0m[2m one[0m[2m roll[0m[2m,[0m[2m not[0m[2m a[0m[2m strike[0m[2m)[0m[2m —[0m[2m `_[0m[2mframe[0m[2m_state[0m[2m`[0m[2m returns[0m[2m ([0m[2m9[0m[2m,[0m[2m [[0m[2m5[0m[2m])[0m[2m…[0m[2m no[0m[2m wait[0m[2m,[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m after[0m[2m the[0m[2m loop[0m[2m of[0m[2m the[0m[2m first[0m[2m 9[0m[2m frames[0m[2m,[0m[2m it[0m[2m returns[0m[2m ([0m[2m9[0m[2m,[0m[2m rolls[0m[2m[i[0m[2m:])[0m[2m —[0m[2m this[0m[2m is[0m[2m the[0m[2m else[0m[2m branch[0m[2m at[0m[2m the[0m[2m end[0m[2m,[0m[2m not[0m[2m the[0m[2m loop[0m[2m branch[0m[2m.[0m[2m The[0m[2m elif[0m[2m I[0m[2m added[0m[2m is[0m[2m only[0m[2m inside[0m[2m the[0m[2m loop[0m[2m over[0m[2m the[0m[2m first[0m[2m 9[0m[2m frames[0m[2m.[0m[2m In[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m [[0m[2m5[0m[2m][0m[2m is[0m[2m returned[0m[2m as[0m[2m-is[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m wait[0m[2m,[0m[2m another[0m[2m subtle[0m[2m point[0m[2m:[0m[2m in[0m[2m frames[0m[2m 0[0m[2m-[0m[2m8[0m[2m,[0m[2m if[0m[2m a[0m[2m non[0m[2m-st[0m[2mrike[0m[2m frame[0m[2m is[0m[2m incomplete[0m[2m ([0m[2mone[0m[2m roll[0m[2m),[0m[2m my[0m[2m fix[0m[2m returns[0m[2m ([0m[2mframe[0m[2m,[0m[2m [[0m[2mx[0m[2m])[0m[2m —[0m[2m good[0m[2m,[0m[2m the[0m[2m frame[0m[2m is[0m[2m in[0m[2m progress[0m[2m.[0m[2m
+
+[0m[2mBut[0m[2m hold[0m[2m on[0m[2m,[0m[2m there[0m[2m's[0m[2m a[0m[2m problem[0m[2m with[0m[2m the[0m[2m `_[0m[2mcomplete[0m[2m`[0m[2m /[0m[2m `[0m[2mroll[0m[2m`[0m[2m logic[0m[2m:[0m[2m can[0m[2m `_[0m[2mframe[0m[2m_state[0m[2m`[0m[2m return[0m[2m ([0m[2mframe[0m[2m,[0m[2m [[0m[2mx[0m[2m])[0m[2m when[0m[2m frame[0m[2m [0m[2m< 9[0m[2m?[0m[2m Yes[0m[2m.[0m[2m In[0m[2m `[0m[2mroll[0m[2m()`[0m[2m for[0m[2m frame[0m[2m [0m[2m< 9[0m[2m,[0m[2m len[0m[2m(current[0m[2m)==[0m[2m1[0m[2m,[0m[2m current[0m[2m[[0m[2m0[0m[2m][0m[2m [0m[2m< 1[0m[2m0[0m[2m →[0m[2m checks[0m[2m the[0m[2m sum[0m[2m ✓[0m[2m.[0m[2m
+
+[0m[2mAlright[0m[2m,[0m[2m let[0m[2m's[0m[2m run[0m[2m the[0m[2m tests[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q bowling_test.py 2>&1 | tail -3[0m
+[2m  ⎿ ...............................                                          [100%][0m
+[2m     31 passed in 0.01s[0m
+[2mAll[0m[2m 3[0m[2m1[0m[2m tests[0m[2m passed[0m[2m.[0m[2m Let[0m[2m me[0m[2m do[0m[2m a[0m[2m quick[0m[2m sanity[0m[2m check[0m[2m on[0m[2m a[0m[2m few[0m[2m edge[0m[2m cases[0m[2m that[0m[2m aren[0m[2m't[0m[2m covered[0m[2m by[0m[2m the[0m[2m tests[0m[2m,[0m[2m and[0m[2m confirm[0m[2m that[0m[2m the[0m[2m implementation[0m[2m is[0m[2m robust[0m[2m ([0m[2mfor[0m[2m example[0m[2m,[0m[2m scoring[0m[2m a[0m[2m complete[0m[2m game[0m[2m,[0m[2m a[0m[2m spare[0m[2m bonus[0m[2m that[0m[2m exceeds[0m[2m the[0m[2m remaining[0m[2m pins[0m[2m in[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m like[0m[2m [[0m[2m7[0m[2m,[0m[2m3[0m[2m,[0m[2m8[0m[2m],[0m[2m which[0m[2m is[0m[2m legal[0m[2m).[0m[2m A[0m[2m quick[0m[2m check[0m[2m:[0m[2m
+
+[0m[2m-[0m[2m 1[0m[2m8[0m[2m zeros[0m[2m,[0m[2m then[0m[2m 7[0m[2m,[0m[2m3[0m[2m,[0m[2m8[0m[2m →[0m[2m score[0m[2m 1[0m[2m8[0m[2m?[0m[2m 9[0m[2m frames[0m[2m are[0m[2m 0[0m[2m,[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m =[0m[2m 7[0m[2m+[0m[2m3[0m[2m+[0m[2m8[0m[2m =[0m[2m 1[0m[2m8[0m[2m.[0m[2m Legal[0m[2m roll[0m[2m.[0m[2m
+[0m[2m-[0m[2m Also[0m[2m,[0m[2m confirm[0m[2m that[0m[2m the[0m[2m example[0m[2m from[0m[2m the[0m[2m instructions[0m[2m gives[0m[2m 4[0m[2m8[0m[2m.[0m[2m
+
+[0m[2mAfter[0m[2m that[0m[2m,[0m[2m update[0m[2m the[0m[2m todos[0m[2m and[0m[2m mark[0m[2m it[0m[2m as[0m[2m done[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mAll[0m[32m 3[0m[32m1[0m[32m pass[0m[32m.[0m[32m Quick[0m[32m sanity[0m[32m check[0m[32m on[0m[32m a[0m[32m few[0m[32m edge[0m[32m cases[0m[32m beyond[0m[32m the[0m[32m suite[0m[32m ([0m[32mthe[0m[32m instructions[0m[32m'[0m[32m 4[0m[32m8[0m[32m-point[0m[32m example[0m[32m,[0m[32m and[0m[32m a[0m[32m legal[0m[32m 1[0m[32m0[0m[32mth[0m[32m-frame[0m[32m spare[0m[32m bonus[0m[32m of[0m[32m 8[0m[32m after[0m[32m [[0m[32m7[0m[32m,[0m[32m3[0m[32m]):[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -c " from bowling import BowlingGame g = BowlingGame() for r in …[0m
+[33m  ⎿ exit 1][0m
+[2mThe[0m[2m example[0m[2m in[0m[2m the[0m[2m instructions[0m[2m is[0m[2m a[0m[2m 3[0m[2m-frame[0m[2m *[0m[2mpartial[0m[2m*[0m[2m game[0m[2m —[0m[2m scoring[0m[2m a[0m[2m 3[0m[2m-frame[0m[2m game[0m[2m is[0m[2m invalid[0m[2m ([0m[2man[0m[2m incomplete[0m[2m game[0m[2m),[0m[2m and[0m[2m that[0m[2m's[0m[2m exactly[0m[2m the[0m[2m correct[0m[2m behavior[0m[2m![0m[2m The[0m[2m running[0m[2m total[0m[2m of[0m[2m 4[0m[2m8[0m[2m in[0m[2m the[0m[2m instructions[0m[2m is[0m[2m just[0m[2m an[0m[2m explanation[0m[2m of[0m[2m how[0m[2m to[0m[2m read[0m[2m the[0m[2m score[0m[2m,[0m[2m not[0m[2m something[0m[2m that[0m[2m requires[0m[2m `[0m[2mscore[0m[2m()`[0m[2m to[0m[2m work[0m[2m mid[0m[2m-game[0m[2m.[0m[2m My[0m[2m check[0m[2m correctly[0m[2m raised[0m[2m "[0m[2min[0m[2mcomplete[0m[2m".[0m[2m
+
+[0m[2mLet[0m[2m's[0m[2m redo[0m[2m the[0m[2m sanity[0m[2m check[0m[2m using[0m[2m a[0m[2m complete[0m[2m game[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mThat[0m[32m error[0m[32m is[0m[32m actually[0m[32m the[0m[32m *[0m[32mcorrect[0m[32m*[0m[32m behavior[0m[32m —[0m[32m the[0m[32m example[0m[32m in[0m[32m the[0m[32m instructions[0m[32m is[0m[32m a[0m[32m 3[0m[32m-frame[0m[32m partial[0m[32m game[0m[32m,[0m[32m and[0m[32m `[0m[32mscore[0m[32m()`[0m[32m on[0m[32m an[0m[32m incomplete[0m[32m game[0m[32m is[0m[32m required[0m[32m to[0m[32m raise[0m[32m an[0m[32m exception[0m[32m.[0m[32m Let[0m[32m me[0m[32m try[0m[32m running[0m[32m a[0m[32m full[0m[32m-game[0m[32m version[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -c " from bowling import BowlingGame g = BowlingGame() for r in …[0m
+[33m  ⎿ exit 1][0m
+[2mHmm[0m[2m![0m[2m Let[0m[2m's[0m[2m look[0m[2m at[0m[2m the[0m[2m rolls[0m[2m:[0m[2m [[0m[2m1[0m[2m0[0m[2m,[0m[2m 5[0m[2m,[0m[2m 5[0m[2m,[0m[2m 9[0m[2m,[0m[2m 0[0m[2m][0m[2m +[0m[2m [[0m[2m0[0m[2m]*[0m[2m1[0m[2m5[0m[2m =[0m[2m 2[0m[2m0[0m[2m rolls[0m[2m total[0m[2m.[0m[2m
+
+[0m[2m-[0m[2m Frame[0m[2m 0[0m[2m:[0m[2m [[0m[2m1[0m[2m0[0m[2m][0m[2m strike[0m[2m →[0m[2m i[0m[2m=[0m[2m1[0m[2m
+[0m[2m-[0m[2m Frame[0m[2m 1[0m[2m:[0m[2m [[0m[2m5[0m[2m,[0m[2m5[0m[2m][0m[2m spare[0m[2m →[0m[2m i[0m[2m=[0m[2m3[0m[2m
+[0m[2m-[0m[2m Frame[0m[2m 2[0m[2m:[0m[2m [[0m[2m9[0m[2m,[0m[2m0[0m[2m][0m[2m open[0m[2m →[0m[2m i[0m[2m=[0m[2m5[0m[2m
+[0m[2m-[0m[2m Frames[0m[2m 3[0m[2m–[0m[2m8[0m[2m:[0m[2m 6[0m[2m frames[0m[2m ×[0m[2m 2[0m[2m zeros[0m[2m =[0m[2m 1[0m[2m2[0m[2m →[0m[2m i[0m[2m=[0m[2m1[0m[2m7[0m[2m
+[0m[2m-[0m[2m Frame[0m[2m 9[0m[2m ([0m[2m1[0m[2m0[0m[2mth[0m[2m frame[0m[2m):[0m[2m rolls[0m[2m[[0m[2m1[0m[2m7[0m[2m:][0m[2m =[0m[2m [[0m[2m0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 0[0m[2m][0m[2m ←[0m[2m 3[0m[2m rolls[0m[2m![0m[2m
+
+[0m[2mSince[0m[2m I[0m[2m added[0m[2m 1[0m[2m5[0m[2m zeros[0m[2m after[0m[2m the[0m[2m 5[0m[2m non[0m[2m-zero[0m[2m rolls[0m[2m,[0m[2m the[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m ends[0m[2m up[0m[2m as[0m[2m [[0m[2m0[0m[2m,[0m[2m0[0m[2m,[0m[2m0[0m[2m][0m[2m —[0m[2m three[0m[2m rolls[0m[2m in[0m[2m an[0m[2m open[0m[2m 1[0m[2m0[0m[2mth[0m[2m frame[0m[2m,[0m[2m which[0m[2m is[0m[2m illegal[0m[2m ([0m[2man[0m[2m open[0m[2m frame[0m[2m has[0m[2m no[0m[2m bonus[0m[2m).[0m[2m So[0m[2m the[0m[2m rejection[0m[2m is[0m[2m correct[0m[2m.[0m[2m My[0m[2m calculation[0m[2m of[0m[2m the[0m[2m test[0m[2m rolls[0m[2m was[0m[2m wrong[0m[2m:[0m[2m 5[0m[2m +[0m[2m 1[0m[2m5[0m[2m =[0m[2m 2[0m[2m0[0m[2m rolls[0m[2m,[0m[2m but[0m[2m the[0m[2m game[0m[2m only[0m[2m needs[0m[2m 1[0m[2m9[0m[2m ([0m[2m3[0m[2m frames[0m[2m =[0m[2m 5[0m[2m rolls[0m[2m,[0m[2m 7[0m[2m open[0m[2m frames[0m[2m =[0m[2m 1[0m[2m4[0m[2m rolls[0m[2m →[0m[2m 1[0m[2m9[0m[2m total[0m[2m).[0m[2m It[0m[2m should[0m[2m have[0m[2m been[0m[2m [[0m[2m0[0m[2m]*[0m[2m1[0m[2m4[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mThat[0m[32m rejection[0m[32m was[0m[32m also[0m[32m correct[0m[32m —[0m[32m my[0m[32m test[0m[32m roll[0m[32m was[0m[32m 2[0m[32m0[0m[32m rolls[0m[32m,[0m[32m which[0m[32m made[0m[32m the[0m[32m 1[0m[32m0[0m[32mth[0m[32m frame[0m[32m `[[0m[32m0[0m[32m,[0m[32m0[0m[32m,[0m[32m0[0m[32m][0m[32m`[0m[32m ([0m[32man[0m[32m illegal[0m[32m 3[0m[32mrd[0m[32m roll[0m[32m in[0m[32m an[0m[32m open[0m[32m frame[0m[32m).[0m[32m The[0m[32m game[0m[32m needs[0m[32m exactly[0m[32m 1[0m[32m9[0m[32m rolls[0m[32m there[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -c " from bowling import BowlingGame g = BowlingGame() for r in …[0m
+[2m  ⎿ instructions example: 48[0m
+[2m     10th-frame spare, bonus 8 (pins reset, legal): 18[0m
+[2m     X 7 / : 20[0m
+[2m     extra roll rejected: cannot roll: the game is already complete[0m
+[2mAll[0m[2m sanity[0m[2m checks[0m[2m passed[0m[2m.[0m[2m To[0m[2m confirm[0m[2m,[0m[2m I[0m[2m'll[0m[2m run[0m[2m the[0m[2m full[0m[2m test[0m[2m suite[0m[2m one[0m[2m more[0m[2m time[0m[2m at[0m[2m the[0m[2m end[0m[2m,[0m[2m then[0m[2m update[0m[2m the[0m[2m TODO[0m[2m and[0m[2m mark[0m[2m it[0m[2m as[0m[2m done[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32mAll[0m[32m edge[0m[32m cases[0m[32m behave[0m[32m correctly[0m[32m.[0m[32m Final[0m[32m full[0m[32m-suite[0m[32m run[0m[32m:[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mRun  python -m pytest -q bowling_test.py 2>&1 | tail -2[0m
+[2m  ⎿ ...............................                                          [100%][0m
+[2m     31 passed in 0.01s[0m
+[2mAll[0m[2m 3[0m[2m1[0m[2m tests[0m[2m passed[0m[2m.[0m[2m I[0m[2m'll[0m[2m update[0m[2m the[0m[2m ToDo[0m[2m and[0m[2m wrap[0m[2m up[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0m
+[32m●[0m [1mPlan[0m
+[2m  [x] Read instructions.md, bowling.py, bowling_test.py[0m
+[2m  [x] Run baseline tests to see failures[0m
+[2m  [x] Implement bowling scoring in bowling.py[0m
+[2m  [x] Verify full test suite passes[0m
+[2mThe[0m[2m task[0m[2m is[0m[2m complete[0m[2m.[0m[2m Calling[0m[2m done[0m[2m.[0m[2m
+[0m[32m
+
+[0m[32m
+[0mloading Qwen3.8-27B-4bit [explicitly requested (CHAD_MODEL override)] ...
+ready in 2.3s | context 262144 tokens (compact at 260096)

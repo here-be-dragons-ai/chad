@@ -1,0 +1,23 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+  }
+}
+
+# ASCII twin of context.d2. d2's txt renderer sizes boxes from label text and does
+# not wrap, so every label here is kept short and single-purpose — the long C4
+# descriptions live in context.d2 (the SVG/PNG one) instead.
+
+dev: "Developer\n[Person]" {shape: person}
+chad: "chad harness\n[Software System]"
+code: "Working copy\n[External]"
+metal: "Apple GPU / MLX\n[External]"
+cache: "Model cache\n[External]"
+hf: "HF Hub\n[External]"
+
+dev -> chad: asks
+chad -> dev: diffs
+chad -> code: edits
+chad -> metal: decode
+chad -> cache: weights
+cache -> hf: download

@@ -1,0 +1,43 @@
+┌────────────────────────────────────────────────────────────────────┐
+│  Developer (gtonic)                                      [Person]  │
+│  runs `chad3` / `chad4` in a terminal, inside the target repo      │
+└────────────────────────────────────────────────────────────────────┘
+        │                                  ▲
+        │ asks for a change;               │ diffs, tool output,
+        │ approves each edit and command   │ todo list
+        ▼                                  │
+┌────────────────────────────────────────────────────────────────────┐
+│  chad harness                                   [Software System]  │
+├────────────────────────────────────────────────────────────────────┤
+│  Local Claude-Code-style coding agent. One 27B model, no API key.  │
+│  Owns its inference loop: persistent prefix KV cache, DFlash2      │
+│  block speculation, fused Metal kernels.                           │
+│  Tools:  bash · edit · write · write_todos · done                  │
+│  Entry:  chad3 (3-bit, default) · chad4 (4-bit, fallback)          │
+└────────────────────────────────────────────────────────────────────┘
+     │                      │                         │
+     │ reads, edits,        │ prefill + decode        │ loads weights
+     │ runs tests           │ via MLX                 │ + DFlash2 drafter
+     ▼                      ▼                         ▼
+┌──────────────────┐  ┌──────────────────────┐  ┌────────────────────────────┐
+│  Working copy    │  │  Apple Silicon GPU   │  │  Local model cache         │
+│  [External]      │  │  [External]          │  │  [External]                │
+├──────────────────┤  ├──────────────────────┤  ├────────────────────────────┤
+│  ~/src/<repo>    │  │  M5 Pro · 48 GB      │  │  ~/.cache/huggingface      │
+│  the files chad  │  │  MLX + Metal; every  │  │  3-bit shipped ckpt        │
+│  reads, edits and  │  │  token is actually   │  │    + bundled drafter       │
+│  runs tests on   │  │  computed here       │  │  4-bit quant borrows       │
+└──────────────────┘  └──────────────────────┘  │    that same drafter       │
+                                                └────────────────────────────┘
+                                                        │ populated once,
+                                                        │ by download only
+                                                        ▼
+                                                ┌────────────────────────────┐
+                                                │  Hugging Face Hub          │
+                                                │  [External]                │
+                                                ├────────────────────────────┤
+                                                │  source of the weights;    │
+                                                │  touched on download only.  │
+                                                │  Sessions run with the     │
+                                                │  network blocked.          │
+                                                └────────────────────────────┘
