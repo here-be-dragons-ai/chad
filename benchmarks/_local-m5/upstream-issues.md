@@ -8,10 +8,11 @@ HF artifacts under our org and never touches his tree.
 
 | # | Finding | Type | Route |
 |---|---|---|---|
-| A | `chad-bench` ignores `CHAD_KV_BITS` | bug + repro | issue + PR now |
-| B | 12 speculative bit-exactness tests fail on M5 Pro | bug report | issue now |
-| C | `BLOCK_ROUND_COSTS` is an M4 constant on a per-chip ladder | behavior | issue, unbuilt |
-| D | `_resolve_kv_bits` is a shape gate, not a speed gate | behavior | issue, after sweep |
+| A | `chad-bench` ignores `CHAD_KV_BITS` | bug + repro | **filed: [#44](https://github.com/nathansutton/chad/issues/44), PR [#46](https://github.com/nathansutton/chad/pull/46)** |
+| B | 12 speculative bit-exactness tests fail on M5 Pro | bug report | **filed: [#45](https://github.com/nathansutton/chad/issues/45)** |
+| C | `BLOCK_ROUND_COSTS` is an M4 constant on a per-chip ladder | behavior | holding for the 3-rep grid |
+| D | `_resolve_kv_bits` is a shape gate, not a speed gate | behavior | withdrawn — default wins |
+| E | bigger prefill chunks fill the M5's matmul units | behavior | withdrawn — flat |
 | — | 5/6-bit body + 8-bit drafter for 48 GB | artifact | our HF org, no PR |
 
 ---
