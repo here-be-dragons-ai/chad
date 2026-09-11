@@ -1,0 +1,40 @@
+loading Qwen3.8-27B-UD-Q3_K_XL-DFlash2-MLX [prove: pinned to the shipped model] ...
+task 1/4: casual_typo_fix ...
+  PASS 7.6s
+task 2/4: add_function ...
+  PASS 9.6s
+task 3/4: locate_and_fix ...
+  PASS 21.4s
+task 4/4: fix_bug_midtext ...
+  PASS 21.7s
+
+[raw rows: /Users/gtonic/src/chad/results.json]
+
+chad prove — smoke test scorecard 🗿
+======================================================
+These tasks come from chad's own development suite (the
+agent is tuned on them) — this is a proof of life on YOUR
+hardware, not a benchmark. The honest numbers are yours:
+
+  casual_typo_fix          PASS       7.6s   46.7 tok/s decode
+  add_function             PASS       9.6s   44.5 tok/s decode
+  locate_and_fix           PASS      21.4s   40.1 tok/s decode
+  fix_bug_midtext          PASS      21.7s   37.3 tok/s decode
+
+  time to first token   0.38s (first task — includes prefilling the initial prompt)
+  model load            2.2s
+  hardware              Apple M5 Pro, 48 GB
+  model                 Qwen3.8-27B-UD-Q3_K_XL-DFlash2-MLX (model already cached, offline guard engaged)
+  offline               network access blocked at the library level for task execution
+  result                4/4 tasks passed
+
+share it (copy below the line):
+------------------------------------------------------
+```
+chad prove 🗿  4/4 tasks · Apple M5 Pro, 48 GB
+  casual_typo_fix: 7.6s @ 46.7 tok/s
+  add_function: 9.6s @ 44.5 tok/s
+  locate_and_fix: 21.4s @ 40.1 tok/s
+  fix_bug_midtext: 21.7s @ 37.3 tok/s
+  local, offline, zero-config — https://github.com/nathansutton/chad
+```

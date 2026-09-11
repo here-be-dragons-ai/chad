@@ -159,3 +159,29 @@ would reward bigger chunks. It does not:
 | prefill | 434 tok/s | 438 | 430 | 428 |
 
 ±1.4 %, inside the noise, 3 reps each. The M4-era finding holds on M5 — 512 stays.
+
+---
+
+## F/G/H — filed 2026-09-11 evening
+
+| # | Finding | Issue |
+|---|---|---|
+| F | DFlash sidecar loads at the default width, not its recorded one | [#47](https://github.com/nathansutton/chad/issues/47) |
+| G | `spec_decode.py` agentic corpus globs the legacy session layout | [#48](https://github.com/nathansutton/chad/issues/48) |
+| H | mlx 0.32.1 is degenerate, 0.32.2 is not — the `==` pin is over-broad | [#50](https://github.com/nathansutton/chad/issues/50) |
+
+### H, in one table
+
+`chad prove`, one machine, back to back, scratch venv, mlx-metal tracking mlx:
+
+| mlx | prove | same prompt, greedy |
+|---|---|---|
+| 0.32.0 (pinned) | 4/4 | `def sum_list(lst): return sum(lst)` |
+| 0.32.1 (excluded) | 0/4, all tasks hit the cap | ` 2  2  2  5  5  5  5  5 ...` |
+| 0.32.2 (latest) | 4/4 | byte-identical to 0.32.0 |
+
+And the negative result that matters: the 12 failing speculative tests from #45 are the
+**same 12** on all three versions (identical md5 of the sorted failure list). mlx is not
+behind them; `applegpu_g17s` remains the hypothesis.
+
+Reproduce with `benchmarks/_local-m5/gen_probe.py` in a venv at the version under test.
