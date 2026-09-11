@@ -860,8 +860,13 @@ def load_drafter(model: Any, model_dir: str, repo_id: Optional[str] = None,
             log.warning("DFlash drafter: target tap not installable; decoding "
                         "without it")
             return None
-        log.info("DFlash drafter loaded (%s, %d-bit g%d, block %d, selector top-%d, "
-                 "taps %s)", sdir, bits, gs, cfg.block_size, cfg.selector_top_k,
+        # Report the width the SIDECAR carries, not the one this function was called
+        # with: they differ for any sidecar not built at the default, and this line is
+        # the only place a user can see which drafter is actually decoding.
+        meta = _sidecar_meta(sdir) or {}
+        log.info("DFlash drafter loaded (%s, %s-bit g%s, block %d, selector top-%d, "
+                 "taps %s)", sdir, meta.get("bits") or bits,
+                 meta.get("group_size") or gs, cfg.block_size, cfg.selector_top_k,
                  list(cfg.target_layer_ids))
         return drafter
     except Exception as e:  # noqa: BLE001 — never break model load over DFlash

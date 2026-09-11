@@ -1,144 +1,132 @@
-# launched 2026-09-11T14:27:03 wall 68.7s
-[2m  [warm start: 2,204 prefix tokens from disk cache; 330 project tokens prefilled in 0.9s][0m
-[2mI[0m[2m'll[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m task[0m[2m description[0m[2m and[0m[2m the[0m[2m current[0m[2m state[0m[2m of[0m[2m the[0m[2m files[0m[2m.[0m[2m
+# launched 2026-09-11T18:30:09 wall 51.1s
+[2m  [warm start: 2,204 prefix tokens from disk cache; 330 project tokens prefilled in 1.0s][0m
+[2mTo[0m[2m understand[0m[2m the[0m[2m task[0m[2m,[0m[2m let[0m[2m's[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m instructions[0m[2m and[0m[2m the[0m[2m test[0m[2m files[0m[2m.[0m[2m
 [0m[32m
 
 [0m[32m
+[0m[32m
 [0m
-[32m●[0m [1mRun  cat instructions.md && echo '---' && cat affine_cipher.py && echo '---'…[0m
+[32m●[0m [1mRun  cat instructions.md[0m
 [2m  ⎿ # Instructions[0m
 [2m     [0m
 [2m     Create an implementation of the affine cipher, an ancient encryption system created in the Middle East.[0m
 [2m     [0m
 [2m     The affine cipher is a type of monoalphabetic substitution cipher.[0m
 [2m     Each character is mapped to its numeric equivalent, encrypted with a mathematical function and then converted to the letter relating to its new numeric value.[0m
-[2m     … +158 lines[0m
-[2mThe[0m[2m task[0m[2m is[0m[2m the[0m[2m affine[0m[2m cipher[0m[2m exercise[0m[2m.[0m[2m Let[0m[2m's[0m[2m write[0m[2m the[0m[2m implementation[0m[2m.[0m[2m
+[2m     … +68 lines[0m
 
-[0m[2mKey[0m[2m points[0m[2m:[0m[2m
-[0m[2m-[0m[2m M[0m[2m =[0m[2m 2[0m[2m6[0m[2m
-[0m[2m-[0m[2m encode[0m[2m:[0m[2m lowercase[0m[2m letters[0m[2m,[0m[2m keep[0m[2m digits[0m[2m,[0m[2m remove[0m[2m spaces[0m[2m/p[0m[2munctuation[0m[2m,[0m[2m E[0m[2m(x[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m*x[0m[2m +[0m[2m b[0m[2m)[0m[2m %[0m[2m 2[0m[2m6[0m[2m,[0m[2m output[0m[2m in[0m[2m groups[0m[2m of[0m[2m 5[0m[2m separated[0m[2m by[0m[2m spaces[0m[2m.[0m[2m
-[0m[2m-[0m[2m decode[0m[2m:[0m[2m remove[0m[2m spaces[0m[2m,[0m[2m D[0m[2m(y[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m^-[0m[2m1[0m[2m *[0m[2m ([0m[2my[0m[2m -[0m[2m b[0m[2m))[0m[2m %[0m[2m 2[0m[2m6[0m[2m.[0m[2m
-[0m[2m-[0m[2m If[0m[2m a[0m[2m and[0m[2m 2[0m[2m6[0m[2m are[0m[2m not[0m[2m copr[0m[2mime[0m[2m,[0m[2m raise[0m[2m ValueError[0m[2m("[0m[2ma[0m[2m and[0m[2m m[0m[2m must[0m[2m be[0m[2m copr[0m[2mime[0m[2m.")[0m[2m
+[32m●[0m [1mRun  cat affine_cipher_test.py; echo ---; cat affine_cipher.py[0m
+[2m  ⎿ # These tests are auto-generated with test data from:[0m
+[2m     # https://github.com/exercism/problem-specifications/tree/main/exercises/affine-cipher/canonical-data.json[0m
+[2m     # File last updated on 2023-07-20[0m
+[2m     [0m
+[2m     import unittest[0m
+[2m     [0m
+[2m     … +83 lines[0m
+[2mThis[0m[2m is[0m[2m the[0m[2m standard[0m[2m Exerc[0m[2mism[0m[2m affine[0m[2m cipher[0m[2m problem[0m[2m.[0m[2m Let[0m[2m's[0m[2m implement[0m[2m it[0m[2m.[0m[2m
 
-[0m[2mFirst[0m[2m I[0m[2m'll[0m[2m run[0m[2m the[0m[2m tests[0m[2m to[0m[2m confirm[0m[2m they[0m[2m fail[0m[2m,[0m[2m then[0m[2m write[0m[2m the[0m[2m implementation[0m[2m and[0m[2m re[0m[2m-run[0m[2m.[0m[2m
+[0m[2m-[0m[2m `[0m[2mencode[0m[2m`:[0m[2m lowercase[0m[2m the[0m[2m input[0m[2m,[0m[2m keep[0m[2m letters[0m[2m and[0m[2m digits[0m[2m,[0m[2m remove[0m[2m punctuation[0m[2m/sp[0m[2maces[0m[2m.[0m[2m For[0m[2m letters[0m[2m:[0m[2m E[0m[2m(x[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m*x[0m[2m +[0m[2m b[0m[2m)[0m[2m %[0m[2m 2[0m[2m6[0m[2m.[0m[2m D[0m[2migits[0m[2m are[0m[2m passed[0m[2m through[0m[2m as[0m[2m-is[0m[2m.[0m[2m Then[0m[2m group[0m[2m into[0m[2m groups[0m[2m of[0m[2m 5[0m[2m characters[0m[2m separated[0m[2m by[0m[2m spaces[0m[2m.[0m[2m
+[0m[2m-[0m[2m `[0m[2mdecode[0m[2m`:[0m[2m check[0m[2m that[0m[2m a[0m[2m and[0m[2m m[0m[2m are[0m[2m copr[0m[2mime[0m[2m,[0m[2m otherwise[0m[2m ValueError[0m[2m("[0m[2ma[0m[2m and[0m[2m m[0m[2m must[0m[2m be[0m[2m copr[0m[2mime[0m[2m.").[0m[2m MMI[0m[2m of[0m[2m a[0m[2m mod[0m[2m 2[0m[2m6[0m[2m:[0m[2m x[0m[2m such[0m[2m that[0m[2m a[0m[2m*x[0m[2m %[0m[2m 2[0m[2m6[0m[2m ==[0m[2m 1[0m[2m.[0m[2m D[0m[2m(y[0m[2m)[0m[2m =[0m[2m ([0m[2mmm[0m[2mi[0m[2m *[0m[2m ([0m[2my[0m[2m -[0m[2m b[0m[2m))[0m[2m %[0m[2m 2[0m[2m6[0m[2m.[0m[2m Keep[0m[2m digits[0m[2m,[0m[2m ignore[0m[2m spaces[0m[2m.[0m[2m
+
+[0m[2mError[0m[2m message[0m[2m:[0m[2m "[0m[2ma[0m[2m and[0m[2m m[0m[2m must[0m[2m be[0m[2m copr[0m[2mime[0m[2m."[0m[2m
+
+[0m[2mImplementation[0m[2m:[0m[2m
+
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mimport[0m[2m math[0m[2m
+
+[0m[2mm[0m[2m =[0m[2m 2[0m[2m6[0m[2m
+
+[0m[2mdef[0m[2m _[0m[2mmod[0m[2mular[0m[2m_inverse[0m[2m(a[0m[2m,[0m[2m m[0m[2m):[0m[2m
+[0m[2m   [0m[2m for[0m[2m x[0m[2m in[0m[2m range[0m[2m([0m[2m1[0m[2m,[0m[2m m[0m[2m):[0m[2m
+[0m[2m       [0m[2m if[0m[2m ([0m[2ma[0m[2m *[0m[2m x[0m[2m)[0m[2m %[0m[2m m[0m[2m ==[0m[2m 1[0m[2m:[0m[2m
+[0m[2m           [0m[2m return[0m[2m x[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+
+[0m[2mdef[0m[2m encode[0m[2m([0m[2mplain[0m[2m_text[0m[2m,[0m[2m a[0m[2m,[0m[2m b[0m[2m):[0m[2m
+[0m[2m   [0m[2m if[0m[2m math[0m[2m.g[0m[2mcd[0m[2m(a[0m[2m,[0m[2m m[0m[2m)[0m[2m !=[0m[2m 1[0m[2m:[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2ma[0m[2m and[0m[2m m[0m[2m must[0m[2m be[0m[2m copr[0m[2mime[0m[2m.")[0m[2m
+[0m[2m   [0m[2m out[0m[2m =[0m[2m [][0m[2m
+[0m[2m   [0m[2m for[0m[2m ch[0m[2m in[0m[2m plain[0m[2m_text[0m[2m.lower[0m[2m():[0m[2m
+[0m[2m       [0m[2m if[0m[2m ch[0m[2m.isdigit[0m[2m():[0m[2m
+[0m[2m           [0m[2m out[0m[2m.append[0m[2m(ch[0m[2m)[0m[2m
+[0m[2m       [0m[2m elif[0m[2m ch[0m[2m.is[0m[2malpha[0m[2m():[0m[2m
+[0m[2m           [0m[2m out[0m[2m.append[0m[2m(chr[0m[2m(([0m[2ma[0m[2m *[0m[2m ([0m[2mord[0m[2m(ch[0m[2m)[0m[2m -[0m[2m ord[0m[2m("[0m[2ma[0m[2m"))[0m[2m +[0m[2m b[0m[2m)[0m[2m %[0m[2m m[0m[2m +[0m[2m ord[0m[2m("[0m[2ma[0m[2m")))[0m[2m
+[0m[2m   [0m[2m return[0m[2m "[0m[2m ".[0m[2mjoin[0m[2m("[0m[2m".[0m[2mjoin[0m[2m(out[0m[2m)[[0m[2mi[0m[2m:i[0m[2m+[0m[2m5[0m[2m][0m[2m for[0m[2m i[0m[2m in[0m[2m range[0m[2m([0m[2m0[0m[2m,[0m[2m len[0m[2m(out[0m[2m),[0m[2m 5[0m[2m))[0m[2m
+
+[0m[2mdef[0m[2m decode[0m[2m(c[0m[2mipher[0m[2med[0m[2m_text[0m[2m,[0m[2m a[0m[2m,[0m[2m b[0m[2m):[0m[2m
+[0m[2m   [0m[2m if[0m[2m math[0m[2m.g[0m[2mcd[0m[2m(a[0m[2m,[0m[2m m[0m[2m)[0m[2m !=[0m[2m 1[0m[2m:[0m[2m
+[0m[2m       [0m[2m raise[0m[2m ValueError[0m[2m("[0m[2ma[0m[2m and[0m[2m m[0m[2m must[0m[2m be[0m[2m copr[0m[2mime[0m[2m.")[0m[2m
+[0m[2m   [0m[2m inv[0m[2m =[0m[2m _[0m[2mmod[0m[2mular[0m[2m_inverse[0m[2m(a[0m[2m,[0m[2m m[0m[2m)[0m[2m
+[0m[2m   [0m[2m out[0m[2m =[0m[2m [][0m[2m
+[0m[2m   [0m[2m for[0m[2m ch[0m[2m in[0m[2m cipher[0m[2med[0m[2m_text[0m[2m.lower[0m[2m():[0m[2m
+[0m[2m       [0m[2m if[0m[2m ch[0m[2m.isdigit[0m[2m():[0m[2m
+[0m[2m           [0m[2m out[0m[2m.append[0m[2m(ch[0m[2m)[0m[2m
+[0m[2m       [0m[2m elif[0m[2m ch[0m[2m.is[0m[2malpha[0m[2m():[0m[2m
+[0m[2m           [0m[2m out[0m[2m.append[0m[2m(chr[0m[2m(inv[0m[2m *[0m[2m ([0m[2mord[0m[2m(ch[0m[2m)[0m[2m -[0m[2m ord[0m[2m("[0m[2ma[0m[2m")[0m[2m -[0m[2m b[0m[2m)[0m[2m %[0m[2m m[0m[2m +[0m[2m ord[0m[2m("[0m[2ma[0m[2m")))[0m[2m
+[0m[2m   [0m[2m return[0m[2m "".[0m[2mjoin[0m[2m(out[0m[2m)[0m[2m
+[0m[2m```[0m[2m
+
+[0m[2mWait[0m[2m a[0m[2m sec[0m[2m —[0m[2m the[0m[2m test[0m[2m `[0m[2mtest[0m[2m_decode[0m[2m_with[0m[2m_no[0m[2m_spaces[0m[2m_in[0m[2m_input[0m[2m`[0m[2m dec[0m[2modes[0m[2m a[0m[2m string[0m[2m with[0m[2m no[0m[2m spaces[0m[2m,[0m[2m and[0m[2m in[0m[2m decode[0m[2m spaces[0m[2m are[0m[2m simply[0m[2m ignored[0m[2m,[0m[2m so[0m[2m that[0m[2m's[0m[2m fine[0m[2m.[0m[2m Also[0m[2m,[0m[2m for[0m[2m the[0m[2m encode[0m[2m grouping[0m[2m:[0m[2m the[0m[2m last[0m[2m group[0m[2m may[0m[2m be[0m[2m shorter[0m[2m than[0m[2m 5[0m[2m characters[0m[2m —[0m[2m the[0m[2m join[0m[2m handles[0m[2m that[0m[2m.[0m[2m
+
+[0m[2mEdge[0m[2m case[0m[2m:[0m[2m if[0m[2m `[0m[2mplain[0m[2m_text[0m[2m`[0m[2m is[0m[2m empty[0m[2m,[0m[2m `[0m[2m"".[0m[2mjoin[0m[2m(out[0m[2m)`[0m[2m becomes[0m[2m empty[0m[2m,[0m[2m and[0m[2m the[0m[2m generator[0m[2m over[0m[2m the[0m[2m empty[0m[2m range[0m[2m is[0m[2m also[0m[2m empty[0m[2m,[0m[2m so[0m[2m it[0m[2m returns[0m[2m "".[0m[2m Good[0m[2m.[0m[2m
+
+[0m[2mLet[0m[2m's[0m[2m write[0m[2m this[0m[2m,[0m[2m then[0m[2m run[0m[2m the[0m[2m tests[0m[2m.[0m[2m
 [0m[32m
 
+[0m[32mThe[0m[32m test[0m[32m file[0m[32m is[0m[32m the[0m[32m standard[0m[32m Exerc[0m[32mism[0m[32m affine[0m[32m-c[0m[32mipher[0m[32m suite[0m[32m.[0m[32m I[0m[32m'll[0m[32m implement[0m[32m `[0m[32mencode[0m[32m`[0m[32m and[0m[32m `[0m[32mdecode[0m[32m`[0m[32m in[0m[32m `[0m[32maff[0m[32mine[0m[32m_cipher[0m[32m.py[0m[32m`.[0m[32m
+
+[0m[32m
 [0m[32m
 [0m
 [32m●[0m [1mPlan[0m
-[2m  [~] Run test suite to see baseline failures[0m
-[2m  [ ] Implement encode/decode in affine_cipher.py[0m
-[2m  [ ] Re-run tests and verify all pass[0m
-[2mI[0m[2m need[0m[2m to[0m[2m investigate[0m[2m further[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m the[0m[2m details[0m[2m.[0m[2m
-
-[0m[2mFirst[0m[2m,[0m[2m let[0m[2m me[0m[2m run[0m[2m the[0m[2m tests[0m[2m.[0m[2m
-[0m[32m
-
-[0m[32m
-[0m
-[32m●[0m [1mRun  python -m pytest -q affine_cipher_test.py 2>&1 | tail -5[0m
-[2m  ⎿ FAILED affine_cipher_test.py::AffineCipherTest::test_encode_o_m_g - Assertion...[0m
-[2m     FAILED affine_cipher_test.py::AffineCipherTest::test_encode_omg - AssertionEr...[0m
-[2m     FAILED affine_cipher_test.py::AffineCipherTest::test_encode_with_a_not_coprime_to_m[0m
-[2m     FAILED affine_cipher_test.py::AffineCipherTest::test_encode_yes - AssertionEr...[0m
-[2m     16 failed in 0.02s[0m
-[2mAs[0m[2m expected[0m[2m,[0m[2m all[0m[2m 1[0m[2m6[0m[2m tests[0m[2m fail[0m[2m.[0m[2m Now[0m[2m I[0m[2m'll[0m[2m write[0m[2m the[0m[2m implementation[0m[2m.[0m[2m
-[0m[32m
-
-[0m[32mAll[0m[32m 1[0m[32m6[0m[32m fail[0m[32m ([0m[32mst[0m[32mubs[0m[32m).[0m[32m Implement[0m[32ming[0m[32m now[0m[32m.[0m[32m
-
-[0m[32m
-[0m
-[32m●[0m [1mPlan[0m
-[2m  [x] Run test suite to see baseline failures[0m
 [2m  [~] Implement encode/decode in affine_cipher.py[0m
-[2m  [ ] Re-run tests and verify all pass[0m
-[2mOkay[0m[2m,[0m[2m let[0m[2m's[0m[2m implement[0m[2m the[0m[2m affine[0m[2m cipher[0m[2m.[0m[2m I[0m[2m'll[0m[2m write[0m[2m the[0m[2m solution[0m[2m.[0m[2m
+[2m  [ ] Run pytest and verify all tests pass[0m
 
-[0m[2mLet[0m[2m me[0m[2m think[0m[2m about[0m[2m the[0m[2m details[0m[2m:[0m[2m
-
-[0m[2m1[0m[2m.[0m[2m `[0m[2mencode[0m[2m([0m[2mplain[0m[2m_text[0m[2m,[0m[2m a[0m[2m,[0m[2m b[0m[2m)[0m[2m`:[0m[2m
-[0m[2m  [0m[2m -[0m[2m Check[0m[2m that[0m[2m a[0m[2m and[0m[2m m[0m[2m ([0m[2m2[0m[2m6[0m[2m)[0m[2m are[0m[2m copr[0m[2mime[0m[2m.[0m[2m If[0m[2m not[0m[2m,[0m[2m raise[0m[2m a[0m[2m ValueError[0m[2m with[0m[2m the[0m[2m message[0m[2m "[0m[2ma[0m[2m and[0m[2m m[0m[2m must[0m[2m be[0m[2m copr[0m[2mime[0m[2m."[0m[2m
-[0m[2m  [0m[2m -[0m[2m Normalize[0m[2m:[0m[2m lowercase[0m[2m,[0m[2m keep[0m[2m only[0m[2m alphanumeric[0m[2m characters[0m[2m ([0m[2mletters[0m[2m and[0m[2m digits[0m[2m)[0m[2m
-[0m[2m  [0m[2m -[0m[2m For[0m[2m letters[0m[2m:[0m[2m E[0m[2m(x[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m*x[0m[2m +[0m[2m b[0m[2m)[0m[2m mod[0m[2m 2[0m[2m6[0m[2m,[0m[2m where[0m[2m x[0m[2m =[0m[2m ord[0m[2m(char[0m[2m)[0m[2m -[0m[2m ord[0m[2m('[0m[2ma[0m[2m')[0m[2m
-[0m[2m  [0m[2m -[0m[2m For[0m[2m digits[0m[2m:[0m[2m keep[0m[2m them[0m[2m as[0m[2m is[0m[2m
-[0m[2m  [0m[2m -[0m[2m Group[0m[2m into[0m[2m blocks[0m[2m of[0m[2m 5[0m[2m characters[0m[2m separated[0m[2m by[0m[2m spaces[0m[2m
-
-[0m[2m2[0m[2m.[0m[2m `[0m[2mdecode[0m[2m(c[0m[2mipher[0m[2med[0m[2m_text[0m[2m,[0m[2m a[0m[2m,[0m[2m b[0m[2m)[0m[2m`:[0m[2m
-[0m[2m  [0m[2m -[0m[2m Check[0m[2m that[0m[2m a[0m[2m and[0m[2m m[0m[2m ([0m[2m2[0m[2m6[0m[2m)[0m[2m are[0m[2m copr[0m[2mime[0m[2m.[0m[2m If[0m[2m not[0m[2m,[0m[2m raise[0m[2m a[0m[2m ValueError[0m[2m with[0m[2m the[0m[2m message[0m[2m "[0m[2ma[0m[2m and[0m[2m m[0m[2m must[0m[2m be[0m[2m copr[0m[2mime[0m[2m."[0m[2m
-[0m[2m  [0m[2m -[0m[2m Remove[0m[2m spaces[0m[2m
-[0m[2m  [0m[2m -[0m[2m For[0m[2m letters[0m[2m:[0m[2m D[0m[2m(y[0m[2m)[0m[2m =[0m[2m ([0m[2ma[0m[2m_inv[0m[2m *[0m[2m ([0m[2my[0m[2m -[0m[2m b[0m[2m))[0m[2m mod[0m[2m 2[0m[2m6[0m[2m,[0m[2m where[0m[2m y[0m[2m =[0m[2m ord[0m[2m(char[0m[2m)[0m[2m -[0m[2m ord[0m[2m('[0m[2ma[0m[2m')[0m[2m
-[0m[2m  [0m[2m -[0m[2m For[0m[2m digits[0m[2m:[0m[2m keep[0m[2m them[0m[2m as[0m[2m is[0m[2m
-[0m[2m  [0m[2m -[0m[2m Return[0m[2m as[0m[2m a[0m[2m continuous[0m[2m string[0m[2m
-
-[0m[2mI[0m[2m'll[0m[2m find[0m[2m the[0m[2m modular[0m[2m multip[0m[2mlicative[0m[2m inverse[0m[2m.[0m[2m Since[0m[2m m[0m[2m =[0m[2m 2[0m[2m6[0m[2m,[0m[2m I[0m[2m just[0m[2m need[0m[2m to[0m[2m find[0m[2m x[0m[2m such[0m[2m that[0m[2m ([0m[2ma[0m[2m*x[0m[2m)[0m[2m mod[0m[2m 2[0m[2m6[0m[2m ==[0m[2m 1[0m[2m.[0m[2m I[0m[2m'll[0m[2m just[0m[2m search[0m[2m from[0m[2m 1[0m[2m to[0m[2m 2[0m[2m5[0m[2m.[0m[2m
-
-[0m[2mLet[0m[2m me[0m[2m try[0m[2m writing[0m[2m it[0m[2m:[0m[2m
-[0m[32m
-
-[0m[32m
-[0m
 [32m●[0m [1mWrite affine_cipher.py[0m
-[2m  ⎿ 46 lines written[0m
-[2m  ⎿ +46 -0[0m
+[2m  ⎿ 35 lines written[0m
+[2m  ⎿ +35 -0[0m
 [32m  + [34mimport[39;49;00m[37m [39;49;00m[04m[36mmath[39;49;00m[37m[39;49;00m[0m
 [32m  + [0m
-[32m  + [0m
 [32m  + M = [34m26[39;49;00m[37m[39;49;00m[0m
-[32m  + _ALPHABET = [33m"[39;49;00m[33mabcdefghijklmnopqrstuvwxyz[39;49;00m[33m"[39;49;00m[37m[39;49;00m[0m
 [32m  + [0m
 [32m  + [0m
-[32m  + [34mdef[39;49;00m[37m [39;49;00m[32m_mmi[39;49;00m(a, m):[37m[39;49;00m[0m
-[32m  + [37m    [39;49;00m[33m"""Modular multiplicative inverse of a mod m (m is small here)."""[39;49;00m[37m[39;49;00m[0m
+[32m  + [34mdef[39;49;00m[37m [39;49;00m[32m_modular_inverse[39;49;00m(a, m):[37m[39;49;00m[0m
 [32m  +     [34mfor[39;49;00m x [35min[39;49;00m [36mrange[39;49;00m([34m1[39;49;00m, m):[37m[39;49;00m[0m
 [32m  +         [34mif[39;49;00m (a * x) % m == [34m1[39;49;00m:[37m[39;49;00m[0m
 [32m  +             [34mreturn[39;49;00m x[37m[39;49;00m[0m
-[2m     … +34 more diff lines[0m
-[2mWait[0m[2m a[0m[2m sec[0m[2m,[0m[2m in[0m[2m my[0m[2m `[0m[2mencode[0m[2m`,[0m[2m if[0m[2m `[0m[2mout[0m[2m`[0m[2m is[0m[2m empty[0m[2m it[0m[2m returns[0m[2m "",[0m[2m but[0m[2m that[0m[2m's[0m[2m fine[0m[2m.[0m[2m Let[0m[2m me[0m[2m verify[0m[2m the[0m[2m logic[0m[2m.[0m[2m Actually[0m[2m there[0m[2m's[0m[2m a[0m[2m subtle[0m[2m issue[0m[2m:[0m[2m `"[0m[2m ".[0m[2mjoin[0m[2m(...)[0m[2m if[0m[2m out[0m[2m else[0m[2m ""[0m[2m`[0m[2m —[0m[2m if[0m[2m out[0m[2m is[0m[2m empty[0m[2m,[0m[2m range[0m[2m([0m[2m0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 5[0m[2m)[0m[2m is[0m[2m empty[0m[2m,[0m[2m so[0m[2m join[0m[2m returns[0m[2m ""[0m[2m either[0m[2m way[0m[2m.[0m[2m So[0m[2m that[0m[2m conditional[0m[2m isn[0m[2m't[0m[2m needed[0m[2m,[0m[2m but[0m[2m it[0m[2m's[0m[2m harmless[0m[2m.[0m[2m Let[0m[2m's[0m[2m just[0m[2m run[0m[2m the[0m[2m test[0m[2m.[0m[2m
+[32m  +     [34mreturn[39;49;00m [34mNone[39;49;00m[37m[39;49;00m[0m
+[32m  + [0m
+[32m  + [0m
+[2m     … +23 more diff lines[0m
+[2mAlright[0m[2m,[0m[2m let[0m[2m's[0m[2m run[0m[2m the[0m[2m test[0m[2m.[0m[2m
 [0m[32m
 
 [0m[32m
 [0m
-[32m●[0m [1mRun  python -m pytest -q affine_cipher_test.py 2>&1 | tail -5[0m
+[32m●[0m [1mRun  python -m pytest -q affine_cipher_test.py[0m
 [2m  ⎿ ................                                                         [100%][0m
-[2m     16 passed in 0.00s[0m
-[2mAll[0m[2m 1[0m[2m6[0m[2m tests[0m[2m pass[0m[2m.[0m[2m Let[0m[2m me[0m[2m clean[0m[2m up[0m[2m the[0m[2m redundant[0m[2m tern[0m[2mary[0m[2m operator[0m[2m a[0m[2m bit[0m[2m.[0m[2m Actually[0m[2m it[0m[2m's[0m[2m fine[0m[2m,[0m[2m but[0m[2m `"[0m[2m ".[0m[2mjoin[0m[2m(...)[0m[2m if[0m[2m out[0m[2m else[0m[2m ""[0m[2m`[0m[2m is[0m[2m redundant[0m[2m.[0m[2m Because[0m[2m when[0m[2m out[0m[2m is[0m[2m empty[0m[2m,[0m[2m join[0m[2m returns[0m[2m ""[0m[2m anyway[0m[2m.[0m[2m Let[0m[2m's[0m[2m simplify[0m[2m to[0m[2m avoid[0m[2m the[0m[2m weird[0m[2mness[0m[2m.[0m[2m Actually[0m[2m,[0m[2m it[0m[2m works[0m[2m and[0m[2m the[0m[2m tests[0m[2m pass[0m[2m too[0m[2m.[0m[2m But[0m[2m for[0m[2m cleanliness[0m[2m,[0m[2m let[0m[2m's[0m[2m simplify[0m[2m it[0m[2m.[0m[2m It[0m[2m's[0m[2m a[0m[2m small[0m[2m refactor[0m[2m,[0m[2m but[0m[2m I[0m[2m want[0m[2m to[0m[2m keep[0m[2m the[0m[2m code[0m[2m clean[0m[2m.[0m[2m Let[0m[2m's[0m[2m fix[0m[2m it[0m[2m.[0m[2m
+[2m     16 passed in 0.01s[0m
+[2mAll[0m[2m 1[0m[2m6[0m[2m tests[0m[2m passed[0m[2m.[0m[2m Let[0m[2m's[0m[2m also[0m[2m verify[0m[2m the[0m[2m example[0m[2m from[0m[2m the[0m[2m instructions[0m[2m ([0m[2ma[0m[2m simple[0m[2m sanity[0m[2m check[0m[2m)[0m[2m —[0m[2m actually[0m[2m,[0m[2m the[0m[2m tests[0m[2m cover[0m[2m it[0m[2m well[0m[2m enough[0m[2m,[0m[2m but[0m[2m let[0m[2m me[0m[2m quickly[0m[2m check[0m[2m the[0m[2m examples[0m[2m from[0m[2m the[0m[2m instructions[0m[2m:[0m[2m
+[0m[2m-[0m[2m encode[0m[2m("[0m[2mtest[0m[2m",[0m[2m 5[0m[2m,[0m[2m 7[0m[2m)[0m[2m ==[0m[2m "[0m[2myb[0m[2mty[0m[2m"[0m[2m
+[0m[2m-[0m[2m decode[0m[2m("[0m[2mk[0m[2mql[0m[2mfd[0m[2m j[0m[2mzv[0m[2mgy[0m[2m t[0m[2mpa[0m[2met[0m[2m ic[0m[2mdh[0m[2mm[0m[2m r[0m[2mtw[0m[2mly[0m[2m k[0m[2mql[0m[2mon[0m[2m ub[0m[2mst[0m[2mx[0m[2m",[0m[2m 1[0m[2m9[0m[2m,[0m[2m 1[0m[2m3[0m[2m)[0m[2m ==[0m[2m "[0m[2mthe[0m[2mquick[0m[2mbrown[0m[2mfox[0m[2mjump[0m[2mso[0m[2mver[0m[2mth[0m[2mel[0m[2mazy[0m[2mdog[0m[2m"[0m[2m
 [0m[32m
 
-[0m[32mAll[0m[32m 1[0m[32m6[0m[32m pass[0m[32m.[0m[32m Let[0m[32m me[0m[32m remove[0m[32m a[0m[32m redundant[0m[32m tern[0m[32mary[0m[32m for[0m[32m cleanliness[0m[32m.[0m[32m
-
-[0m[32m
-[0m
-[32m●[0m [1mEdit affine_cipher.py[0m
-[2m  ⎿ +1 -1[0m
-[31m  -     [34mreturn[39;49;00m [33m"[39;49;00m[33m [39;49;00m[33m"[39;49;00m.join([33m"[39;49;00m[33m"[39;49;00m.join(out)[i:i + [34m5[39;49;00m] [34mfor[39;49;00m i [35min[39;49;00m [36mrange[39;49;00m([34m0[39;49;00m, [36mlen[39;49;00m(out), [34m5[39;49;00m)) [34mif[39;49;00m out [34melse[39;49;00m [33m"[39;49;00m[33m"[39;49;00m[37m[39;49;00m[0m
-[32m  +     [34mreturn[39;49;00m [33m"[39;49;00m[33m [39;49;00m[33m"[39;49;00m.join([33m"[39;49;00m[33m"[39;49;00m.join(out)[i:i + [34m5[39;49;00m] [34mfor[39;49;00m i [35min[39;49;00m [36mrange[39;49;00m([34m0[39;49;00m, [36mlen[39;49;00m(out), [34m5[39;49;00m))[37m[39;49;00m[0m
-[2mWait[0m[2m —[0m[2m if[0m[2m `[0m[2mout[0m[2m`[0m[2m is[0m[2m empty[0m[2m,[0m[2m `[0m[2mrange[0m[2m([0m[2m0[0m[2m,[0m[2m 0[0m[2m,[0m[2m 5[0m[2m)`[0m[2m is[0m[2m empty[0m[2m,[0m[2m and[0m[2m `"[0m[2m ".[0m[2mjoin[0m[2m([][0m[2m)`[0m[2m is[0m[2m `[0m[2m""[0m[2m`.[0m[2m No[0m[2m problem[0m[2m.[0m[2m Re[0m[2m-run[0m[2m the[0m[2m tests[0m[2m.[0m[2m
-[0m[32m
-
-[0m[32m
-[0m
-[32m●[0m [1mRun  python -m pytest -q affine_cipher_test.py 2>&1 | tail -3[0m
-[2m  ⎿ ................                                                         [100%][0m
-[2m     16 passed in 0.00s[0m
-[2mAll[0m[2m 1[0m[2m6[0m[2m tests[0m[2m pass[0m[2m.[0m[2m Let[0m[2m me[0m[2m also[0m[2m do[0m[2m a[0m[2m quick[0m[2m sanity[0m[2m check[0m[2m on[0m[2m the[0m[2m general[0m[2m examples[0m[2m from[0m[2m the[0m[2m instructions[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m encoding[0m[2m "[0m[2mtest[0m[2m"[0m[2m with[0m[2m a[0m[2m=[0m[2m5[0m[2m,[0m[2m b[0m[2m=[0m[2m7[0m[2m should[0m[2m give[0m[2m "[0m[2myb[0m[2mty[0m[2m",[0m[2m and[0m[2m decoding[0m[2m with[0m[2m the[0m[2m wrong[0m[2m key[0m[2m should[0m[2m give[0m[2m "[0m[2ml[0m[2mq[0m[2mul[0m[2m",[0m[2m and[0m[2m the[0m[2m quick[0m[2m brown[0m[2m fox[0m[2m example[0m[2m).[0m[2m
-[0m[32m
+[0m[32mAll[0m[32m 1[0m[32m6[0m[32m tests[0m[32m pass[0m[32m.[0m[32m Quick[0m[32m sanity[0m[32m check[0m[32m against[0m[32m the[0m[32m instructions[0m[32m'[0m[32m general[0m[32m examples[0m[32m:[0m[32m
 
 [0m[32m
 [0m
 [32m●[0m [1mRun  python -c " from affine_cipher import encode, decode assert encode('tes…[0m
-[2m  ⎿ all instruction examples OK[0m
-[2mAll[0m[2m tests[0m[2m passed[0m[2m,[0m[2m and[0m[2m I[0m[2m verified[0m[2m the[0m[2m examples[0m[2m in[0m[2m the[0m[2m instructions[0m[2m.[0m[2m Let[0m[2m me[0m[2m update[0m[2m the[0m[2m TODO[0m[2m and[0m[2m complete[0m[2m this[0m[2m.[0m[2m
+[2m  ⎿ all example checks passed[0m
+[2mAll[0m[2m tests[0m[2m passed[0m[2m,[0m[2m and[0m[2m the[0m[2m examples[0m[2m in[0m[2m the[0m[2m instructions[0m[2m also[0m[2m hold[0m[2m up[0m[2m.[0m[2m Update[0m[2m the[0m[2m ToDo[0m[2m and[0m[2m exit[0m[2m.[0m[2m
 [0m[32m
 
 [0m[32m
 [0m
 [32m●[0m [1mPlan[0m
-[2m  [x] Run test suite to see baseline failures[0m
 [2m  [x] Implement encode/decode in affine_cipher.py[0m
-[2m  [x] Re-run tests and verify all pass[0m
-[2mAll[0m[2m 1[0m[2m6[0m[2m tests[0m[2m passed[0m[2m,[0m[2m and[0m[2m I[0m[2m've[0m[2m also[0m[2m verified[0m[2m all[0m[2m the[0m[2m examples[0m[2m from[0m[2m the[0m[2m instructions[0m[2m.[0m[2m The[0m[2m task[0m[2m is[0m[2m complete[0m[2m.[0m[2m
+[2m  [x] Run pytest and verify all tests pass[0m
+[2mAll[0m[2m tests[0m[2m pass[0m[2m.[0m[2m Task[0m[2m complete[0m[2m.[0m[2m
 [0m[32m
 
 [0m[32m

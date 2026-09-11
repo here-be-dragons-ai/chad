@@ -1,0 +1,7 @@
+chad under test: /Users/gtonic/src/chad/.venv/bin/chad (chad 2.0.3)
+  chad+mlx         bowling        PASS   535.0s  prefill    8931  gen  16926  tests 31/31
+  chad+mlx-4bit    bowling        PASS   196.7s  prefill    4510  gen   6363  tests 31/31
+  chad+mlx         grade-school   PASS    25.9s  prefill    2380  gen    628  tests 20/20
+  chad+mlx-4bit    grade-school   PASS    31.9s  prefill    2322  gen    807  tests 20/20
+  chad+mlx         affine-cipher  PASS    75.4s  prefill    2069  gen   2157  tests 16/16
+  chad+mlx-4bit    affine-cipher  PASS    51.1s  prefill    2007  gen   1640  tests 16/16
