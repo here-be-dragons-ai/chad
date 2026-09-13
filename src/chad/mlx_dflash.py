@@ -48,10 +48,14 @@ Build a sidecar for a new target from its bf16 DFlash checkpoint with
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Any, Optional, cast
+from typing import TYPE_CHECKING, Callable, Optional, cast
 
 from . import config
 from .diag import log
+
+if TYPE_CHECKING:  # mlx is imported lazily inside the functions so the module loads on Linux
+    import mlx.core as mx
+    import mlx.nn as nn
 
 # The drafter sidecar's subdirectory inside a model weights dir.
 _BUNDLE = "dflash"
@@ -93,9 +97,8 @@ class DFlashConfig:
     @classmethod
     def from_dict(cls, cfg: dict) -> "DFlashConfig":
         rope = cfg.get("rope_parameters") or {}
-        dfc = cfg.get("dflash_config") or {}
-        def get(k: str, d: Any = None) -> Any:
-            return dfc.get(k, cfg.get(k, d))
+        # The drafter's own keys sit under `dflash_config` or at the top level; nested wins.
+        dflash = {**cfg, **(cfg.get("dflash_config") or {})}
         n_layers = int(cfg["num_hidden_layers"])
         lt = cfg.get("layer_types")
         if not lt:
@@ -116,20 +119,20 @@ class DFlashConfig:
             rms_norm_eps=float(cfg.get("rms_norm_eps", 1e-6)),
             rope_theta=float(cfg.get("rope_theta", rope.get("rope_theta", 1e6))),
             max_position_embeddings=int(cfg.get("max_position_embeddings", 262144)),
-            block_size=int(get("block_size")),
-            target_layer_ids=tuple(int(i) for i in get("target_layer_ids")),
+            block_size=int(dflash["block_size"]),
+            target_layer_ids=tuple(int(i) for i in dflash["target_layer_ids"]),
             num_target_layers=int(cfg.get("num_target_layers", 0)),
-            mask_token_id=int(get("mask_token_id", 0)),
+            mask_token_id=int(dflash.get("mask_token_id", 0)),
             rope_scaling=scaling,
             layer_types=tuple(lt),
             sliding_window=(int(cfg["sliding_window"])
                             if cfg.get("sliding_window") else None),
-            final_logit_softcapping=get("final_logit_softcapping"),
-            selector_rank=int(get("selector_rank", 0) or 0),
-            selector_top_k=int(get("selector_top_k", 0) or 0),
-            conv_kernel_size=int(get("conv_kernel_size", 0) or 0),
-            conv_group_size=int(get("conv_group_size", 16) or 16),
-            output_multiplier=float(get("output_multiplier", 1.0) or 1.0),
+            final_logit_softcapping=dflash.get("final_logit_softcapping"),
+            selector_rank=int(dflash.get("selector_rank", 0) or 0),
+            selector_top_k=int(dflash.get("selector_top_k", 0) or 0),
+            conv_kernel_size=int(dflash.get("conv_kernel_size", 0) or 0),
+            conv_group_size=int(dflash.get("conv_group_size", 16) or 16),
+            output_multiplier=float(dflash.get("output_multiplier", 1.0) or 1.0),
         )
 
 
@@ -358,8 +361,8 @@ def build(config: DFlashConfig):
                 if cfg.selector_rank else None)
             # Bound by the engine: the target's embedding module and a logits
             # function over post-norm hidden (handles tied embeddings).
-            self._embed: Any = None
-            self._logits: Any = None
+            self._embed: Optional[Callable[["mx.array"], "mx.array"]] = None
+            self._logits: Optional[Callable[["mx.array"], "mx.array"]] = None
 
         def bind(self, embed, logits_fn):
             self._embed = embed
@@ -388,6 +391,8 @@ def build(config: DFlashConfig):
         def forward_hidden(self, inputs, fused, cache, logits_start: int = 0):
             """Backbone forward -> post-final-norm hidden [B, L - logits_start, H].
             ``fused`` (pending context rows, or None) is appended first."""
+            if self._embed is None:
+                raise RuntimeError("bind() the drafter to its target before drafting")
             h = self._embed(inputs)
             h_ctx = self.project_ctx(fused) if fused is not None else None
             for layer, c in zip(self.layers, cache):
@@ -413,6 +418,8 @@ def build(config: DFlashConfig):
             ``(draft_ids [cap], candidate_ids [cap, K], q_rows [cap, K])``."""
             sel = self.candidate_selector
             hidden = self.forward_hidden(block, fused, cache, logits_start=1)[0][:cap]
+            if self._logits is None:
+                raise RuntimeError("bind() the drafter to its target before drafting")
             logits = self._logits(hidden)[..., : self.config.vocab_size]
             if sel is None:
                 if uniforms is None:
@@ -639,7 +646,7 @@ def block_policy(max_depth: int, costs=None):
 
 # -- target tap ---------------------------------------------------------------
 
-def install_tap(model: Any, layer_ids) -> bool:
+def install_tap(model: "nn.Module", layer_ids) -> bool:
     """Make the target's tapped DecoderLayers publish their output hidden into
     TAP whenever it is armed. Per-instance class swap to a subclass whose
     ``__call__`` defers to whatever ``DecoderLayer.__call__`` currently is
@@ -672,10 +679,16 @@ def install_tap(model: Any, layer_ids) -> bool:
 
 # -- loading ------------------------------------------------------------------
 
-def _target_key(model: Any):
-    args = getattr(getattr(model, "language_model", None), "args", None)
-    if args is None:
+def _target_key(model: "nn.Module"):
+    """(hidden, layers, vocab) of a qwen3_5-family target, the only architecture the
+    tap can attach to; None for anything else."""
+    try:
+        from mlx_lm.models import qwen3_5 as q35
+    except ImportError:
         return None
+    if not isinstance(model, q35.Model):
+        return None
+    args = model.language_model.args
     return (int(args.hidden_size), int(args.num_hidden_layers), int(args.vocab_size))
 
 
@@ -723,7 +736,7 @@ def _load_sidecar(sdir: str, bits: int, gs: int):
         cfg = DFlashConfig.from_dict(json.load(f))
     drafter = build(cfg)
     _quantize(drafter, bits, gs)
-    # cast: mx.load returns a dict for a .safetensors path; the stub types a 3-way union
+    # SAFETY: mx.load returns a dict for a .safetensors path; the stub types a 3-way union
     loaded = cast(dict, mx.load(os.path.join(sdir, "model.safetensors")))
     drafter.load_weights(list(loaded.items()))
     drafter.eval()
@@ -746,7 +759,7 @@ def build_sidecar(src_dir: str, out_dir: str, bits: int = 4, gs: int = 64) -> st
     drafter = build(cfg)
     weights: dict = {}
     for st in sorted(glob.glob(os.path.join(src_dir, "*.safetensors"))):
-        weights.update(cast(dict, mx.load(st)))  # a dict for .safetensors, see _load_sidecar
+        weights.update(cast(dict, mx.load(st)))  # SAFETY: a dict for .safetensors, see _load_sidecar
     weights = _remap(weights)
     drafter.load_weights(list(weights.items()))
     del weights
@@ -798,7 +811,8 @@ def _complete(d: str) -> bool:
             and os.path.isfile(os.path.join(d, "model.safetensors")))
 
 
-def ensure_bundle(model_dir: str, repo_id: Optional[str]) -> None:
+def ensure_bundle(model_dir: str, repo_id: Optional[str],
+                  download: Optional[Callable[[str, str], str]] = None) -> None:
     """Fetch the bundle's weights when the weights dir has its config but not its
     `model.safetensors`. Best-effort and quiet on failure — a missing drafter costs
     speed, never correctness.
@@ -814,6 +828,9 @@ def ensure_bundle(model_dir: str, repo_id: Optional[str]) -> None:
     The same glob is why the file is named `model.safetensors` under a subdirectory in
     the first place: mlx-lm's LOADER globs `model*.safetensors` at the repo root, so the
     bundle is invisible to it. Downloader and loader read the same pattern differently.
+
+    `download(repo_id, filename)` fetches one file of the repo; None means
+    huggingface_hub's `hf_hub_download`.
     """
     if not repo_id or os.path.isdir(repo_id):
         return
@@ -822,16 +839,17 @@ def ensure_bundle(model_dir: str, repo_id: Optional[str]) -> None:
         return
     try:
         from huggingface_hub import hf_hub_download
+        fetch: Callable[[str, str], str] = download or hf_hub_download
         log.info("DFlash drafter: fetching the bundled weights from %s "
                  "(the base download's file filter skips them)", repo_id)
-        hf_hub_download(repo_id, f"{_BUNDLE}/model.safetensors")
+        fetch(repo_id, f"{_BUNDLE}/model.safetensors")
     except Exception as e:  # noqa: BLE001 — offline/gated: decode without the drafter
         log.warning("DFlash drafter: could not fetch %s/%s (%s); decoding without it",
                     repo_id, _BUNDLE, e)
 
 
-def load_drafter(model: Any, model_dir: str, repo_id: Optional[str] = None,
-                 bits: int = 4, gs: int = 64) -> Optional[Any]:
+def load_drafter(model: "nn.Module", model_dir: str, repo_id: Optional[str] = None,
+                 bits: int = 4, gs: int = 64) -> Optional["nn.Module"]:
     """Load the DFlash drafter bundled with the target's weights (or the dir
     CHAD_DFLASH_PATH names), bound to the target's embedding/lm_head, with the
     target tap installed. None when no drafter ships for this model or on any
@@ -857,7 +875,7 @@ def load_drafter(model: Any, model_dir: str, repo_id: Optional[str] = None,
             return None
         lm = model.language_model
         embed = lm.model.embed_tokens
-        if getattr(lm.args, "tie_word_embeddings", False):
+        if lm.args.tie_word_embeddings:
             drafter.bind(embed, embed.as_linear)
         else:
             drafter.bind(embed, lm.lm_head)

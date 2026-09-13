@@ -42,9 +42,12 @@ import json
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable, Iterator, Optional
+from typing import TYPE_CHECKING, Callable, Generator, Optional
 
 from .base_engine import THINK_CLOSE, BackendError, GenStats, TailWatch, think_ceiling_hit
+
+if TYPE_CHECKING:
+    from transformers import PreTrainedTokenizerBase
 
 
 def parse_sse_chunk(line: str) -> Optional[dict]:
@@ -144,7 +147,7 @@ class CompletionEngine:
         # vocab (the served model_id is usually a GGUF repo with no tokenizer files).
         self._tokenizer_id = tokenizer_id or model_id
         # --- BaseEngine / drop-in data members ---
-        self.tok: Any = None            # loaded in load()
+        self.tok: Optional["PreTrainedTokenizerBase"] = None   # loaded in load()
         self._cached_ids: list = []     # mirror of the server's cached prompt+generation
         # A truthy `cache_dir` is the agent's ONE test for "is a disk KV cache reachable?"
         # (agent.py gates its warm-start on it). Here the answer is no: the checkpoint
@@ -168,6 +171,13 @@ class CompletionEngine:
             n_ctx = (props.get("default_generation_settings") or {}).get("n_ctx")
             self.effective_ctx = int(n_ctx) if n_ctx else 32768
         return time.time() - t0
+
+    @property
+    def resident_tokens(self) -> int:
+        """Tokens in the server's prompt cache, as mirrored here. They cost this
+        process no memory (`kv_bytes_per_token` is 0), so cli's RAM-aware window sizing
+        subtracts nothing for them."""
+        return len(self._cached_ids)
 
     def reset(self) -> None:
         """Forget the mirrored cache state. The server keeps its slot cache, but the
@@ -195,7 +205,7 @@ class CompletionEngine:
         except Exception:  # noqa: BLE001 — offline/older server → fallback, not a crash
             return None
 
-    def _stream_completion(self, body: dict) -> Iterator[str]:
+    def _stream_completion(self, body: dict) -> Generator[str, None, None]:
         """POST the /completion request and yield raw SSE lines. The ONLY generation
         network code in this file; unit tests monkeypatch it with a canned line
         generator. An HTTP error surfaces the server's message (e.g. llama.cpp's
@@ -344,9 +354,7 @@ class CompletionEngine:
                     if salvage_here or (should_stop and should_stop()):
                         break
             finally:
-                close = getattr(stream, "close", None)
-                if close:
-                    close()
+                stream.close()
 
             all_gen_ids.extend(gen_ids)
             if timings:
@@ -376,6 +384,8 @@ class CompletionEngine:
             # Force-close the runaway <think> and loop once more: tokenize THINK_CLOSE
             # and extend the prompt for the continuation request so `cache_prompt`
             # reuses the common prefix (no detokenize — this backend is token-native).
+            if self.tok is None:
+                raise RuntimeError("generate() needs the tokenizer that load() brings up")
             close_ids = list(self.tok.encode(THINK_CLOSE, add_special_tokens=False))
             text += THINK_CLOSE
             # The injected close is part of the text the watchers are tracking; feed it

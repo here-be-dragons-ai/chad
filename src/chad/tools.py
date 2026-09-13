@@ -22,10 +22,13 @@ import signal
 import subprocess
 import threading
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Callable, Mapping, Optional, Sequence, TypedDict, Union
 
 from . import config, levers, seatbelt, spill, syntaxgate
 from .ignore import IGNORE_DIRS  # noqa: F401 — re-exported for agent.expand_mentions
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 
 def _rel(path: str) -> str:
@@ -122,8 +125,10 @@ def _bash_env() -> dict | None:
             if not _ENV_SECRET_RE.search(k) and not _is_credential_url(k, v)}
 
 
-def tool_bash(command: str, timeout: int = 120, should_stop=None) -> str:
-    argv = seatbelt.wrap_argv(command)
+def tool_bash(command: str, timeout: int = 120, should_stop=None,
+              wrap: Callable[[str], Optional[list[str]]] = seatbelt.wrap_argv) -> str:
+    # `wrap` confines the command: the sandboxed argv to spawn, or None for a plain shell.
+    argv = wrap(command)
     try:
         # errors="replace": text mode decodes strictly by default, so binary bytes in the
         # output (hexdump, `cat` on an archive) killed the reader thread mid-communicate —
@@ -472,10 +477,10 @@ def _nearest_resolved(lines: list[str], resolved: list[str | None],
     unless some line resolved, so the final `("", ...)` is unreachable in practice."""
     for j in range(i - 1, -1, -1):
         if resolved[j] is not None:
-            return resolved[j], True, lines[j].strip()  # type: ignore[return-value]
+            return resolved[j], True, lines[j].strip()  # type: ignore[return-value]  # SAFETY: checked non-None
     for j in range(i + 1, len(lines)):
         if resolved[j] is not None:
-            return resolved[j], False, lines[j].strip()  # type: ignore[return-value]
+            return resolved[j], False, lines[j].strip()  # type: ignore[return-value]  # SAFETY: checked non-None
     return "", False, ""
 
 
@@ -854,7 +859,7 @@ def alias_to_bash(name: str, args):
     argument can be found — an alias with nothing to read is left alone so it takes the
     normal unknown-tool repair path instead of running a nonsense command.
     """
-    if name not in READ_ALIASES or not isinstance(args, dict):
+    if name not in READ_ALIASES or not is_json_object(args):
         return name, args
     # Fall back ONLY when nothing actually answers to the name. An MCP server is free to
     # expose a tool called `read`, and that server's tool must win over this shim —
@@ -910,7 +915,31 @@ MUTATING = {"bash", "write", "edit"}
 # unknown-tool churn at the end of a task.
 TERMINAL = {"done", "finish", "stop"}
 
-SCHEMAS: list[dict[str, Any]] = [
+# What a tool call's arguments are before validation, and what the trajectory record
+# carries after: whatever json.loads (or the XML/hybrid parsers) produced, nested.
+# Read-only containers on purpose — Mapping/Sequence are covariant, so a dict[str, int]
+# literal already IS a JsonValue and nothing needs a cast; validate.py narrows it field
+# by field with isinstance, which is where the JSON boundary is decided.
+JsonValue = Union[None, bool, int, float, str, Sequence["JsonValue"], Mapping[str, "JsonValue"]]
+
+
+def is_json_object(value: JsonValue) -> "TypeIs[dict[str, JsonValue]]":
+    """A JSON object: the only shape a tool call's arguments can dispatch as."""
+    return isinstance(value, dict)
+
+
+class FunctionSchema(TypedDict):
+    name: str
+    description: str
+    parameters: dict[str, JsonValue]      # JSON Schema, as sent to the model
+
+
+class ToolSchema(TypedDict):
+    type: str                             # always "function"
+    function: FunctionSchema
+
+
+SCHEMAS: list[ToolSchema] = [
     {
         "type": "function",
         "function": {
