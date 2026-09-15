@@ -85,6 +85,21 @@ def is_destructive_bash(command: str) -> bool:
     return _rm_hits_protected(command)
 
 
+def plan_mode_verdict(mode: str, name: str, args: dict) -> str:
+    """'plan_write' — a write/edit under ./plans/ in plan mode (allowed, no confirm);
+    'blocked' — any other mutating tool in plan mode; 'normal' — everything else.
+    The single decision point for plan mode's read-only promise; run_turn consumes it
+    and tests/test_gate.py pins it."""
+    from .tools import _under_plans, is_mutating
+    if mode != "plan":
+        return "normal"
+    if name in ("write", "edit") and _under_plans(str(args.get("path", "") or "")):
+        return "plan_write"
+    if is_mutating(name):
+        return "blocked"
+    return "normal"
+
+
 # A shell command that proves NOTHING about runtime behavior — a syntax/compile check,
 # a byte-compile, or a --version/--help probe. These must NOT clear unverified_edit: the
 # demonstrated failure is a model that "verifies" a real Django bug-fix with
@@ -107,12 +122,22 @@ def _is_trivial_check(command: str) -> bool:
 # exited 0 with output and "verified" the edit — disarming the verify nudge, the done
 # rejection AND the landing nudge at once; the patch shipped with an IndentationError.
 # Display/plumbing commands (sed/cat/ls/grep/echo/find/git…) prove nothing about
-# runtime behavior no matter how cleanly they exit.
+# runtime behavior no matter how cleanly they exit. The program may be launched the
+# everyday ways a real test run is: after `VAR=value` assignments or `timeout [opts]
+# DURATION`, path-qualified (`.venv/bin/python`, `/usr/bin/python3`), or under
+# `coverage run` — refusing those would send a model that DID run its tests back to run
+# them again, and hard-stop its `done` once the nudges ran out.
 _EXECUTES_RE = re.compile(
-    r"(?:^|[;&|(]\s*|\bsudo\s+|\benv\s+(?:\w+=\S+\s+)*)"
+    r"(?:^|[;&|(]\s*|\bsudo\s+|\benv\s+)"
+    r"(?:\w+=\S*\s+)*"
+    # An option is one token starting with `-` and its value one token that doesn't, so
+    # every token matches exactly one way and the repetition cannot backtrack exponentially.
+    r"(?:timeout\s+(?:-\S*\s+(?:[^\s-]\S*\s+)?)*\d[\w.]*\s+)?"
+    r"(?:[\w.~-]*/)*"
     r"(?:python[0-9.]*|pytest|py\.test|tox|nox|unittest|make|cmake|ctest|cargo|go"
     r"|node|npm|npx|yarn|pnpm|deno|bun|mvn|gradlew?|ant|rake|rspec|ruby|phpunit|php"
-    r"|dotnet|swift|julia|Rscript|perl|lua|java|sbt|stack|sh|bash|zsh|\./\S+)\b")
+    r"|dotnet|swift|julia|Rscript|perl|lua|java|sbt|stack|sh|bash|zsh|coverage\s+run"
+    r"|\./\S+)\b")
 
 
 def _is_executing_command(command: str) -> bool:
@@ -123,16 +148,29 @@ def _is_executing_command(command: str) -> bool:
     return bool(_EXECUTES_RE.search(command))
 
 
+# Project-runner wrappers that carry the real program as their argument (`uv run
+# pytest`, `poetry run python -m pytest`). Stripped before the trivial/executing checks so
+# the wrapped program is what gets judged; ambient's run ledger strips with this regex too.
+_RUNNER_WRAPPER_RE = re.compile(
+    r"\b(?:uv|poetry|pipenv|pdm|hatch)\s+run\s+(?:python[0-9.]*\s+-m\s+)?")
+
+_BASH_ERROR_PREFIXES = ("[exit", "[timed out", "[interrupted", "[failed to launch")
+
+
 def bash_result_verifies(result: str, command: str = "") -> bool:
     """A bash tool result clears the unverified-edit flag only on a clean run that
     actually exercised the code.
 
-    The result must not be an error sentinel — the four `[`-prefixed prefixes
-    below mean the check did NOT pass (non-zero exit, timeout, ctrl-c, launch
-    failure)."""
-    if result.startswith(("[exit", "[timed out", "[interrupted", "[failed to launch")):
+    Both are required: the result is not an error sentinel — the four `[`-prefixed
+    prefixes mean the check did NOT pass (non-zero exit, timeout, ctrl-c, launch
+    failure) — and the command, runner wrapper stripped, executes something
+    (`_is_executing_command`) rather than only parsing or probing it
+    (`_is_trivial_check`). An empty command (legacy callers such as `update_thrash`) is
+    judged on the result alone."""
+    if result.startswith(_BASH_ERROR_PREFIXES):
         return False
-    return True
+    bare = _RUNNER_WRAPPER_RE.sub("", command)
+    return not _is_trivial_check(bare) and _is_executing_command(bare)
 
 
 # Tools that count as real work (did_work) — NOT planning/done. Kept as a named
@@ -165,66 +203,6 @@ def reverts_working_tree(command: str) -> bool:
     return bool(command) and any(p.search(command) for p in _REVERT_PATTERNS)
 
 
-# Command heads that only OBSERVE state. Used by the investigation gate: a bash step
-# whose every segment starts with one of these (and redirects nothing to a file) is
-# investigation; anything else — `git merge`, `apt-get install`, `mkdir`, `tar x`,
-# a redirect — is ACTION and must reset the read-only streak (otherwise the gate can
-# count an entire git/ops workflow as "investigation" and demand an edit at a decision
-# point where there is nothing to edit yet).
-_READONLY_HEADS = frozenset((
-    "ls", "cat", "head", "tail", "less", "more", "grep", "egrep", "fgrep", "rg",
-    "find", "file", "stat", "wc", "which", "type", "pwd", "echo", "printf", "du",
-    "df", "ps", "env", "printenv", "sort", "uniq", "cut", "tr", "diff", "cmp",
-    "md5sum", "sha1sum", "sha256sum", "strings", "xxd", "hexdump", "od",
-    "readlink", "realpath", "basename", "dirname", "test", "[", "true", "false",
-    "date", "whoami", "id", "uname", "hostname", "tree", "awk", "sed", "jq",
-    "column", "nl", "tac", "sleep",
-))
-_READONLY_GIT_SUBS = frozenset((
-    "log", "status", "diff", "show", "describe", "rev-parse", "ls-files",
-    "ls-remote", "ls-tree", "blame", "reflog", "shortlog", "grep", "cat-file",
-    "rev-list", "name-rev", "var", "count-objects",
-))
-# Harmless stderr plumbing stripped before the "any redirect ⇒ mutating" check.
-_STDERR_REDIR_RE = re.compile(r"2>\s*&1|2>\s*/dev/null|&>\s*/dev/null|>\s*/dev/null")
-_SEGMENT_SPLIT_RE = re.compile(r"\|\||&&|[;|]")
-
-
-def is_readonly_bash(command: str) -> bool:
-    """Conservatively true when a bash command only OBSERVES state: every pipeline
-    segment's head is in the read-only allowlist (`cd`/`env`-style prefixes skipped;
-    `git <readonly-sub>` allowed; `sed -i` excluded) and nothing is redirected to a
-    file. Anything unrecognized is NOT read-only — for the investigation gate that
-    is the safe direction (an ops step wrongly counted as investigation harasses the
-    model; a read wrongly counted as action merely delays the gate)."""
-    if not command.strip():
-        return True
-    cleaned = _STDERR_REDIR_RE.sub("", command)
-    if ">" in cleaned or "<(" in cleaned:
-        return False
-    for seg in _SEGMENT_SPLIT_RE.split(cleaned):
-        words = seg.strip().split()
-        # skip wrappers/prefixes that don't decide the verb
-        while words and (words[0] == "cd" or "=" in words[0] or words[0] in
-                         ("env", "sudo", "command", "builtin", "time", "nice")):
-            if words[0] == "cd":  # `cd x && grep …`: drop `cd` + its argument
-                words = words[2:]
-            else:
-                words = words[1:]
-        if not words:
-            continue
-        head = words[0]
-        if head == "git":
-            if len(words) < 2 or words[1] not in _READONLY_GIT_SUBS:
-                return False
-        elif head not in _READONLY_HEADS:
-            return False
-        elif head == "sed" and any(w.startswith("-i") or w.startswith("--in-place")
-                                   for w in words[1:]):
-            return False
-    return True
-
-
 def update_work_flags(name, args, result, did_work, made_edit, unverified_edit):
     """Update the (did_work, made_edit, unverified_edit) guardrail flags after one
     tool result; returns the new triple. A substantive tool counts as real work; a
@@ -249,7 +227,10 @@ def update_work_flags(name, args, result, did_work, made_edit, unverified_edit):
         if not is_doc:
             unverified_edit = True
     elif name == "bash":
-        if bash_result_verifies(result, str(args.get("command", ""))):
+        command = str(args.get("command", ""))
+        if reverts_working_tree(command) and not result.startswith(_BASH_ERROR_PREFIXES):
+            return did_work, False, False
+        if bash_result_verifies(result, command):
             unverified_edit = False
     return did_work, made_edit, unverified_edit
 

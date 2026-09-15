@@ -25,8 +25,8 @@ C_RED = "\033[31m"; C_BOLD = "\033[1m"; C_RST = "\033[0m"
 # Optional syntax highlighting. Pygments is a pure-Python OPTIONAL
 # extra (`pip install 'chad[highlight]'`): when present, diff/preview code lines get
 # per-token colors *within* the +/- line coloring; when absent, output is byte-identical
-# to the un-highlighted path. Import-guarded so a bare install never fails, and gated so
-# tests can force the plain path by flipping `_HAS_PYGMENTS`. Never run in the per-token
+# to the un-highlighted path. Import-guarded so a bare install never fails; `highlight=False`
+# takes the plain path even when pygments is installed. Never run in the per-token
 # streaming hot path — only in final diffs and confirm-preview bodies (see STOP notes).
 try:
     from pygments import highlight as _pyg_highlight
@@ -35,15 +35,15 @@ try:
     from pygments.util import ClassNotFound as _PygClassNotFound
     _HAS_PYGMENTS = True
     _PYG_FMT = _PygTermFormatter()
-except ImportError:  # pragma: no cover - exercised via monkeypatched _HAS_PYGMENTS
+except ImportError:  # pragma: no cover - bare installs; tests use highlight=False
     _HAS_PYGMENTS = False
 
 
-def _highlight_code(code: str, filename: str = "") -> str:
+def _highlight_code(code: str, filename: str = "", highlight: bool = True) -> str:
     """Return `code` with per-token ANSI colors when pygments is available, else the
     input unchanged (byte-identical). Best-effort: any lexer/format failure falls back
     to the plain text, so highlighting can never corrupt a diff line."""
-    if not code or not _HAS_PYGMENTS:
+    if not code or not (highlight and _HAS_PYGMENTS):
         return code
     try:
         try:
@@ -67,12 +67,19 @@ def confirm_preview(name: str, args: dict, max_lines: int = 6) -> str:
         if len(lines) > max_lines:
             body += f"\n    … (+{len(lines) - max_lines} more lines)"
         return body
+    def where(p):
+        # Name the file that will REALLY change: a symlink or a `..` in the path moves
+        # the write somewhere the raw string does not show, and that is exactly the
+        # case the human is being asked about.
+        p = str(p or "?")
+        real = os.path.realpath(p)
+        return p if real == os.path.abspath(p) else f"{p}  →  {real}"
     if name == "bash":
         return clip(args.get("command", ""))
     if name == "write":
-        return f"{args.get('path','?')}\n{head(args.get('content',''))}"
+        return f"{where(args.get('path','?'))}\n{head(args.get('content',''))}"
     if name == "edit":
-        return (f"{args.get('path','?')}\n  - {clip(args.get('old',''))}"
+        return (f"{where(args.get('path','?'))}\n  - {clip(args.get('old',''))}"
                 f"\n  + {clip(args.get('new',''))}")
     if name.startswith("mcp__"):
         # An MCP tool can do anything (write files, hit an API, send a message); show
@@ -84,7 +91,7 @@ def confirm_preview(name: str, args: dict, max_lines: int = 6) -> str:
 
 def _compact_args(args) -> str:
     """A compact, single-string view of a tool's arguments for display/preview."""
-    if not isinstance(args, dict):
+    if not tools.is_json_object(args):
         return str(args)
     try:
         return json.dumps(args, ensure_ascii=False)
@@ -134,11 +141,10 @@ def _split_view(raw: str, final: bool, started_in_think: bool = False):
             return "", (s if final else _safe_cut(s))
         think_parts.append(s[:close])
         s = s[close + len("</think>"):]
-    # `.append(...) or ""` is intentional: append returns None, so the replacement is
-    # always "" while capturing the matched group as a side effect.
-    s = re.sub(r"<think>(.*?)</think>",
-               lambda m: think_parts.append(m.group(1)) or "",  # type: ignore[func-returns-value]
-               s, flags=re.DOTALL)
+    def take_think(m: "re.Match[str]") -> str:
+        think_parts.append(m.group(1))
+        return ""
+    s = re.sub(r"<think>(.*?)</think>", take_think, s, flags=re.DOTALL)
     if "<think>" in s:  # reasoning still open: everything after the tag is current thought
         pre, _, post = s.partition("<think>")
         think_parts.append(post)
@@ -249,7 +255,8 @@ def _indent_block(emit, text: str, kind: str = "muted", max_lines: int = 6):
         emit("muted", f"     … +{len(lines) - max_lines} lines")
 
 
-def _emit_diff(emit, old: str, new: str, max_lines: int = 30, filename: str = ""):
+def _emit_diff(emit, old: str, new: str, max_lines: int = 30, filename: str = "",
+               highlight: bool = True):
     diff = [d for d in difflib.unified_diff(
         str(old).splitlines(), str(new).splitlines(), lineterm="", n=2)
         if not d.startswith(("---", "+++", "@@"))]
@@ -261,11 +268,11 @@ def _emit_diff(emit, old: str, new: str, max_lines: int = 30, filename: str = ""
         # layer). `_highlight_code` is a no-op without pygments, so the plain path is
         # byte-identical to the pre-042 output.
         if d.startswith("+"):
-            emit("add", "  + " + _highlight_code(d[1:], filename))
+            emit("add", "  + " + _highlight_code(d[1:], filename, highlight))
         elif d.startswith("-"):
-            emit("del", "  - " + _highlight_code(d[1:], filename))
+            emit("del", "  - " + _highlight_code(d[1:], filename, highlight))
         else:
-            emit("muted", "    " + _highlight_code(d[1:], filename))
+            emit("muted", "    " + _highlight_code(d[1:], filename, highlight))
     if len(diff) > max_lines:
         emit("muted", f"     … +{len(diff) - max_lines} more diff lines")
 

@@ -18,15 +18,14 @@ jobs:
   cold-install:
     runs-on: macos-14
     steps:
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
         # NO actions/checkout and NO uv cache: the point is to reproduce what a new
         # user gets — a cold resolve of the git ref straight from GitHub + PyPI.
       - name: README one-liner resolves and the entrypoint parses (git main)
         run: uvx --from 'git+https://github.com/nathansutton/chad' chad --help
       - name: Released artifact resolves (PyPI)
-        # The published `uvx chad-code` one-liner. `|| true` until the first release
-        # exists on PyPI — drop it once `chad-code` is published.
-        run: uvx chad-code --version || true
+        # The published `uvx chad-code` one-liner.
+        run: uvx chad-code --version
       - name: Released artifact actually imports (PyPI)
         # `--version`/`--help` exit inside argparse, so they can't see a module that only
         # loads on the first turn. That is exactly how an upstream mcp major shipped a

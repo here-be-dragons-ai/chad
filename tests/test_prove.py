@@ -8,12 +8,14 @@ offers the share snippet on a 100% pass, and the wrong-backend preflight refuses
 with exit code 2 before any model work.
 """
 import argparse
+import json
 import os
 import socket
+import subprocess
 
 import pytest
 
-from chad import prove
+from chad import cli, prove
 
 # ---- task fixtures: solvable, and the verifier discriminates --------------------
 
@@ -152,6 +154,71 @@ def test_scorecard_partial_failure_prints_no_share_snippet():
     assert "session.log" in card              # failure line: transcript pointer
     assert "repeatable" in card               # the softened retry hint
     assert "FAIL" in card
+
+
+# ---- a broken run still produces a scorecard -------------------------------------
+
+def test_verify_treats_a_hung_or_unrunnable_check_as_a_failure(tmp_path, monkeypatch):
+    """The verifier is the last call between a finished proof and its scorecard. A check
+    that hangs (a server the agent left running) or cannot be spawned at all is a failed
+    task, not a traceback in place of the whole report."""
+    task = prove.TASKS[0]
+    monkeypatch.chdir(tmp_path)
+    _seed(task, tmp_path)
+
+    def hang(check_path):
+        raise subprocess.TimeoutExpired(cmd=check_path, timeout=60)
+
+    assert prove._verify(task, run_check=hang) is False
+
+    def unrunnable(check_path):
+        raise OSError("no such interpreter")
+
+    assert prove._verify(task, run_check=unrunnable) is False
+
+
+def test_a_task_that_raises_becomes_a_failed_row(tmp_path, monkeypatch, capsys):
+    """One task blowing up must not cost the user the scorecard and results.json — the
+    two artifacts the command exists to produce."""
+
+    class _FakeEngine:
+        def load(self):
+            return 1.0
+
+    # A complete single-file snapshot in the cache: the model check passes, no download.
+    snapshot = tmp_path / "hf-snapshot"
+    snapshot.mkdir()
+    (snapshot / "config.json").write_text("{}")
+    (snapshot / "model.safetensors").write_text("x")
+
+    def cached_file(repo_id, filename):
+        path = snapshot / filename
+        return str(path) if path.exists() else None
+
+    host = cli.Host(platform_id=lambda: ("Darwin", "arm64"), ram_gb=lambda: 64.0,
+                    cached_file=cached_file)
+    invoking_dir = tmp_path / "invoking"
+    invoking_dir.mkdir()
+    monkeypatch.chdir(invoking_dir)
+    monkeypatch.setenv("HF_HUB_OFFLINE", "0")      # run() sets it; restore after
+    monkeypatch.delenv("CHAD_MODEL", raising=False)
+
+    def boom(engine, task, capture_ttft=False):
+        raise RuntimeError("the engine fell over")
+
+    real_connect = socket.socket.connect
+    rc = prove.run(cli._prove_parser().parse_args([]), host=host,
+                   make_engine=lambda model_id: _FakeEngine(), run_one=boom)
+
+    assert socket.socket.connect is real_connect  # the offline guard never outlives run()
+    assert rc == 1
+    rows = json.loads((invoking_dir / "results.json").read_text())["results"]
+    assert len(rows) == len(prove.TASKS)
+    assert all(r["passed"] is False and r["error"] == "RuntimeError" for r in rows), rows
+    card = capsys.readouterr().out
+    assert f"0/{len(prove.TASKS)} tasks passed" in card
+    assert "task raised RuntimeError" in card
+    assert "share it" not in card
 
 
 # ---- preflight refusals ----------------------------------------------------------

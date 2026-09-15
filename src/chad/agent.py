@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import time
+from typing import Callable
 
 from . import (
     ambient,
@@ -47,12 +48,13 @@ from .toolcall_parse import parse_tool_calls, strip_think
 from .tools import (
     IGNORE_DIRS,
     TERMINAL,
-    _under_plans,
     active_schemas,
     alias_to_bash,
+    clear_todos,
     dispatch_for,
+    is_json_object,
     is_mutating,
-    tool_write_todos,
+    outside_workspace,
     unfinished_todos,
 )
 from .validate import VALIDATE, coerce_and_validate, legacy_validate, render_repair
@@ -449,6 +451,10 @@ INIT_PROMPT = (
 
 
 class Agent:
+    # Resolved lazily and cached per agent; the class-level value is the unresolved state.
+    _split_ok: bool | None = None
+    _dumped_render: bool = False
+
     def __init__(self, engine: BaseEngine, yolo: bool = False, max_steps: int = 40,
                  ctx_limit: int = 24000, mode: str = None, emit=None,
                  confirm=None, should_stop=None, drain_steering=None,
@@ -457,15 +463,19 @@ class Agent:
                  think_budget: int = None, think_ceiling: int = None,
                  turn_budget_tokens: int = None,
                  turn_budget_s: float = None, session_id: str = None,
-                 ctx_limit_fn=None):
+                 ctx_limit_fn=None, is_tty: Callable[[], bool] | None = None):
         self.engine = engine
         # A fresh session clears stale skill activation state and reaps prior MCP
-        # processes (matches engine._reset_cache on /reset).
+        # processes (matches engine._reset_cache on /reset). The todo list is module
+        # state that outlives a turn by design, so it too must be dropped here —
+        # otherwise a new session opens with the previous one's leftovers pinned, and
+        # the `done` guardrail questions the first turn about someone else's plan.
         from . import skills
         skills.reset_session()
         from . import mcp
         mcp.reset_session()
         ambient.reset()
+        clear_todos()
         self.mode = mode or ("yolo" if yolo else "normal")
         self.thinking = thinking  # a reasoning model; toggles <think> blocks
         # Steps per WINDOW, not a hard kill: a window that landed+verified a change
@@ -562,18 +572,21 @@ class Agent:
             self.messages += [m for m in resume if m.get("role") != "system"]
         self._emit = emit or _default_emit
         self._confirm_cb = confirm  # callable(name, args)->bool; None => input() prompt
+        # Whether a human at a terminal can answer that prompt. Asked per confirm, not
+        # once here: stdin can be swapped after the agent is built.
+        self._is_tty = is_tty if is_tty is not None else (lambda: sys.stdin.isatty())
         self._should_stop = should_stop or (lambda: False)
         # Mid-run steering (improve 01): callable() -> list[str] of user redirections
         # typed while the turn runs, drained between steps and injected into the live
         # transcript (a pure append — the warm KV prefix stays valid) instead of
-        # forcing interrupt + re-prefill. None (headless/bench/sub-agent) = off.
+        # forcing interrupt + re-prefill. None (headless/bench) = off.
         self._drain_steering = drain_steering
         # ATIF trajectory capture, off unless CHAD_TRAJECTORY_JSON is set.
         self._atif = atif.recorder()
         self._atif_seg = self._atif.new_segment() if self._atif else None
         self._atif_stats: list = []   # one entry per successful generate, in step order
         if self._atif and self._atif.model_name is None:
-            self._atif.model_name = getattr(engine, "model_id", None)
+            self._atif.model_name = engine.model_id
         self.interrupted = False
         # Absolute path of the plan file written during a plan-mode turn (consumed by
         # the TUI to offer the steer/accept handoff); reset each time it's read.
@@ -721,7 +734,7 @@ class Agent:
 
         Resolved once per agent and cached; a failed probe (an exotic template that
         raises) falls back to OFF, i.e. exactly the pre-existing behavior."""
-        cached = getattr(self, "_split_ok", None)
+        cached = self._split_ok
         if cached is not None:
             return cached
         try:
@@ -769,8 +782,8 @@ class Agent:
         ))
         # Debug hook (env-gated, off by default): dump the first decoded render so a
         # rendered-prompt difference across environments can be diffed. Best-effort.
-        dump = os.environ.get("CHAD_DUMP_RENDER")
-        if dump and not getattr(self, "_dumped_render", False):
+        dump = config.env_str("CHAD_DUMP_RENDER")
+        if dump and not self._dumped_render:
             try:
                 with open(dump, "w") as f:
                     f.write(self.engine.tok.decode(list(ids)))
@@ -840,13 +853,32 @@ class Agent:
         # untrusted repo contents and yolo mode has no human in the loop. If a confirm
         # channel exists (TTY or callback) we force the prompt; headless with no channel
         # we BLOCK rather than execute on injection. CHAD_NO_DESTRUCTIVE_GUARD=1 opts out.
-        dangerous = (name == "bash" and isinstance(args, dict)
+        dangerous = (name == "bash" and is_json_object(args)
                      and not config.flag("CHAD_NO_DESTRUCTIVE_GUARD")
                      and guardrails.is_destructive_bash(str(args.get("command", ""))))
-        if not is_mutating(name) or auto_approves(self.mode, name):
+        # Workspace boundary: `write`/`edit` run in-process, outside the bash seatbelt,
+        # and open whatever path they are given — this check is their only containment.
+        # A path that really resolves outside the working directory (or into .git/hooks,
+        # code the next git command runs) reaches a human in EVERY mode, auto and yolo
+        # included, because those modes wave edits through on the promise that the blast
+        # radius is a diff in this repo. It escalates to the prompt, it never hard-denies:
+        # writing to ~/.chad, a temp dir or a sibling repo is a legitimate request — just
+        # not one to apply unseen. Headless there is nobody to ask, so it blocks.
+        escalate = (name in AUTO_EDIT_TOOLS and is_json_object(args)
+                    and outside_workspace(str(args.get("path", "") or "")))
+        if escalate:
+            if self._confirm_cb is None and not self._is_tty():
+                target = os.path.realpath(str(args.get("path", "") or ""))
+                self._emit("info", f"  [blocked {name} outside the workspace — nobody to "
+                                   f"approve it: {target}]")
+                self._deny_reason = (
+                    f"[blocked: write outside the workspace ({target}) is not "
+                    "auto-approved in a headless run; run interactively to confirm]")
+                return False
+        elif not is_mutating(name) or auto_approves(self.mode, name):
             if not dangerous:
                 return True
-            if self._confirm_cb is None and not sys.stdin.isatty():
+            if self._confirm_cb is None and not self._is_tty():
                 self._emit("info", f"  [blocked destructive command — nobody to approve it: "
                                    f"{args.get('command', '')!r}; set CHAD_NO_DESTRUCTIVE_GUARD=1 to allow]")
                 # Tell the MODEL the truth about who blocked it and why: "[denied by
@@ -1437,126 +1469,41 @@ class Agent:
             log.info("step %d: model emitted %d tool call(s): %s",
                      step, len(calls), ", ".join(n for n, _ in calls))
 
-            # Terminal tool -> end the turn cleanly, but enforce verify-before-done
-            # (forge's prerequisite idea): if files were changed and nothing has been
-            # run since, send the model back to actually test its work.
+            # A terminal call ends the turn through the done-gates at the bottom of this
+            # step, which judge the turn AFTER the step's other calls have run. Those go
+            # through the ordinary per-call path below: an `edit` (or the habitual closing
+            # `write_todos`) batched with `done` used to be dropped, and the model was then
+            # told it had not done anything.
             terminal = next((a for n, a in calls if n in TERMINAL), None)
-            if terminal is not None:
-                # A `write_todos` sharing the step with `done` is the model's habitual
-                # last bookkeeping call. The short-circuit below returns before the
-                # execute loop, so that final update used to be dropped and the recorded
-                # plan always ended a step stale — every item the model just marked
-                # `[x]` was thrown away. Run it here: it touches no files, needs no
-                # confirmation, and counts as no work under any of the done-gates, so
-                # nothing below changes. It matters on the reject paths too, where the
-                # turn continues and the model must see its own plan.
-                for _n, _a in calls:
-                    if _n == "write_todos" and isinstance(_a, dict) and "todos" in _a:
-                        render_tool_start(self._emit, _n, _a)
-                        planned_this_turn = True
-                        _res = tool_write_todos(_a["todos"])
-                        render_tool_result(self._emit, _n, _a, _res)
-                        self.messages.append({"role": "tool", "name": _n, "content": _res})
-                # Don't accept `done` if the model only narrated/planned without running
-                # any real tool (the markdown-code-fence failure mode).
-                log.info("step %d: model says DONE (summary=%r) | did_work=%s "
-                         "unverified_edit=%s", step, terminal.get("summary"),
-                         did_work, unverified_edit)
-                # Only the plan the model wrote THIS turn can hold up this turn's
-                # `done`. A plan is module state that spans turns on purpose; without
-                # this guard a leftover item from an earlier request would ambush an
-                # unrelated one.
-                open_todos = unfinished_todos() if planned_this_turn else []
-                rejection = guardrails.done_rejection(
-                    did_work, unverified_edit, empty_done_nudges, verify_nudges,
-                    open_todos=len(open_todos), todo_nudges=todo_nudges)
-                if self.mode == "plan" and rejection == "verify":
-                    # Writing the plan file marks unverified_edit, but in plan mode the
-                    # plan IS the deliverable — there is nothing to run/verify. Accept.
-                    rejection = None
-                if rejection == "empty":
-                    empty_done_nudges += 1
-                    log.info("DONE rejected: no real work yet -> nudge #%d", empty_done_nudges)
-                    self.messages.append({
-                        "role": "tool", "name": "done",
-                        "content": "[you have not actually done anything yet — no file was "
-                                   "read or changed. Markdown code fences are not executed. "
-                                   "Use real <tool_call> blocks: grep/read the file, edit it, "
-                                   "run the check with bash. Then call done.]",
-                    })
-                    continue
-                if rejection == "verify":
-                    verify_nudges += 1
-                    log.info("DONE rejected: edits not verified -> nudge #%d", verify_nudges)
-                    self.messages.append({
-                        "role": "tool", "name": "done",
-                        "content": "[not done yet: you changed files but have not run anything "
-                                   "to verify them. Run the project's tests (or the code) with "
-                                   "bash, check the output is correct, then call done. If a test "
-                                   "fails, fix the code first.]",
-                    })
-                    continue
-                if rejection == "todos":
-                    todo_nudges += 1
-                    log.info("DONE questioned: %d open todo(s) -> nudge #%d (%s)",
-                             len(open_todos), todo_nudges, open_todos[:3])
-                    left = "\n".join(f"  - {c}" for c in open_todos[:8])
-                    self.messages.append({
-                        "role": "tool", "name": "done",
-                        "content": ("[your plan still has unfinished items:\n" + left +
-                                    "\nIf you have actually run something that shows each "
-                                    "of these works, set it to `completed` with "
-                                    "write_todos and call done again. If you have not, "
-                                    "verify it first — writing the code for a step is not "
-                                    "finishing it.]"),
-                    })
-                    continue
-                if action_task and not read_only_intent and self.mode != "plan" \
-                        and (not made_edit or unverified_edit):
-                    # Same no-empty-diff gate as the prose-final-answer path: `done`
-                    # with nothing landed (or landed-unverified after the verify
-                    # nudges ran out) becomes a resumable hard stop, not a success
-                    # (measured: done accepted at 84s with edits in tree and zero
-                    # successful post-edit commands).
-                    self.budget_note = guardrails.progress_note(
-                        self.messages,
-                        rejected_claim=str(terminal.get("summary") or ""))
-                    log.info("END step %d: DONE blocked by no-empty-diff gate "
-                             "(made_edit=%s, unverified_edit=%s) — progress note banked",
-                             step, made_edit, unverified_edit)
-                    self._emit("info", "  [done rejected: no landed+verified change — "
-                                       "progress note banked; say 'continue' to retry]")
-                    return ("[stopped: `done` was called without a landed+verified "
-                            "change — say 'continue' to resume]")
-                log.info("END step %d: DONE accepted | summary=%r", step,
-                         terminal.get("summary"))
-                return terminal.get("summary") or text or "Done."
+            calls = [(n, a) for n, a in calls if n not in TERMINAL]
 
             # Loop guard: count identical tool-call sets across the whole turn (not a
             # sliding window) so alternating cycles like `sed -n A` / `sed -n B` /
             # `sed -n A` are caught too. 3rd identical occurrence -> nudge; if nudges
             # don't help, abort.
-            sig = guardrails.loop_signature(calls)
-            seen_before = recent_sigs.count(sig)
-            recent_sigs.append(sig)
-            if guardrails.is_repeat_loop(seen_before):
-                self._loop_nudges += 1
-                log.info("LOOP detected at step %d (identical call set seen %dx) -> nudge #%d",
-                         step, seen_before + 1, self._loop_nudges)
-                if guardrails.loop_should_abort(self._loop_nudges):
-                    log.info("END step %d: LOOP ABORT (nudges exhausted)", step)
-                    return ("[stopped: the model is stuck in a loop, repeating the same "
-                            "tool calls without making progress. Tip: a smaller, scoped "
-                            "ask recovers this — name the exact file you want changed "
-                            "(docs/troubleshooting.md maps symptom → fix).]")
-                self.messages.append({
-                    "role": "tool", "name": calls[0][0],
-                    "content": "[loop detected: you have made this exact tool call 3 times "
-                               "with no new progress. Do NOT repeat it. Either run the test "
-                               "with bash to verify, take a different action, or — if the task "
-                               "is already done — stop and summarize the result.]",
-                })
-                continue
+            # A step carrying `done` is left to the done-gates, whose nudges are bounded.
+            if terminal is None:
+                sig = guardrails.loop_signature(calls)
+                seen_before = recent_sigs.count(sig)
+                recent_sigs.append(sig)
+                if guardrails.is_repeat_loop(seen_before):
+                    self._loop_nudges += 1
+                    log.info("LOOP detected at step %d (identical call set seen %dx) -> nudge #%d",
+                             step, seen_before + 1, self._loop_nudges)
+                    if guardrails.loop_should_abort(self._loop_nudges):
+                        log.info("END step %d: LOOP ABORT (nudges exhausted)", step)
+                        return ("[stopped: the model is stuck in a loop, repeating the same "
+                                "tool calls without making progress. Tip: a smaller, scoped "
+                                "ask recovers this — name the exact file you want changed "
+                                "(docs/troubleshooting.md maps symptom → fix).]")
+                    self.messages.append({
+                        "role": "tool", "name": calls[0][0],
+                        "content": "[loop detected: you have made this exact tool call 3 times "
+                                   "with no new progress. Do NOT repeat it. Either run the test "
+                                   "with bash to verify, take a different action, or — if the task "
+                                   "is already done — stop and summarize the result.]",
+                    })
+                    continue
 
             # Governor progress watermark: capture the edit flags before this
             # step's tools run so we can tell afterward whether a change actually LANDED
@@ -1600,22 +1547,23 @@ class Agent:
                     render_tool_result(self._emit, name, args, result)
                     self.messages.append({"role": "tool", "name": name, "content": result})
                     continue
-                if coerced != args:
-                    log.info("VALIDATE %s coerced: %s -> %s", name,
-                             args_preview(args), args_preview(coerced))
-                args = coerced
+                if is_json_object(coerced):
+                    if coerced != args:
+                        log.info("VALIDATE %s coerced: %s -> %s", name,
+                                 args_preview(args), args_preview(coerced))
+                    args = coerced
                 if name == "write_todos":
-                    # Arms the open-todo question on this turn's `done`. Set here rather
-                    # than at the `done` branch's own write_todos call because the plan
-                    # is usually written in an ordinary earlier step, not alongside it.
+                    # Arms the open-todo question on this turn's `done` — whether the plan
+                    # was written in an earlier step or batched with `done` itself.
                     planned_this_turn = True
                 # Plan mode is read-only EXCEPT for writing the plan file itself:
                 # write/edit are allowed only under ./plans/. Every other mutating
-                # tool (bash) and any write outside ./plans/ is blocked.
-                plan_write = (self.mode == "plan" and name in ("write", "edit")
-                              and _under_plans(args.get("path", "")))
+                # tool (bash) and any write outside ./plans/ is blocked
+                # (see guardrails.plan_mode_verdict).
+                verdict = guardrails.plan_mode_verdict(self.mode, name, args)
+                plan_write = verdict == "plan_write"
                 _tool_s = 0.0  # stays 0 when the tool is blocked/denied (fn never ran)
-                if self.mode == "plan" and is_mutating(name) and not plan_write:
+                if verdict == "blocked":
                     result = ("[plan mode: only writing the plan file under ./plans/ is "
                               "allowed. Do not edit project files or run commands. "
                               "Investigate with read-only bash, then write your "
@@ -1707,21 +1655,103 @@ class Agent:
                 gov_progress = True
                 landed_in_window = True  # also earns a step-cap extension (same signal)
 
-            # Break a flailing-probe run (e.g. guessing the test runner, repeated
-            # `python -c import` checks) that the exact-call loop guard can't see because
-            # each failing command differs by a few characters.
-            thrash = guardrails.bash_thrash_nudge(consecutive_failed_bash, thrash_nudges)
-            if thrash:
-                thrash_nudges += 1
-                log.info("THRASH nudge: %d consecutive failed bash -> nudge #%d",
-                         consecutive_failed_bash, thrash_nudges)
-                self.messages.append({"role": "tool", "name": "bash", "content": thrash})
+            # A bare `done` ran nothing this step: no failed command to count and no tool
+            # the user could have interrupted.
+            if calls:
+                # Break a flailing-probe run (e.g. guessing the test runner, repeated
+                # `python -c import` checks) that the exact-call loop guard can't see because
+                # each failing command differs by a few characters.
+                thrash = guardrails.bash_thrash_nudge(consecutive_failed_bash, thrash_nudges)
+                if thrash:
+                    thrash_nudges += 1
+                    log.info("THRASH nudge: %d consecutive failed bash -> nudge #%d",
+                             consecutive_failed_bash, thrash_nudges)
+                    self.messages.append({"role": "tool", "name": "bash", "content": thrash})
 
-            if self._should_stop():
-                self.interrupted = True
-                log.info("END step %d: INTERRUPTED by user", step)
-                self._emit("info", "  [interrupted]")
-                return "[interrupted]"
+                if self._should_stop():
+                    self.interrupted = True
+                    log.info("END step %d: INTERRUPTED by user", step)
+                    self._emit("info", "  [interrupted]")
+                    return "[interrupted]"
+
+            # Terminal tool -> end the turn cleanly, but enforce verify-before-done
+            # (forge's prerequisite idea): if files were changed and nothing has been
+            # run since, send the model back to actually test its work.
+            if terminal is not None:
+                # Don't accept `done` if the model only narrated/planned without running
+                # any real tool (the markdown-code-fence failure mode).
+                log.info("step %d: model says DONE (summary=%r) | did_work=%s "
+                         "unverified_edit=%s", step, terminal.get("summary"),
+                         did_work, unverified_edit)
+                # Only the plan the model wrote THIS turn can hold up this turn's
+                # `done`. A plan is module state that spans turns on purpose; without
+                # this guard a leftover item from an earlier request would ambush an
+                # unrelated one.
+                open_todos = unfinished_todos() if planned_this_turn else []
+                rejection = guardrails.done_rejection(
+                    did_work, unverified_edit, empty_done_nudges, verify_nudges,
+                    open_todos=len(open_todos), todo_nudges=todo_nudges)
+                if self.mode == "plan" and rejection == "verify":
+                    # Writing the plan file marks unverified_edit, but in plan mode the
+                    # plan IS the deliverable — there is nothing to run/verify. Accept.
+                    rejection = None
+                if rejection == "empty":
+                    empty_done_nudges += 1
+                    log.info("DONE rejected: no real work yet -> nudge #%d", empty_done_nudges)
+                    self.messages.append({
+                        "role": "tool", "name": "done",
+                        "content": "[you have not actually done anything yet — no file was "
+                                   "read or changed. Markdown code fences are not executed. "
+                                   "Use real <tool_call> blocks: grep/read the file, edit it, "
+                                   "run the check with bash. Then call done.]",
+                    })
+                    continue
+                if rejection == "verify":
+                    verify_nudges += 1
+                    log.info("DONE rejected: edits not verified -> nudge #%d", verify_nudges)
+                    self.messages.append({
+                        "role": "tool", "name": "done",
+                        "content": "[not done yet: you changed files but have not run anything "
+                                   "to verify them. Run the project's tests (or the code) with "
+                                   "bash, check the output is correct, then call done. If a test "
+                                   "fails, fix the code first.]",
+                    })
+                    continue
+                if rejection == "todos":
+                    todo_nudges += 1
+                    log.info("DONE questioned: %d open todo(s) -> nudge #%d (%s)",
+                             len(open_todos), todo_nudges, open_todos[:3])
+                    left = "\n".join(f"  - {c}" for c in open_todos[:8])
+                    self.messages.append({
+                        "role": "tool", "name": "done",
+                        "content": ("[your plan still has unfinished items:\n" + left +
+                                    "\nIf you have actually run something that shows each "
+                                    "of these works, set it to `completed` with "
+                                    "write_todos and call done again. If you have not, "
+                                    "verify it first — writing the code for a step is not "
+                                    "finishing it.]"),
+                    })
+                    continue
+                if action_task and not read_only_intent and self.mode != "plan" \
+                        and (not made_edit or unverified_edit):
+                    # Same no-empty-diff gate as the prose-final-answer path: `done`
+                    # with nothing landed (or landed-unverified after the verify
+                    # nudges ran out) becomes a resumable hard stop, not a success
+                    # (measured: done accepted at 84s with edits in tree and zero
+                    # successful post-edit commands).
+                    self.budget_note = guardrails.progress_note(
+                        self.messages,
+                        rejected_claim=str(terminal.get("summary") or ""))
+                    log.info("END step %d: DONE blocked by no-empty-diff gate "
+                             "(made_edit=%s, unverified_edit=%s) — progress note banked",
+                             step, made_edit, unverified_edit)
+                    self._emit("info", "  [done rejected: no landed+verified change — "
+                                       "progress note banked; say 'continue' to retry]")
+                    return ("[stopped: `done` was called without a landed+verified "
+                            "change — say 'continue' to resume]")
+                log.info("END step %d: DONE accepted | summary=%r", step,
+                         terminal.get("summary"))
+                return terminal.get("summary") or text or "Done."
         # Step cap reached with no landed+verified change in the final window (or the
         # absolute ceiling hit). Bank a progress note — same contract as the governor
         # hard-stop — so the TUI's "continue" and one-shot --auto-continue can resume

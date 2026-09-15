@@ -18,11 +18,12 @@ Mirrors the fake-engine style of test_completion_engine.py; hermetic via `tmp_pa
 """
 
 import json
+import os
 import shlex
 import sys
 
-from chad import tools
-from chad.agent import Agent
+from chad import guardrails, tools
+from chad.agent import Agent, reject_escalation
 from chad.base_engine import BaseEngine, GenStats
 
 # The interpreter running the tests, not whatever `python` PATH happens to hold.
@@ -53,8 +54,8 @@ class ScriptedEngine:
 
     `generate` ignores the prompt and returns the NEXT string from `script`, honoring
     `CompletionEngine.generate`'s exact return contract `(text, GenStats)` so `Agent` can't
-    tell it apart from a real backend. Stateless, so the warm-prefix / cache-quarantine
-    members no-op (like `CompletionEngine`). If the script runs dry the loop failed to
+    tell it apart from a real backend. Stateless, so `warm_prefix` no-ops (like
+    `CompletionEngine`). If the script runs dry the loop failed to
     terminate — we raise rather than hang, turning a non-terminating loop into a clear
     test failure."""
 
@@ -83,18 +84,12 @@ class ScriptedEngine:
                          generated_tokens=max(1, len(text) // 4), approximate=True)
         return text, stats
 
-    # --- stateless seam: no cache to warm, quarantine, or drop ---------------
+    # --- stateless seam: no cache to warm or drop ---------------
     def reset(self):
         self._cached_ids = []
 
     def warm_prefix(self, prefix_ids, should_stop=None, head_ids=None):
         return "skip", 0
-
-    def push_cache(self):
-        pass
-
-    def pop_cache(self):
-        pass
 
 
 def _tool_call(name, **args):
@@ -143,6 +138,7 @@ def test_template_ids_unwraps_batchencoding():
 def test_agent_loop_writes_file_reads_it_back_then_terminates(tmp_path, monkeypatch):
     """write → bash → done: two real tool dispatches through a real run_turn, a real
     filesystem effect, and clean termination (no spin to max_steps)."""
+    monkeypatch.chdir(tmp_path)          # tmp_path is the WORKSPACE, as in a real run
     target = tmp_path / "note.txt"       # .txt: a doc write, so no verify-before-done nudge
     body = "hello from the scripted loop\n"
     script = [
@@ -194,6 +190,7 @@ def test_agent_loop_surfaces_a_real_dispatch_failure(tmp_path, monkeypatch):
     as the tool result rather than pretending the file was written. (The churn
     handoff would rightly bounce the empty-diff done first — disabled here; this test
     is about dispatch, and the handoff has its own coverage in test_done_audit.py.)"""
+    monkeypatch.chdir(tmp_path)          # tmp_path is the WORKSPACE, as in a real run
     not_a_dir = tmp_path / "file.txt"
     not_a_dir.write_text("i am a file, not a directory\n")
     doomed = not_a_dir / "child.txt"     # parent is a file -> os.makedirs / open fails
@@ -270,6 +267,7 @@ def test_step_cap_extends_while_turn_lands_verified_changes(tmp_path, monkeypatc
     window re-earns its extension with an edit+verify, so the loop reaches `done`."""
     # Orthogonal to the deliverable recheck (it would add a step and skew the cap
     # accounting this test pins); disable that lever here.
+    monkeypatch.chdir(tmp_path)          # tmp_path is the WORKSPACE, as in a real run
     f = tmp_path / "f.py"
     # Distinct args per step — identical repeated calls would (correctly) trip the
     # repeat-loop guard instead of exercising the cap.
@@ -335,6 +333,7 @@ def test_no_empty_diff_gate_blocks_done_with_unverified_edit(tmp_path, monkeypat
     no guard fired) becomes a resumable hard stop. (Gate-focused: the
     churn handoff — one audit bounce before this stop — is disabled here and
     covered in test_done_audit.py.)"""
+    monkeypatch.chdir(tmp_path)          # tmp_path is the WORKSPACE, as in a real run
     f = tmp_path / "m.py"
     f.write_text("x = 1\n")
     script = [
@@ -441,6 +440,7 @@ def test_steering_injects_between_steps_and_run_continues(tmp_path, monkeypatch)
     """The steer lands in `messages` after step 0's tool result and before step 1's
     assistant turn, framed as an overriding tool-role message; the run continues to
     `done` (interrupted stays False)."""
+    monkeypatch.chdir(tmp_path)          # tmp_path is the WORKSPACE, as in a real run
     target = tmp_path / "note.txt"
     steer_text = "actually, stop — the OTHER file is the target"
     script = [
@@ -678,6 +678,32 @@ def test_final_plan_update_paired_with_done_is_not_dropped(tmp_path, monkeypatch
     assert "[x] Read it back" in plan_results[-1]["content"]
 
 
+def test_edit_paired_with_done_is_applied(tmp_path, monkeypatch):
+    """`edit` + `done` in ONE step: the edit runs before the done-gates judge the turn.
+    The terminal short-circuit used to drop every call but a plan update, so the edit
+    never landed and the model was told it had not done anything."""
+    monkeypatch.chdir(tmp_path)
+    f = tmp_path / "m.py"
+    f.write_text("x = 1\n")
+    script = [
+        _tool_call("edit", path=str(f), old="x = 1", new="x = 2")
+        + "\n" + _tool_call("done", summary="changed it"),       # -> verify question
+        _tool_call("bash", command=f"{PY} {f}"),
+        _tool_call("done", summary="changed x to 2 and ran it"),
+    ]
+    agent = _agent(script, max_steps=10)
+
+    result = agent.run_turn("change x to 2 in m.py")
+
+    assert f.read_text() == "x = 2\n"
+    tool_turns = [m for m in agent.messages if m.get("role") == "tool"]
+    assert [m["name"] for m in tool_turns[:2]] == ["edit", "done"]
+    assert tool_turns[0]["content"].startswith("[edited")
+    assert "have not run anything" in tool_turns[1]["content"]   # judged the landed edit
+    assert result == "changed x to 2 and ran it"
+    assert agent.engine._i == len(script)
+
+
 def test_done_with_an_open_todo_is_questioned_once_then_accepted(tmp_path, monkeypatch):
     """The plan the model wrote this turn holds up `done` for exactly one question.
 
@@ -736,11 +762,229 @@ def test_a_stale_plan_from_an_earlier_turn_does_not_ambush_done(tmp_path, monkey
     monkeypatch.chdir(tmp_path)
     target = tmp_path / "data.txt"
     target.write_text("42\n")
-    tools.tool_write_todos("[ ] something left over from a previous request")
     agent = _agent([_tool_call("bash", command=f"cat {target}"),
                     _tool_call("done", summary="unrelated task finished")], max_steps=10)
+    # Written after construction: an earlier turn of THIS session, not a leftover from a
+    # previous one (which a new Agent drops — see the next test).
+    tools.tool_write_todos([{"content": "something left over from a previous request",
+                             "status": "pending"}])
 
     assert agent.run_turn("what does data.txt contain?") == "unrelated task finished"
     assert not [m for m in agent.messages
                 if m.get("role") == "tool" and m.get("name") == "done"]
     tools.clear_todos()
+
+
+def test_a_new_agent_starts_with_an_empty_todo_list(tmp_path, monkeypatch):
+    """The todo list is module state that outlives a turn, so a new session would
+    otherwise open with the previous one's plan pinned and gate `done` on it."""
+    monkeypatch.chdir(tmp_path)
+    tools.tool_write_todos([{"content": "left over", "status": "in_progress"}])
+    assert tools.unfinished_todos() == ["left over"]
+    _agent([_tool_call("done", summary="nothing to do")])
+    assert tools.unfinished_todos() == []
+
+
+# --- run_turn exit branches: each ends the turn with a result its caller reads -------
+
+class _InterruptingEngine(ScriptedEngine):
+    """Raises the user's stop flag while producing scripted turn `stop_on` (1-based) —
+    a ctrl-c landing mid-generation. The agent's `should_stop` reads `stopped`."""
+
+    def __init__(self, script, stop_on):
+        super().__init__(script)
+        self.stop_on = stop_on
+        self.stopped = False
+
+    def generate(self, prompt_ids, max_tokens=2048, on_token=None, should_stop=None, **kw):
+        text, stats = super().generate(prompt_ids, max_tokens, on_token,
+                                       should_stop=should_stop, **kw)
+        if should_stop is not None and self._i == self.stop_on:
+            self.stopped = True
+        return text, stats
+
+
+def test_interrupt_ends_turn_and_marks_agent():
+    """ctrl-c mid-generation ends the turn as `[interrupted]`, and the partial turn is
+    stored with its think block closed: an unclosed one re-renders as a divergent prefix
+    and forces a full re-prefill on the next turn."""
+    script = ["look before acting\n</think>\n\n" + _tool_call("bash", command="echo step1"),
+              "still reasoning about the"]   # the template opened <think>; never closed
+    eng = _InterruptingEngine(script, stop_on=2)
+    agent = Agent(eng, mode="yolo", thinking=True, should_stop=lambda: eng.stopped)
+
+    result = agent.run_turn("fix the crash in utils.py")
+
+    assert result == "[interrupted]"
+    assert agent.interrupted is True
+    assert any(m.get("role") == "tool" and m.get("name") == "bash" for m in agent.messages)
+    last = agent.messages[-1]
+    assert last["role"] == "assistant"
+    assert last["content"].startswith("still reasoning")
+    assert last["content"].endswith("</think>")
+
+
+def test_interrupt_while_a_tool_call_is_generated_does_not_dispatch_it(tmp_path):
+    """The stop check sits between generation and dispatch: a write the user interrupted
+    must not land."""
+    target = tmp_path / "f.py"
+    eng = _InterruptingEngine([_tool_call("write", path=str(target), content="x = 1\n")],
+                              stop_on=1)
+    agent = Agent(eng, mode="yolo", thinking=False, should_stop=lambda: eng.stopped)
+
+    assert agent.run_turn("create f.py") == "[interrupted]"
+    assert not target.exists()
+
+
+def test_hard_governor_returns_budget_sentinel(monkeypatch):
+    """A turn that spends its token budget with no landed+verified change gets exactly
+    one soft nudge, then ends with the `[budget]` result and a banked progress note."""
+    monkeypatch.delenv("CHAD_NO_GOVERNOR", raising=False)
+    script = [_tool_call("bash", command=f"echo probe{i}") for i in range(4)]
+    agent = _agent(script, turn_budget_tokens=10)   # the first prompt alone overshoots it
+
+    result = agent.run_turn("fix the crash in utils.py")
+
+    assert result.startswith(guardrails.BUDGET_SENTINEL)
+    assert agent.budget_note and result.endswith(agent.budget_note)
+    nudges = [m for m in agent.messages if m.get("content") == guardrails.GOVERNOR_SOFT_NUDGE]
+    assert len(nudges) == 1
+
+
+def test_loop_abort_returns_stuck_message():
+    """The same call set five times: nudged on the 3rd and 4th, aborted on the 5th."""
+    script = [_tool_call("bash", command="echo same")] * 5
+    agent = _agent(script)
+
+    result = agent.run_turn("fix the crash in utils.py")
+
+    assert "stuck in a loop" in result
+    nudges = [m for m in agent.messages if "[loop detected" in m.get("content", "")]
+    assert len(nudges) == 2
+    assert agent.engine._i == len(script)
+
+
+def test_repeated_invalid_call_escalates(tmp_path):
+    """The same schema-invalid call twice: the first rejection is the plain repair
+    message, the second adds the stop-repeating escalation."""
+    bad = _tool_call("edit", path=str(tmp_path / "x.py"))   # no `old` / `new`
+    agent = _agent([bad, bad, "x.py does not exist yet."])
+
+    agent.run_turn("what does x.py contain?")
+
+    rejections = [m["content"] for m in agent.messages
+                  if m.get("role") == "tool" and m.get("name") == "edit"]
+    assert len(rejections) == 2
+    assert reject_escalation("edit") not in rejections[0]
+    assert rejections[1].endswith(reject_escalation("edit"))
+
+
+# --- The workspace boundary: write/edit outside cwd reach a human in every mode ----
+
+def _recorder():
+    """A confirm callback that records what it was asked about and answers `answer`."""
+    seen = []
+
+    def make(answer):
+        def confirm(name, args):
+            seen.append((name, args.get("path")))
+            return answer
+        return confirm
+    return seen, make
+
+
+def test_yolo_write_inside_the_workspace_is_not_questioned(tmp_path, monkeypatch):
+    """The boundary must not cost yolo its whole point: an ordinary in-workspace write
+    still lands with nobody asked."""
+    monkeypatch.chdir(tmp_path)
+    seen, make = _recorder()
+    target = tmp_path / "inside.txt"
+    agent = _agent([_tool_call("write", path=str(target), content="in\n"),
+                    _tool_call("done", summary="wrote inside.txt")],
+                   confirm=make(True))
+
+    agent.run_turn("create inside.txt")
+
+    assert seen == []
+    assert target.read_text() == "in\n"
+
+
+def test_yolo_write_outside_the_workspace_still_asks(tmp_path, monkeypatch):
+    """write/edit run outside the bash seatbelt, so a path that resolves out of the
+    working directory is escalated to the human even in yolo."""
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.chdir(ws)
+    seen, make = _recorder()
+    outside = tmp_path / "outside.txt"
+    agent = _agent([_tool_call("write", path=str(outside), content="out\n"),
+                    _tool_call("done", summary="wrote outside.txt")],
+                   confirm=make(True))
+
+    agent.run_turn("create outside.txt")
+
+    assert seen == [("write", str(outside))]     # asked once, about that path
+    assert outside.read_text() == "out\n"        # approved -> it lands
+
+
+def test_a_declined_outside_write_does_not_land(tmp_path, monkeypatch):
+    """Declining is a plain human "no": the file is untouched and the model is told so."""
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.chdir(ws)
+    seen, make = _recorder()
+    outside = tmp_path / "outside.txt"
+    agent = _agent([_tool_call("write", path=str(outside), content="out\n"),
+                    _tool_call("done", summary="claims success"),
+                    _tool_call("done", summary="claims success."),
+                    _tool_call("done", summary="claims success!")],
+                   confirm=make(False))
+
+    agent.run_turn("create outside.txt")
+
+    assert seen == [("write", str(outside))]
+    assert not outside.exists()
+    results = [m["content"] for m in agent.messages
+               if m.get("role") == "tool" and m.get("name") == "write"]
+    assert results == ["[denied by user]"]
+
+
+def test_headless_outside_write_is_blocked_with_a_reason(tmp_path, monkeypatch):
+    """No TTY and no callback: there is nobody to escalate to, so the write is blocked
+    and the model gets the resolved path and the reason instead of a bare refusal."""
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.chdir(ws)
+    outside = tmp_path / "outside.txt"
+    agent = _agent([_tool_call("write", path=str(outside), content="out\n"),
+                    _tool_call("done", summary="claims success"),
+                    _tool_call("done", summary="claims success."),
+                    _tool_call("done", summary="claims success!")],
+                   is_tty=lambda: False)
+
+    agent.run_turn("create outside.txt")
+
+    assert not outside.exists()
+    results = [m["content"] for m in agent.messages
+               if m.get("role") == "tool" and m.get("name") == "write"]
+    assert len(results) == 1
+    assert results[0].startswith("[blocked: write outside the workspace")
+    assert str(os.path.realpath(outside)) in results[0]
+
+
+def test_a_symlink_out_of_the_workspace_is_caught(tmp_path, monkeypatch):
+    """The check is on the REAL path: an in-workspace name that links out still asks."""
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.chdir(ws)
+    (tmp_path / "target.txt").write_text("old\n")
+    os.symlink(tmp_path / "target.txt", ws / "innocent.txt")
+    seen, make = _recorder()
+    agent = _agent([_tool_call("edit", path="innocent.txt", old="old", new="new"),
+                    _tool_call("done", summary="edited innocent.txt")],
+                   confirm=make(True))
+
+    agent.run_turn("change old to new in innocent.txt")
+
+    assert seen == [("edit", "innocent.txt")]
+    assert (tmp_path / "target.txt").read_text() == "new\n"

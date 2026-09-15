@@ -19,6 +19,7 @@ workers on a cold scan (see `_extract_all`).
 """
 
 import hashlib
+import json
 import logging
 import os
 import pickle
@@ -35,12 +36,15 @@ from collections import namedtuple
 # and the run errored out before the agent took a single step. Symbol
 # ranking is the only thing that actually needs it; `lang_for` and `_lang_tools` already
 # return None on any failure, so the rest of the toolset degrades cleanly instead.
+# Whether the bindings imported is decided once, here; a RepoMap built without them
+# detects no language and parses nothing, and never touches the unbound names.
 try:
     import tree_sitter_language_pack as tlp
     from tree_sitter import Parser, Query, QueryCursor
 except ImportError:  # pragma: no cover — exercised only on wheel-less platforms
-    tlp = None                              # type: ignore[assignment]
-    Parser = Query = QueryCursor = None     # type: ignore[assignment,misc]
+    HAVE_TREE_SITTER = False
+else:
+    HAVE_TREE_SITTER = True
 
 from . import config
 from .ignore import IGNORE_DIRS, REPOMAP_EXTRA
@@ -64,8 +68,13 @@ _MAX_FILES = 20000
 #      re-import chad's entry point, which would drag the whole MLX engine into each.
 _PARALLEL_MIN_FILES = 200   # below this, worker startup costs more than it saves
 _CACHE_SAVE_MIN = 32        # don't persist a cache for tiny repos (or tiny test fixtures)
-_CACHE_VERSION = 3          # bump when the entry shape or tags queries change
+_CACHE_VERSION = 4          # bump when the entry shape, tags queries or file layout change
 _CACHE_DIR = os.path.expanduser("~/.chad/cache/repomap")
+# The cache dir gains a file per repo ever opened and nothing else evicts them. A stale
+# file is dead bytes (a real dir reached 146 MB, two thirds of it failing the version check).
+_CACHE_MAX_BYTES = 256 * 1024**2
+_CACHE_MAX_AGE_S = 30 * 86400
+_SWEPT_DIRS: set[str] = set()  # each cache dir is swept once per process, on its first save
 
 _WORKER_SRC = """\
 import pickle, sys
@@ -245,11 +254,54 @@ def _qual_parts(name: str):
     return [p for p in name.replace(".", "/").split("/") if p]
 
 
+def _unlink(path: str) -> None:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _sweep_cache_dir(cache_dir: str, keep: str, max_bytes: int = _CACHE_MAX_BYTES,
+                     max_age_s: float = _CACHE_MAX_AGE_S) -> None:
+    """Delete cache files in `cache_dir` untouched for `max_age_s`, then the oldest
+    until the dir fits `max_bytes`. `keep` (the caller's own file) is never deleted but
+    counts toward the total. Best-effort, never raises."""
+    deadline = time.time() - max_age_s
+    total, rest = 0, []
+    try:
+        with os.scandir(cache_dir) as it:
+            entries = [e for e in it if e.name.endswith(".pkl")]
+    except OSError:
+        return
+    for e in entries:
+        try:
+            if not e.is_file(follow_symlinks=False):
+                continue
+            st = e.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        if e.path == keep:
+            total += st.st_size
+        elif st.st_mtime < deadline:
+            _unlink(e.path)
+        else:
+            total += st.st_size
+            rest.append((st.st_mtime, st.st_size, e.path))
+    for _mtime, size, path in sorted(rest):
+        if total <= max_bytes:
+            break
+        _unlink(path)
+        total -= size
+
+
 class RepoMap:
     """Tree-sitter symbol intelligence rooted at a project directory."""
 
-    def __init__(self, root: str = "."):
+    def __init__(self, root: str = ".", cache_dir: str = _CACHE_DIR,
+                 tree_sitter: bool = HAVE_TREE_SITTER):
         self.root = os.path.abspath(root)
+        self.cache_dir = cache_dir      # where the on-disk tags cache is kept
+        self.tree_sitter = tree_sitter  # False: no language is detected, nothing parsed
         self._tooling = {}   # lang -> (Parser, Query) | None
         self._cache = {}     # path -> (mtime, [defs], [(refname, rel, line)])
         self._files = None   # memoized completed _code_files() result; None = uncomputed
@@ -262,41 +314,53 @@ class RepoMap:
     # mtime-validated per file on use (`_extract`'s existing contract), so a stale
     # disk entry is re-parsed, never trusted. Pickle is fine here trust-wise: the
     # cache lives under ~/.chad (0700/0600) — the same trust domain as sessions.
+    #
+    # A file is one JSON header line, then the pickled entries. The header is compared
+    # before the body is read, so a stale file costs one short line instead of a full
+    # unpickle, and it is deleted rather than re-read every session.
 
     def _cache_file(self) -> str:
         return os.path.join(
-            _CACHE_DIR, hashlib.sha256(self.root.encode()).hexdigest()[:16] + ".pkl")
+            self.cache_dir, hashlib.sha256(self.root.encode()).hexdigest()[:16] + ".pkl")
+
+    def _cache_header(self) -> bytes:
+        return (json.dumps({"v": _CACHE_VERSION, "tag_fields": list(Tag._fields),
+                            "root": self.root}) + "\n").encode()
 
     def _load_disk_cache(self):
         if self._disk_checked:
             return
         self._disk_checked = True
+        path, header = self._cache_file(), self._cache_header()
         try:
-            with open(self._cache_file(), "rb") as f:
-                data = pickle.load(f)
-            if (data.get("v") == _CACHE_VERSION
-                    and data.get("tag_fields") == list(Tag._fields)
-                    and data.get("root") == self.root):
-                # in-memory (this session, freshest) entries win over disk ones
-                self._cache = {**data["files"], **self._cache}
-        except Exception:  # noqa: BLE001 - absent/corrupt/foreign cache: parse fresh
+            with open(path, "rb") as f:
+                if f.readline(len(header)) == header:
+                    # in-memory (this session, freshest) entries win over disk ones
+                    self._cache = {**pickle.load(f), **self._cache}
+                    return
+        except FileNotFoundError:
+            return
+        except Exception:  # noqa: BLE001 - corrupt body: parse fresh
             pass
+        _unlink(path)  # stale, foreign, pre-header or corrupt
 
     def _save_disk_cache(self, keep):
         keep = set(keep)
         try:
-            os.makedirs(_CACHE_DIR, mode=0o700, exist_ok=True)
-            blob = pickle.dumps(
-                {"v": _CACHE_VERSION, "tag_fields": list(Tag._fields), "root": self.root,
-                 "files": {p: e for p, e in self._cache.items() if p in keep}},
-                protocol=pickle.HIGHEST_PROTOCOL)
+            os.makedirs(self.cache_dir, mode=0o700, exist_ok=True)
+            blob = pickle.dumps({p: e for p, e in self._cache.items() if p in keep},
+                                protocol=pickle.HIGHEST_PROTOCOL)
             tmp = self._cache_file() + ".tmp"
             fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             with os.fdopen(fd, "wb") as f:
+                f.write(self._cache_header())
                 f.write(blob)
             os.replace(tmp, self._cache_file())
         except Exception:  # noqa: BLE001 - cache is an optimization, never a failure
             pass
+        if self.cache_dir not in _SWEPT_DIRS:
+            _SWEPT_DIRS.add(self.cache_dir)
+            _sweep_cache_dir(self.cache_dir, self._cache_file())
 
     # -- whole-repo extraction ---------------------------------------------
 
@@ -380,6 +444,8 @@ class RepoMap:
     # -- tree-sitter plumbing --------------------------------------------
 
     def lang_for(self, path):
+        if not self.tree_sitter:
+            return None
         try:
             return tlp.detect_language_from_path(path)
         except Exception:
@@ -388,6 +454,8 @@ class RepoMap:
     def _lang_tools(self, lang):
         """(Parser, tags-Query) for a language, lazily built and cached. Grammars
         download on first use; a language without a tags query yields None."""
+        if not self.tree_sitter:
+            return None
         if lang not in self._tooling:
             try:
                 language = tlp.get_language(lang)
@@ -529,12 +597,14 @@ class RepoMap:
 
     # -- definition lookup ------------------------------------------------
 
-    def _find_defs(self, name, path=None, should_stop=None):
+    def _find_defs(self, name, path=None, should_stop=None, refresh=True):
         """Definition Tags matching `name` — a bare identifier or a qualified path
         ("Engine/generate", "Engine.generate"), any language. Qualified segments
         must be a suffix of the Tag's scope chain, so `Engine/generate` never
         silently resolves to a free `generate` (strict, like the jedi backend it
-        replaced); bare names behave exactly as before."""
+        replaced); bare names behave exactly as before. `refresh=False` reports a
+        miss as-is instead of re-walking the tree for files created since the
+        memoized walk."""
         parts = _qual_parts(name)
         if not parts:
             return []
@@ -552,7 +622,7 @@ class RepoMap:
                 if d.name == target and (
                         not quals or d.scope[max(0, len(d.scope) - len(quals)):] == quals):
                     hits.append(d)
-        if not hits and path is None and not (should_stop and should_stop()):
+        if not hits and path is None and refresh and not (should_stop and should_stop()):
             # The symbol may live in a file created after the memoized walk. Before
             # reporting not-found, re-walk once — only genuine misses pay this.
             fresh = self._refresh_files()

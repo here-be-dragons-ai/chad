@@ -57,6 +57,13 @@ def skip(name, why):
         pytest.skip(why)
 
 
+def _model_tests_enabled() -> bool:
+    """The model-backed tier-2 tests (a 0.5B proxy download + byte-exact greedy
+    comparisons) run only on explicit opt-in. Unset, the suite is the fast gate CI
+    runs: no weights, no network."""
+    return bool(os.environ.get("CHAD_MODEL_TESTS"))
+
+
 def _is_quantized(model_dir):
     """True if the model dir's config.json declares quantization (mlx/awq/gptq).
 
@@ -128,6 +135,7 @@ def test_prefill_progress_callback():
 
     def _make_engine(forward_shapes):
         eng = object.__new__(Engine)  # bypass __init__ (no weights to load)
+        eng._cached_ids = []                # cold: nothing resident yet
         eng._cache = [_FakeCacheItem(), _FakeCacheItem()]
         eng.model = lambda arr, cache=None: forward_shapes.append(int(arr.shape[1]))
         return eng
@@ -180,7 +188,7 @@ def test_interrupted_prefill_records_only_fed_tokens():
     eng.cache_dir = "/tmp/chad-test-nonexistent"   # truthy so warm_prefix doesn't 'skip'
     eng._cached_ids = []                            # cold: nothing resident yet
     eng._reset_cache = lambda: None                 # keep our fake _cache in place
-    eng._ckpt_path = lambda ids, tag=None: "/tmp/chad-test-nonexistent/no.ckpt"  # -> miss
+    eng._ckpt_path = lambda ids: "/tmp/chad-test-nonexistent/no.ckpt"  # -> miss
 
     prefix = list(range(600))              # > 1 chunk at the 512-token default
     checks = {"n": 0}
@@ -367,11 +375,11 @@ def _build_engine(model_id=TIER2_MODEL, enable_pld_hybrid=False):
 
 
 def test_pld_equals_greedy():
-    # CI's fast gate (.github/workflows/tests.yml) sets CHAD_FAST_TESTS=1 to stay
-    # model-free; this tier loads a real model (seconds–minutes when cached) so skip it
-    # there. Run it locally by invoking pytest WITHOUT that var (weights on disk).
-    if os.environ.get("CHAD_FAST_TESTS"):
-        return skip("pld_equals_greedy", "CHAD_FAST_TESTS set (fast gate; skips model load)")
+    # This tier loads a real model (seconds–minutes when cached, a download on a clean
+    # clone), so the default gate that CI runs skips it. Run it locally with
+    # CHAD_MODEL_TESTS=1 (weights on disk).
+    if not _model_tests_enabled():
+        return skip("pld_equals_greedy", "CHAD_MODEL_TESTS not set (fast gate; skips model load)")
     eng = _build_engine()
     if eng is None:
         return skip("pld_equals_greedy", f"could not load {TIER2_MODEL}")
@@ -441,9 +449,9 @@ def test_pld_equals_greedy():
 
 def test_pld_hybrid_equals_greedy():
     # Fast gate skips model loads (matches test_pld_equals_greedy).
-    if os.environ.get("CHAD_FAST_TESTS"):
+    if not _model_tests_enabled():
         return skip("pld_hybrid_equals_greedy",
-                    "CHAD_FAST_TESTS set (fast gate; skips model load)")
+                    "CHAD_MODEL_TESTS not set (fast gate; skips model load)")
     model_id = os.environ.get("CHAD_TEST_HYBRID_MODEL")
     if not model_id:
         return skip("pld_hybrid_equals_greedy",
@@ -522,8 +530,8 @@ def test_hybrid_rewind_matches_fresh():
     quantized weights argmax exact-ties make bit-equality undefined (see
     _is_quantized), so it degrades to structural checks + a warm/fresh prefix
     sanity comparison."""
-    if os.environ.get("CHAD_FAST_TESTS"):
-        return skip("hybrid_rewind", "CHAD_FAST_TESTS set (fast gate)")
+    if not _model_tests_enabled():
+        return skip("hybrid_rewind", "CHAD_MODEL_TESTS not set (fast gate; skips model load)")
     model_id = os.environ.get("CHAD_TEST_HYBRID_MODEL")
     if not model_id:
         return skip("hybrid_rewind", "CHAD_TEST_HYBRID_MODEL unset")
@@ -593,8 +601,9 @@ def test_degenerate_reprefill_matches_fresh():
     `not suffix` branch (prompt fully cached). With the off-by-one fixed, the live KV
     cache is kept in lockstep with _cached_ids, so the second (degenerate-path)
     generation must be byte-identical to a fresh-cache greedy run."""
-    if os.environ.get("CHAD_FAST_TESTS"):
-        return skip("degenerate_reprefill", "CHAD_FAST_TESTS set (fast gate)")
+    if not _model_tests_enabled():
+        return skip("degenerate_reprefill",
+                    "CHAD_MODEL_TESTS not set (fast gate; skips model load)")
     eng = _build_engine()
     if eng is None:
         return skip("degenerate_reprefill", f"could not load {TIER2_MODEL}")
@@ -641,8 +650,8 @@ def test_truncation_recovery_matches_fresh():
     the cache reuse must never change output. (The old Agent._render_for_cache splice was
     proven to always equal a plain render, so it was deleted; the real invariant lives at
     the engine level and is what this test now pins.)"""
-    if os.environ.get("CHAD_FAST_TESTS"):
-        return skip("truncation_recovery", "CHAD_FAST_TESTS set (fast gate)")
+    if not _model_tests_enabled():
+        return skip("truncation_recovery", "CHAD_MODEL_TESTS not set (fast gate; skips model load)")
     eng = _build_engine()
     if eng is None:
         return skip("truncation_recovery", f"could not load {TIER2_MODEL}")
@@ -681,62 +690,6 @@ def test_truncation_recovery_matches_fresh():
           f"cached_tokens={warm_stats.cached_tokens} (expected > 0 — divergence not exercised)")
 
 
-# === Tier 2c: cache quarantine push/pop bit-exactness ==============
-# The subagent/Task tool runs a sub-agent on a QUARANTINED cache: engine.push_cache
-# stashes the main session's warm cache aside, the sub-agent runs on a fresh one, and
-# pop_cache restores the main cache. The invariant that makes this safe on the
-# non-trimmable hybrid is that after pop the main cache generates BYTE-IDENTICALLY to a
-# never-pushed control — i.e. push/pop is a lossless snapshot/restore. This exercises it
-# on the small trimmable model (push/pop is model-agnostic); a bug that corrupts the
-# restored cache breaks the strict equality below — do NOT loosen.
-
-def test_push_pop_bit_exact():
-    if os.environ.get("CHAD_FAST_TESTS"):
-        return skip("push_pop_bit_exact", "CHAD_FAST_TESTS set (fast gate)")
-    # push/pop is model-agnostic (RAM-tuple stash + optional disk spill); the trimmable
-    # default is the CI path. A run on a real bf16 hybrid is also wanted,
-    # so CHAD_TEST_HYBRID_MODEL — when set — points THIS test at those weights.
-    model_id = os.environ.get("CHAD_TEST_HYBRID_MODEL", TIER2_MODEL)
-    eng = _build_engine(model_id=model_id)
-    if eng is None:
-        return skip("push_pop_bit_exact", f"could not load {model_id}")
-
-    def _tmpl(user):
-        return list(eng.tok.apply_chat_template(
-            [{"role": "system", "content": "You are a precise coding assistant."},
-             {"role": "user", "content": user}], add_generation_prompt=True))
-
-    P = _tmpl("Write a one-line Python function that squares n.")
-    Q = _tmpl("Explain in one sentence what a hash map is.")  # unrelated sub-agent churn
-
-    # Control: reach state S (prime the cache with P + a short generation), snapshot the
-    # resident ids, then continue from S with an extended prompt — NO push in between.
-    eng._reset_cache()
-    eng.generate(list(P), max_tokens=8)
-    ids_s = list(eng._cached_ids)
-    P2 = ids_s + list(P[:4])                       # extend the cache with a few valid tokens
-    control, _ = eng.generate(list(P2), max_tokens=24)
-
-    # Quarantine: reach the SAME state S, push it aside, run an unrelated generation on a
-    # fresh cache (the sub-agent), pop, then continue from the restored S with the same P2.
-    eng._reset_cache()
-    eng.generate(list(P), max_tokens=8)
-    check("re-reached state S deterministically", eng._cached_ids == ids_s,
-          f"{len(eng._cached_ids)} vs {len(ids_s)}")
-    eng.push_cache()
-    check("push handed out a fresh empty cache", eng._cached_ids == [], eng._cached_ids)
-    eng.generate(list(Q), max_tokens=8)            # sub-agent work in the quarantined cache
-    eng.pop_cache()
-    check("pop restored _cached_ids to state S exactly", eng._cached_ids == ids_s,
-          f"{len(eng._cached_ids)} vs {len(ids_s)}")
-    quar, _ = eng.generate(list(P2), max_tokens=24)
-
-    # CORRUPTION GUARD: the post-pop continuation must equal the never-pushed control,
-    # byte-for-byte. If this fails, push/pop corrupted the cache — STOP and report.
-    check("post-pop generation == never-pushed control", quar == control,
-          f"\n--- QUARANTINE ---\n{quar!r}\n--- CONTROL ---\n{control!r}")
-
-
 # --- On-disk KV cache bounding (no model, pure filesystem) ---------
 
 def _touch(path, size, age_s=0.0):
@@ -747,23 +700,6 @@ def _touch(path, size, age_s=0.0):
     t = time.time() - age_s
     os.utime(path, (t, t))
     return path
-
-
-def test_sweep_orphan_spills_removes_only_old_push_files():
-    import tempfile
-
-    from chad.engine import sweep_orphan_spills
-    with tempfile.TemporaryDirectory() as d:
-        old_push = _touch(os.path.join(d, "push-aaa.safetensors"), 100, age_s=10 * 3600)
-        new_push = _touch(os.path.join(d, "push-bbb.safetensors"), 100, age_s=0)
-        old_warm = _touch(os.path.join(d, "warm-ccc.safetensors"), 100, age_s=10 * 3600)
-        freed = sweep_orphan_spills(d, max_age_s=6 * 3600)
-        check("old push-spill removed", not os.path.exists(old_push))
-        check("fresh push-spill kept", os.path.exists(new_push))
-        check("old warm file untouched by sweep", os.path.exists(old_warm))
-        check("sweep reports bytes freed", freed == 100, f"freed={freed}")
-    check("sweep of a missing dir is a no-op",
-          sweep_orphan_spills("/nonexistent/nope", max_age_s=1) == 0)
 
 
 def test_enforce_cache_budget_evicts_lru_first():
@@ -805,7 +741,7 @@ def test_enforce_cache_budget_disabled_when_zero():
         check("zero budget removes nothing", os.path.exists(p))
 
 
-def test_ckpt_path_filenames_are_kind_tagged():
+def test_ckpt_path_filenames_are_warm_tagged():
     import tempfile
 
     from chad.engine import Engine
@@ -814,10 +750,7 @@ def test_ckpt_path_filenames_are_kind_tagged():
         eng.model_id = "test-model"
         eng.cache_dir = d
         warm = os.path.basename(eng._ckpt_path([1, 2, 3]))
-        push = os.path.basename(eng._ckpt_path([1, 2, 3], tag="push"))
         check("warm checkpoint basename tagged", warm.startswith("warm-"), warm)
-        check("push checkpoint basename tagged", push.startswith("push-"), push)
-        check("kinds hash differently", warm.split("-", 1)[1] != push.split("-", 1)[1])
 
 
 def test_adaptive_chunk_bounds():
@@ -853,9 +786,9 @@ def test_adaptive_chunk_bounds():
 def test_load_fails_fast_without_mlx():
     """Tier 1 (no weights): when the mlx imports failed (broken/half-installed
     mlx-metal, or a non-Apple host that somehow built an Engine), load() must raise
-    a RuntimeError naming the original import cause — NOT fall through to `load(path)`
-    and die with a bare `TypeError: 'NoneType' object is not callable` 300 lines from
-    the real problem. Regression for the missing-libmlx.dylib dogfood incident."""
+    a RuntimeError naming the original import cause — NOT fall through to a nulled
+    mlx_lm loader and die with a bare `TypeError: 'NoneType' object is not callable`
+    far from the real problem. Regression for the missing-libmlx.dylib dogfood incident."""
     from chad import engine as engmod
     from chad.engine import Engine
 
@@ -1010,6 +943,212 @@ def test_bounded_rewind_orchestration():
     check("snapshot at divergence: trim only, no feed",
           eng.calls == [("restore", "SNAP"), ("trim", 3)], eng.calls)
     check("snapshot at divergence: common intact", common == 12, common)
+
+
+def test_rewind_to_honors_short_prefill():
+    """Tier 1 (no weights): the bounded rewind records only what its re-feed actually fed.
+
+      cache: [P0..P9, G0..G4], snapshot@10
+      target: [P0..P9, G0, G1, X, Y]  (agrees with the cache through 12 -> re-feed 2)
+      _prefill feeds 1 of the 2
+
+    `_rewind_to` must land the ledger at target[:11] and return 11, and `_sync_to` must
+    hand 11 back as the resident prefix. Recording target[:12] would make the caller's
+    next prefill start one token past the end of the cache."""
+    from chad.engine import Engine
+
+    class _NoTrim:
+        def is_trimmable(self):
+            return False
+
+    def make():
+        eng = object.__new__(Engine)
+        eng._pld_hybrid = True
+        eng._trimmable = False
+        eng._cache = [_NoTrim()]
+        eng._cached_ids = list(range(100, 110)) + list(range(200, 205))  # P0..P9+G0..G4
+        eng._rewind_snap = {"pos": 10, "recurrent": "SNAP"}
+        eng._restore_recurrent = lambda s: None
+        eng._trim_kv = lambda n: None
+        eng._prefill = lambda ids, *a, **k: 1              # stops after one token
+        return eng
+
+    target = list(range(100, 110)) + [200, 201, 999, 998]
+    eng = make()
+    landed = eng._rewind_to(target, 12)
+    check("short re-feed: returns the resident count", landed == 11, landed)
+    check("short re-feed: ledger holds only what was fed",
+          eng._cached_ids == target[:11], eng._cached_ids)
+
+    eng = make()
+    common = eng._sync_to(target)
+    check("short re-feed: _sync_to reports the shorter prefix", common == 11, common)
+    check("short re-feed: ledger agrees with _sync_to",
+          eng._cached_ids == target[:common], eng._cached_ids)
+
+
+def test_ckpt_path_keys_on_rope_override():
+    """Tier 1 (no weights): above the native window, load() applies a YaRN rope override,
+    so the same prefix ids cached under it are a different cache. The checkpoint key must
+    tell the two apart, or a long-context session's warm prefix restores into a
+    native-window session."""
+    from chad.engine import Engine
+
+    eng = object.__new__(Engine)  # bypass __init__ (no weights to load)
+    eng.model_id = "m"
+    eng.kv_bits = None
+    eng.cache_dir = "/tmp/chad-test-nonexistent"
+    eng.effective_ctx = 32768
+    native = eng._ckpt_path([1, 2, 3])
+    check("same window, same key", eng._ckpt_path([1, 2, 3]) == native)
+    eng.effective_ctx = 131072
+    extended = eng._ckpt_path([1, 2, 3])
+    check("YaRN-extended window keys differently", extended != native, extended)
+
+
+def test_load_weights_loads_each_once_under_ctx_override():
+    """Tier 1 (no weights): `_ctx_override` reads only the tokenizer, so extending the
+    window must not load the weights twice. The tokenizer loads first, with the stop ids
+    `mlx_lm.load` would have given it, and the override reaches the one weight load."""
+    from pathlib import Path
+
+    from chad import engine as engmod
+    from chad.engine import Engine
+
+    yarn = {"max_position_embeddings": 131072,
+            "rope_scaling": {"type": "yarn", "factor": 2.0}}
+    saved = (engmod._download, engmod.load_config, engmod.load_tokenizer,
+             engmod.load_model)
+    for override, eff in ((yarn, 131072), (None, 65536)):
+        calls = []
+        tok = object()
+
+        class _Probe(Engine):
+            def _ctx_override(self, repo, override=override, eff=eff):
+                calls.append(("ctx_override", repo, self.tok))
+                return override, eff
+
+        eng = object.__new__(_Probe)  # bypass __init__ (no weights)
+        try:
+            engmod._download = Path
+            engmod.load_config = lambda p: {"eos_token_id": [7, 8]}
+            engmod.load_tokenizer = lambda p, eos_token_ids=None: (
+                calls.append(("tokenizer", p, eos_token_ids)) or tok)
+            engmod.load_model = lambda p, model_config=None: (
+                calls.append(("model", p, model_config)) or ("weights", {}))
+            eng._load_weights("/models/m")
+        finally:
+            (engmod._download, engmod.load_config, engmod.load_tokenizer,
+             engmod.load_model) = saved
+        m = Path("/models/m")
+        check(f"override={override is not None}: tokenizer, then override, then ONE "
+              "weight load carrying the override",
+              calls == [("tokenizer", m, [7, 8]), ("ctx_override", "/models/m", tok),
+                        ("model", m, override)], calls)
+        check("loaded objects and window land on the engine",
+              (eng.tok, eng.model, eng.effective_ctx) == (tok, "weights", eff),
+              (eng.tok, eng.model, eng.effective_ctx))
+
+
+def _plain_generate_engine(resets):
+    """A weightless Engine that reaches generate()'s plain decode path: prompt lookup off,
+    greedy, no drafter (the class default), and a `_sync_to` that treats the ledger as a
+    prefix of the prompt. `_reset_cache` appends to `resets` and clears the ledger, as the
+    real one does."""
+    from chad.engine import Engine
+
+    eng = object.__new__(Engine)  # bypass __init__ (no weights)
+    eng.prompt_lookup = False
+    eng.temp = 0.0
+    eng._cached_ids = []
+    eng._sync_to = lambda ids: len(eng._cached_ids)
+    eng._prefill = lambda ids, *a, **k: len(ids)
+
+    def _reset_cache():
+        resets.append(1)
+        eng._cached_ids = []
+
+    eng._reset_cache = _reset_cache
+    return eng
+
+
+def test_generate_exception_resets_ledger():
+    """Tier 1 (no weights): when generate() raises partway through a turn, how much of it
+    reached the cache is unknowable (a prefill chunk may have landed; stream_generate's
+    progress is internal to it). It must drop the cache and record nothing resident:
+    keeping the pre-turn ledger would let the next turn prefill on top of tokens the
+    ledger never recorded."""
+    resets = []
+    eng = _plain_generate_engine(resets)
+    eng._cached_ids = [1, 2]                  # the prompt's first two tokens are resident
+
+    def _boom(ids, *a, **k):
+        raise RuntimeError("boom")
+
+    eng._prefill = _boom
+    try:
+        eng.generate([1, 2, 3, 4, 5], max_tokens=8)
+        check("generate() re-raises the failure", False, "no exception raised")
+    except RuntimeError as e:
+        check("generate() re-raises the failure", "boom" in str(e), str(e))
+    check("the cache was dropped", resets == [1], resets)
+    check("nothing is recorded as resident", eng._cached_ids == [], eng._cached_ids)
+
+
+def test_salvage_records_only_the_close_it_feeds():
+    """Tier 1 (no weights): think-ceiling close-and-continue injects </think> by feeding its
+    ids through the cache. When the budget can't fit them, the turn ends without them:
+    `text`, `gen_ids` and the ledger all describe the tokens the cache holds, and a close
+    that was recorded but never fed would put phantom tokens in all three."""
+    from chad import engine as eng_mod
+
+    class _Resp:
+        def __init__(self, text, token):
+            self.text, self.token = text, token
+
+    class _Tok:
+        def encode(self, s, add_special_tokens=False):
+            return [9001, 9002]                # </think> as two ids
+
+    seeds = []
+
+    def _fake_stream(model, tok, arr, **kw):
+        seeds.append([int(t) for t in arr.tolist()])
+        for i in range(kw["max_tokens"]):
+            yield _Resp("x", 1000 + i)         # never closes the think on its own
+
+    prompt = [1, 2, 3, 4]
+    orig = eng_mod.stream_generate
+    try:
+        eng_mod.stream_generate = _fake_stream
+
+        # Ceiling at 4 with a budget of 5: the two close ids don't fit after 4 tokens.
+        eng = _plain_generate_engine([])
+        eng.tok = _Tok()
+        text, stats = eng.generate(prompt, max_tokens=5, think_ceiling=4)
+        check("no room: close not in text", "</think>" not in text, repr(text))
+        check("no room: not marked salvaged", stats.salvaged is False)
+        check("no room: close ids not recorded", 9001 not in stats.gen_ids, stats.gen_ids)
+        check("no room: close never fed", len(seeds) == 1, seeds)
+        check("no room: ledger is prompt + what was generated",
+              eng._cached_ids == prompt + stats.gen_ids, eng._cached_ids)
+
+        # Room to spare: the close is fed, recorded, and decoding continues after it.
+        seeds.clear()
+        eng = _plain_generate_engine([])
+        eng.tok = _Tok()
+        text, stats = eng.generate(prompt, max_tokens=10, think_ceiling=4)
+        check("room: close in text", "</think>" in text, repr(text))
+        check("room: marked salvaged", stats.salvaged is True)
+        check("room: close fed as the re-entry seed", seeds[-1] == [9001, 9002], seeds)
+        check("room: close ids recorded after the think",
+              stats.gen_ids[4:6] == [9001, 9002], stats.gen_ids)
+        check("room: generated count matches the ids",
+              stats.generated_tokens == len(stats.gen_ids), stats.generated_tokens)
+        check("room: ledger is prompt + everything generated",
+              eng._cached_ids == prompt + stats.gen_ids, eng._cached_ids)
+    finally:
+        eng_mod.stream_generate = orig
 
 
 def test_take_rewind_snapshot_gating():
@@ -1294,16 +1433,20 @@ if __name__ == "__main__":
              test_guards, test_draft_length, test_prefill_progress_callback,
              test_interrupted_prefill_records_only_fed_tokens,
              test_stop_condition_soft_close,
-             test_sweep_orphan_spills_removes_only_old_push_files,
              test_enforce_cache_budget_evicts_lru_first,
              test_enforce_cache_budget_protects_paths,
              test_enforce_cache_budget_disabled_when_zero,
-             test_ckpt_path_filenames_are_kind_tagged,
+             test_ckpt_path_filenames_are_warm_tagged,
              test_adaptive_chunk_bounds,
              test_load_fails_fast_without_mlx,
+             test_load_weights_loads_each_once_under_ctx_override,
              test_prefill_oom_retry_rolls_back,
              test_snapshot_survives_empty_kvcache,
              test_bounded_rewind_orchestration,
+             test_rewind_to_honors_short_prefill,
+             test_ckpt_path_keys_on_rope_override,
+             test_generate_exception_resets_ledger,
+             test_salvage_records_only_the_close_it_feeds,
              test_take_rewind_snapshot_gating,
              test_keyed_sampler_worker_thread_entropy,
              test_keyed_sampler_min_p_trims_sub_floor_tail,
@@ -1314,8 +1457,7 @@ if __name__ == "__main__":
              test_pld_hybrid_equals_greedy,
              test_hybrid_rewind_matches_fresh,
              test_degenerate_reprefill_matches_fresh,
-             test_truncation_recovery_matches_fresh,
-             test_push_pop_bit_exact)
+             test_truncation_recovery_matches_fresh)
     for fn in tier1 + tier2:
         try:
             fn()

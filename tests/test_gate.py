@@ -4,16 +4,17 @@ Tier 1 (always runs, no model): characterizes the three highest-blast-radius bra
 whose *wiring* had no test — pinning behavior that is correct today so a future refactor
 can't silently re-open the hole:
 
-1. The plan-mode / confirm gate (agent.py ~905): in mode='plan' every mutating tool is
-   blocked EXCEPT a write/edit under ./plans/. The escape predicate `_under_plans`
-   (tools.py) decides what "under ./plans/" means; a path-normalization regression
-   (`plans/../secret.py` escaping) would let plan mode scribble anywhere. We table-test
-   `_under_plans` (incl. `..` and sibling-prefix escapes) and the gate's compose logic.
+1. The plan-mode gate (`guardrails.plan_mode_verdict`, the function run_turn calls): in
+   mode='plan' every mutating tool is blocked EXCEPT a write/edit under ./plans/. The
+   escape predicate `_under_plans` (tools.py) decides what "under ./plans/" means; a
+   path-normalization regression (`plans/../secret.py` escaping, or a symlinked `plans`)
+   would let plan mode scribble anywhere. We table-test `_under_plans` (incl. `..` and
+   sibling-prefix escapes) and the verdict function itself.
 2. The destructive-bash seatbelt in `_confirm` (agent.py ~390): a catastrophic shell
    command (`rm -rf ~`, `curl|sh`) is screened even in --yolo mode, and headless
    with no confirm channel it BLOCKS rather than runs. The predicate
    (`guardrails.is_destructive_bash`) is tested elsewhere; this pins the run-vs-block
-   WIRING — the part a refactor that dropped `not sys.stdin.isatty()` would break.
+   WIRING — the part a refactor that dropped `not self._is_tty()` would break.
 
 These characterize behavior; if any comes out RED that is a real bug (a broken guard),
 not a test to rewrite green — STOP and report (STOP conditions).
@@ -26,6 +27,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
+from chad import guardrails  # noqa: E402
 from chad.tools import _under_plans, is_mutating  # noqa: E402
 
 PASS = 0
@@ -78,19 +80,7 @@ def test_under_plans_accepts_and_rejects():
     check("empty path is rejected", _under_plans("") is False)
 
 
-# === 2. The plan-mode gate: is_mutating + _under_plans compose as run_turn wires them ========
-
-# run_turn's plan-mode arm (agent.py ~905-911) is an inline boolean, not an extractable
-# function, so we transcribe its exact expression here — built on the REAL predicates — and
-# table-test it. A reviewer changing the live gate must keep this transcription in step.
-def _plan_gate(mode, name, args):
-    """'blocked' | 'allowed' — mirror of run_turn's plan-mode gate expression."""
-    plan_write = (mode == "plan" and name in ("write", "edit")
-                  and _under_plans(args.get("path", "")))
-    if mode == "plan" and is_mutating(name) and not plan_write:
-        return "blocked"
-    return "allowed"
-
+# === 2. The plan-mode gate: guardrails.plan_mode_verdict, the function run_turn calls =======
 
 def test_is_mutating_covers_every_mutator():
     """The gate's blocking arm keys off is_mutating; pin the set it screens so a tool that
@@ -103,26 +93,41 @@ def test_is_mutating_covers_every_mutator():
 
 def test_plan_mode_blocks_mutating_tools():
     """In plan mode: every mutating tool is blocked, EXCEPT write/edit under ./plans/.
-    A write outside ./plans/, an escaping `plans/../x`, bash, and symbol edits all block;
-    a legitimate plan write/edit is allowed. (Outside plan mode the plan-block never
-    fires — it is a plan-mode-only clamp.)"""
+    A write outside ./plans/, an escaping `plans/../x`, and bash all block; a legitimate
+    plan write/edit is a 'plan_write' (runs without a confirm). Outside plan mode the
+    verdict is always 'normal' — the clamp and the confirm skip are plan-mode-only."""
+    verdict = guardrails.plan_mode_verdict
     # Blocked in plan mode:
-    check("plan: bash blocked", _plan_gate("plan", "bash", {"command": "ls"}) == "blocked")
+    check("plan: bash blocked", verdict("plan", "bash", {"command": "ls"}) == "blocked")
     check("plan: write outside ./plans/ blocked",
-          _plan_gate("plan", "write", {"path": "src/chad/agent.py"}) == "blocked")
+          verdict("plan", "write", {"path": "src/chad/agent.py"}) == "blocked")
     check("plan: `..` escape write blocked",
-          _plan_gate("plan", "write", {"path": "plans/../src/x.py"}) == "blocked")
+          verdict("plan", "write", {"path": "plans/../src/x.py"}) == "blocked")
 
-    # Allowed in plan mode (the one escape hatch):
-    check("plan: write under ./plans/ allowed",
-          _plan_gate("plan", "write", {"path": "plans/050-x.md"}) == "allowed")
-    check("plan: edit under ./plans/ allowed",
-          _plan_gate("plan", "edit", {"path": "plans/050-x.md"}) == "allowed")
+    # The one escape hatch in plan mode:
+    check("plan: write under ./plans/ is a plan write",
+          verdict("plan", "write", {"path": "plans/050-x.md"}) == "plan_write")
+    check("plan: edit under ./plans/ is a plan write",
+          verdict("plan", "edit", {"path": "plans/050-x.md"}) == "plan_write")
+    check("plan: a non-mutating tool is normal",
+          verdict("plan", "write_todos", {}) == "normal")
 
-    # The clamp is plan-mode-only: auto/normal don't hit the plan-block at all.
-    check("auto: bash not plan-blocked", _plan_gate("auto", "bash", {"command": "ls"}) == "allowed")
-    check("normal: write not plan-blocked",
-          _plan_gate("normal", "write", {"path": "src/x.py"}) == "allowed")
+    # Outside plan mode nothing is blocked, and no write skips its confirm.
+    check("auto: bash is normal", verdict("auto", "bash", {"command": "ls"}) == "normal")
+    check("normal: write is normal",
+          verdict("normal", "write", {"path": "src/x.py"}) == "normal")
+    check("normal: write under ./plans/ is still normal",
+          verdict("normal", "write", {"path": "plans/050-x.md"}) == "normal")
+
+
+def test_plan_mode_blocks_write_through_symlinked_plans(tmp_path, monkeypatch):
+    """A `plans` entry that is a symlink must not turn plan mode's one escape hatch into
+    an unconfirmed write wherever the link points."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "elsewhere").mkdir()
+    os.symlink(tmp_path / "elsewhere", "plans")
+    check("plan: write through a symlinked plans dir blocked",
+          guardrails.plan_mode_verdict("plan", "write", {"path": "plans/x.md"}) == "blocked")
 
 
 # === 3. The destructive-bash seatbelt in Agent._confirm =====================================
@@ -142,11 +147,10 @@ def test_confirm_auto_destructive_headless_blocks(monkeypatch):
     """yolo mode + a destructive bash + no confirm channel (no callback, not a TTY) → the
     seatbelt BLOCKS (returns False) rather than executing on a possible injection, and says
     so on the transcript. This is the exact wiring a refactor dropping the
-    `not sys.stdin.isatty()` block would silently re-open."""
+    `not self._is_tty()` block would silently re-open."""
     monkeypatch.delenv("CHAD_NO_DESTRUCTIVE_GUARD", raising=False)
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
     seen = []
-    agent = _mk_agent(mode="yolo", emit=lambda k, t: seen.append((k, t)))
+    agent = _mk_agent(mode="yolo", emit=lambda k, t: seen.append((k, t)), is_tty=lambda: False)
     # _confirm_cb defaults to None (no callback), so the headless-block branch is reached.
     check("destructive bash is blocked headless",
           agent._confirm("bash", {"command": _RM_HOME}) is False)
@@ -176,8 +180,7 @@ def test_confirm_headless_block_sets_truthful_deny_reason(monkeypatch):
     same delete 30 times against it."""
     monkeypatch.delenv("CHAD_NO_DESTRUCTIVE_GUARD", raising=False)
     monkeypatch.delenv("CHAD_DISABLE", raising=False)
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
-    agent = _mk_agent(mode="yolo")
+    agent = _mk_agent(mode="yolo", is_tty=lambda: False)
     check("block still blocks", agent._confirm("bash", {"command": _RM_HOME}) is False)
     check("deny reason names the guard, not the user",
           agent._deny_reason is not None and "destructive-command guard" in agent._deny_reason,
@@ -188,8 +191,7 @@ def test_confirm_guard_opt_out(monkeypatch):
     """CHAD_NO_DESTRUCTIVE_GUARD=1 disables the seatbelt: the same catastrophic command in
     yolo mode with no channel now runs (returns True) instead of blocking."""
     monkeypatch.setenv("CHAD_NO_DESTRUCTIVE_GUARD", "1")
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
-    agent = _mk_agent(mode="yolo")
+    agent = _mk_agent(mode="yolo", is_tty=lambda: False)
     check("opt-out lets the destructive command run",
           agent._confirm("bash", {"command": _RM_HOME}) is True)
 

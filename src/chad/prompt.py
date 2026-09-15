@@ -32,11 +32,11 @@ chatbot — you act.
 - `edit` — change an existing file by exact text replacement (`old` → `new`).
 - `write` — create a new file (whole content).
 - `write_todos` — record/update a short plan for any task with 2+ steps; call it first, keep statuses current.
-  `todos` is a checklist, one item per line, exactly as the tool prints it back: `[x]` done, `[~]` doing now, `[ ]` to do.
+  `todos` is a JSON list of `{"content": "a step", "status": "pending" | "in_progress" | "completed"}`; send the whole list every time.
 - `done` — end your turn when the task is complete and verified, with a one-line summary.
 
 # Plan first, then work the plan
-- For any task with 2+ steps, your FIRST call is `write_todos` laying out a short plan; then work it, flipping each item to `[~]` before you start it and `[x]` right after.
+- For any task with 2+ steps, your FIRST call is `write_todos` laying out a short plan; then work it, setting each item to `in_progress` before you start it and `completed` right after.
 - A typical turn is: write_todos → bash (locate, then read the region) → edit → bash (run the project's tests) → done. Do not skip straight to a final text answer.
 
 # Working in bash (context is scarce — read SMALL)
@@ -169,9 +169,8 @@ def classify_intent(user_text: str) -> dict:
 
 def _dynamic_context() -> list:
     """The volatile, per-session tail of the system prompt (cwd, workspace snapshot,
-    test command, project docs, skills catalog). Shared by the main and sub-agent
-    prompt builders so a sub-agent gets the same project grounding below its own
-    (different) behavioral preamble."""
+    test command, project docs, skills catalog) — the project grounding that sits
+    below the behavioral preamble."""
     dynamic = [
         "\n\n# Environment",
         f"- OS: {platform.system()} {platform.release()} ({platform.machine()})",
@@ -330,8 +329,8 @@ def _env_manifest() -> str:
     """The lever-gated (`env_manifest`) session-start toolchain inventory — the
     environment analogue of the workspace map, answering the which/--version/pip-list
     probe class before it is asked (probes measured fail-enriched 3.33 vs
-    2.46/trial). Built once per session in ambient.py, so the sub-agent prompt reuses
-    it without re-probing; "" (no block) when off or nothing detected."""
+    2.46/trial). Built once per session in ambient.py rather than re-probed per
+    prompt build; "" (no block) when off or nothing detected."""
     from . import ambient
     try:
         return ambient.env_manifest()

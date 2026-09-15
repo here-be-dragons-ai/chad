@@ -18,12 +18,18 @@ overwrites only *its own* session file, so resuming a session (which mints a fre
 seeds the old messages) never rewrites the original — every resume is implicitly a fork.
 A legacy single-slot `~/.chad/sessions/<cwdhash>.json` file is adopted as one session the
 first time the directory is listed. Retention keeps the newest N per cwd, pruned on save.
+
+What lands on disk has known-prefix secrets (bearer tokens, `sk-`/`ghp_` keys, …) masked
+in tool results and tool-call arguments; the in-memory transcript keeps the real values.
 """
 import hashlib
 import json
 import os
 import secrets
 import time
+
+from . import config
+from .diag import redact
 
 SESS_DIR = os.path.expanduser("~/.chad/sessions")
 RETAIN = 20            # keep the newest N sessions per cwd; prune older on save
@@ -34,14 +40,20 @@ def _key(cwd: str) -> str:
     return hashlib.sha1(os.path.abspath(cwd).encode("utf-8", "ignore")).hexdigest()[:16]
 
 
+def sessions_root() -> str:
+    """The store: `CHAD_SESSION_DIR` when set, else ~/.chad/sessions. Read on every call,
+    so a test or eval suite can relocate it without ever writing real home state."""
+    return config.env_str("CHAD_SESSION_DIR") or SESS_DIR
+
+
 def _dir(cwd: str) -> str:
     """Per-cwd session directory."""
-    return os.path.join(SESS_DIR, _key(cwd))
+    return os.path.join(sessions_root(), _key(cwd))
 
 
 def _legacy_path(cwd: str) -> str:
     """The pre-043 single-slot file (`<cwdhash>.json`), adopted on first listing."""
-    return os.path.join(SESS_DIR, _key(cwd) + ".json")
+    return os.path.join(sessions_root(), _key(cwd) + ".json")
 
 
 def _session_path(cwd: str, session_id: str) -> str:
@@ -139,29 +151,40 @@ def _update_index(cwd: str, session_id: str, messages: list, updated: float) -> 
 
 def _adopt_legacy(cwd: str) -> None:
     """Migrate a pre-043 `<cwdhash>.json` file into the sessioned store as one session,
-    then remove it so it is adopted exactly once. Best-effort."""
+    then remove it so it is adopted exactly once. Best-effort.
+
+    The source file is the ONLY copy of that conversation, so it is removed only once a
+    copy is known to exist: the adopted session was written (or was already there from
+    an earlier adoption). A file that will not parse is renamed aside rather than
+    deleted — it is unreadable to us, not worthless to the user — and renaming it also
+    ends the adoption attempt, which would otherwise repeat on every listing."""
     legacy = _legacy_path(cwd)
     if not os.path.isfile(legacy):
         return
     try:
         data = _load_path(legacy)
         os.makedirs(_dir(cwd), exist_ok=True)
-        if data:
-            updated = data.get("updated") or time.time()
-            # Derive a stable id from the legacy file's own timestamp so re-listing is
-            # idempotent even if the write below races; -0000 marks the adopted slot.
-            sid = time.strftime("%Y%m%d-%H%M%S", time.localtime(updated)) + "-0000"
-            target = _session_path(cwd, sid)
-            if not os.path.exists(target):
-                _atomic_write_json(target, {
-                    "cwd": data.get("cwd", os.path.abspath(cwd)),
-                    "session_id": sid,
-                    "updated": updated,
-                    "meta": data.get("meta", {}),
-                    "messages": data["messages"],
-                })
+        if not data:
+            os.replace(legacy, legacy + ".corrupt")
+            return
+        updated = data.get("updated") or time.time()
+        # Derive a stable id from the legacy file's own timestamp so re-listing is
+        # idempotent even if the write below races; -0000 marks the adopted slot.
+        sid = time.strftime("%Y%m%d-%H%M%S", time.localtime(updated)) + "-0000"
+        target = _session_path(cwd, sid)
+        adopted = os.path.exists(target)
+        if not adopted:
+            adopted = _atomic_write_json(target, {
+                "cwd": data.get("cwd", os.path.abspath(cwd)),
+                "session_id": sid,
+                "updated": updated,
+                "meta": data.get("meta", {}),
+                "messages": data["messages"],
+            })
+            if adopted:
                 _update_index(cwd, sid, data["messages"], updated)
-        os.remove(legacy)
+        if adopted:
+            os.remove(legacy)
     except OSError:
         pass
 
@@ -220,6 +243,24 @@ def _prune(cwd: str, keep: int = RETAIN) -> None:
     _write_index(cwd, sessions)
 
 
+def _redacted(messages: list) -> list:
+    """A copy with known-prefix secrets masked in tool results and tool-call arguments.
+    The in-memory transcript is untouched (the running turn needs the real values); only
+    the on-disk copy, which outlives the session and is replayed on resume, is masked.
+    Bare high-entropy blobs are left alone so a resumed transcript keeps its git shas.
+    Only the messages that change are copied; user and assistant prose is never touched."""
+    out = []
+    for m in messages:
+        c = m.get("content")
+        role = m.get("role")
+        if isinstance(c, str) and (role == "tool" or (role == "assistant" and "<tool_call>" in c)):
+            masked = redact(c, bare_blobs=False)
+            if masked != c:
+                m = {**m, "content": masked}
+        out.append(m)
+    return out
+
+
 def save_session(cwd: str, messages: list, meta: dict = None,
                  session_id: str = None) -> str:
     """Atomically persist the conversation for `cwd` to its own session file. Mints a
@@ -232,7 +273,7 @@ def save_session(cwd: str, messages: list, meta: dict = None,
         path = _session_path(cwd, session_id)
         ok = _atomic_write_json(path, {"cwd": os.path.abspath(cwd), "session_id": session_id,
                                        "updated": updated, "meta": meta or {},
-                                       "messages": messages})
+                                       "messages": _redacted(messages)})
         if not ok:
             return ""
         _update_index(cwd, session_id, messages, updated)

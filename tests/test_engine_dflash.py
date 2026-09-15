@@ -132,7 +132,6 @@ def _engine(model, drafter, temp=0.0, num_draft=3, adaptive=False):
     eng._model_path = ""
     eng._cached_ids = []
     eng._rewind_snap = None
-    eng._cache_stack = []
     eng._warm_prefix_ids = None
     eng.kv_bytes_per_token = 0.0
     eng._is_moe = False
@@ -246,6 +245,84 @@ def test_sampled_path_stays_consistent():
     assert eng._cached_ids == list(PROMPT[:-1]) + [PROMPT[-1]] + ids[:-1]
 
 
+def _ledger_matches_cache(eng):
+    """Every attention layer holds exactly as many tokens as the ledger records. (The
+    recurrent layers carry no position to compare; they move in the same forwards.)"""
+    offsets = [c.offset for c in eng._cache if isinstance(c, cache_utils.KVCache)]
+    return bool(offsets) and all(o == len(eng._cached_ids) for o in offsets)
+
+
+def test_raising_callback_keeps_the_turn_cached():
+    """A callback that raises mid-turn (a UI bug, say) runs only after the round's tokens
+    are recorded, so the loop's ledger is exact. The turn stays cached and the next turn
+    extends it bit-exactly, instead of prefilling on top of tokens the ledger forgot."""
+    model = _build_tiny()
+    eng = _engine(model, _drafter_for(model))
+    emitted = []
+
+    def on_token(seg):
+        emitted.append(seg)
+        if len(emitted) == 9:
+            raise RuntimeError("ui died")
+
+    with pytest.raises(RuntimeError, match="ui died"):
+        eng._generate_spec(PROMPT, N_TOKENS, on_token, None)
+    assert _ledger_matches_cache(eng)
+    assert len(eng._cached_ids) > len(PROMPT)          # kept, not dropped
+    prompt2 = list(PROMPT) + _ids("".join(emitted)) + [17, 18, 19]
+    ref2 = _greedy(model, prompt2, 12)
+    text2, stats2 = eng._generate_spec(prompt2, 12, None, None)
+    assert _ids(text2) == ref2
+    assert stats2.cached_tokens > len(PROMPT)
+
+
+def test_error_between_forward_and_ledger_drops_the_cache():
+    """MLX can raise after a verify forward has moved the cache but before the round's
+    tokens are recorded (a Metal error at the accept eval, say). The loop's ledger then
+    trails the cache, so publishing it would orphan tokens: the cache must be dropped.
+    Raised here from the drafter reconcile, which runs at exactly that point."""
+    from chad import engine as eng_mod
+
+    class _DiesAtThirdReconcile(eng_mod._DFlashDrafter):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.rounds = 0
+
+        def reconcile(self, *args, **kwargs):
+            self.rounds += 1
+            if self.rounds == 3:
+                raise RuntimeError("metal died")
+            return super().reconcile(*args, **kwargs)
+
+    model = _build_tiny()
+    eng = _engine(model, _drafter_for(model))
+    with pytest.raises(RuntimeError, match="metal died"):
+        eng._generate_spec(PROMPT, N_TOKENS, None, None,
+                           drafter_cls=_DiesAtThirdReconcile)
+    assert eng._cached_ids == []
+    assert _ledger_matches_cache(eng)
+    text, _ = eng._generate_spec(PROMPT, N_TOKENS, None, None)
+    assert _ids(text) == _greedy(model, PROMPT, N_TOKENS)
+
+
+def test_error_during_prefill_drops_the_cache():
+    """A prefill that raises partway has fed chunks the ledger doesn't record, so the
+    cache must be dropped. Raised here from the progress hook, which runs at that point:
+    a chunk fed, the ledger not yet updated."""
+    model = _build_tiny()
+    eng = _engine(model, _drafter_for(model))
+
+    def progress(done, total):
+        raise RuntimeError("metal died")
+
+    with pytest.raises(RuntimeError, match="metal died"):
+        eng._generate_spec(PROMPT, N_TOKENS, None, None, on_prefill_progress=progress)
+    assert eng._cached_ids == []
+    assert _ledger_matches_cache(eng)
+    text, _ = eng._generate_spec(PROMPT, N_TOKENS, None, None)
+    assert _ids(text) == _greedy(model, PROMPT, N_TOKENS)
+
+
 def test_tap_captures_layer_outputs_without_changing_the_forward():
     model = _build_tiny()
     lm = model.language_model
@@ -332,52 +409,54 @@ def test_block_policy_dynamics():
 
 
 
-def test_ensure_bundle_completes_a_config_only_download(monkeypatch, tmp_path):
+def test_ensure_bundle_completes_a_config_only_download(tmp_path):
     """The measured half-state: mlx-lm's `model*.safetensors` download pattern is
     anchored at the start of the relative path, so `dflash/config.json` arrives (it
     matches `*.json`) and `dflash/model.safetensors` does not. That leaves a bundle
     that looks present and loads nothing, and the base weights look complete so no
     retry ever runs. ensure_bundle heals it; a complete bundle and a local model dir
     must not touch the network."""
-    import huggingface_hub
-
     calls = []
-    monkeypatch.setattr(huggingface_hub, "hf_hub_download",
-                        lambda repo, fn, *a, **k: calls.append((repo, fn)))
+
+    def download(repo, filename):
+        calls.append((repo, filename))
+        return str(tmp_path / filename)
+
     mdir = tmp_path / "snapshot"
     bundle = mdir / "dflash"
     bundle.mkdir(parents=True)
     (bundle / "config.json").write_text("{}")
 
-    mlx_dflash.ensure_bundle(str(mdir), "org/model")
+    mlx_dflash.ensure_bundle(str(mdir), "org/model", download=download)
     assert calls == [("org/model", "dflash/model.safetensors")]
 
     # already complete -> no fetch
     calls.clear()
     (bundle / "model.safetensors").write_bytes(b"x")
-    mlx_dflash.ensure_bundle(str(mdir), "org/model")
+    mlx_dflash.ensure_bundle(str(mdir), "org/model", download=download)
     assert calls == []
 
     # a local model dir is not a repo id -> no fetch, and no bundle at all is not
     # this function's problem (that model simply ships no drafter)
     (bundle / "model.safetensors").unlink()
-    mlx_dflash.ensure_bundle(str(mdir), str(tmp_path))
-    mlx_dflash.ensure_bundle(str(tmp_path / "no-bundle"), "org/model")
+    mlx_dflash.ensure_bundle(str(mdir), str(tmp_path), download=download)
+    mlx_dflash.ensure_bundle(str(tmp_path / "no-bundle"), "org/model", download=download)
     assert calls == []
 
 
-def test_ensure_bundle_failure_is_soft(monkeypatch, tmp_path):
+def test_ensure_bundle_failure_is_soft(tmp_path):
     """Offline or gated: warn and decode without the drafter, never raise into load."""
-    import huggingface_hub
+    attempts = []
 
-    def boom(*a, **k):
+    def offline(repo, filename):
+        attempts.append((repo, filename))
         raise OSError("offline")
 
-    monkeypatch.setattr(huggingface_hub, "hf_hub_download", boom)
     bundle = tmp_path / "m" / "dflash"
     bundle.mkdir(parents=True)
     (bundle / "config.json").write_text("{}")
-    mlx_dflash.ensure_bundle(str(tmp_path / "m"), "org/model")   # no raise
+    mlx_dflash.ensure_bundle(str(tmp_path / "m"), "org/model", download=offline)  # no raise
+    assert attempts == [("org/model", "dflash/model.safetensors")]
 
 
 def test_sidecar_loads_at_the_width_it_was_built_at(monkeypatch, tmp_path):

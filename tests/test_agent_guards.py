@@ -34,7 +34,6 @@ from chad.guardrails import (
     edit_failed_to_land,
     extend_step_cap,
     is_destructive_bash,
-    is_readonly_bash,
     is_repeat_loop,
     landing_nudge,
     loop_should_abort,
@@ -82,6 +81,29 @@ def test_bash_result_verifies():
           bash_result_verifies("[interrupted by user]") is False)
     check("failed to launch does not clear",
           bash_result_verifies("[failed to launch: [Errno 2] ...]") is False)
+
+
+def test_only_executing_commands_verify():
+    # Display and parse-only commands exit clean without exercising the code — the
+    # measured false greens: `sed … | cat -A` "verified" an edit that shipped an
+    # IndentationError, a compile check "verified" a fix whose test still failed.
+    for cmd in ("sed -n '1,5p' f.py | cat -A", "python -m py_compile f.py", "echo ok",
+                "cat .venv/bin/python", "ls -la /usr/bin/python3", "grep -rn pytest .",
+                "timeout 5 grep -r python .", "coverage report"):
+        check(f"{cmd!r} does not verify", bash_result_verifies("line1\nline2", cmd) is False)
+    # Real runs verify, however they are launched.
+    for cmd in ("python x.py", "uv run pytest -q", "PYTHONPATH=src python -m pytest",
+                ".venv/bin/python -m pytest", "/usr/bin/python3 x.py",
+                "timeout 60 pytest", "timeout -s KILL 60 python x.py",
+                "coverage run -m pytest", "cd repo && FOO=1 npm test"):
+        check(f"{cmd!r} verifies", bash_result_verifies("3 passed", cmd) is True)
+    # A legacy caller with no command is judged on the result alone.
+    check("empty command trusted", bash_result_verifies("[no output]", "") is True)
+    # An executing command that failed still does not verify.
+    for result in ("[exit 1]\nFAILED", "[timed out after 120s]", "[interrupted by user]",
+                   "[failed to launch: [Errno 2] ...]"):
+        check(f"{result!r} does not verify",
+              bash_result_verifies(result, "uv run pytest -q") is False)
 
 
 def test_done_rejection():
@@ -164,6 +186,23 @@ def test_update_work_flags():
         did_work=False, made_edit=False, unverified_edit=False)
     check("write_todos is not did_work", dw4 is False)
     check("write_todos leaves edit flags clean", me4 is False and ue4 is False)
+
+
+def test_revert_unlands_edits():
+    # A clean revert discards the tree: nothing the model edited is still there, so the
+    # no-empty-diff gate must see nothing landed and nothing left to verify.
+    for cmd in ("git checkout -- .", "git reset --hard", "git stash"):
+        check(f"{cmd!r} un-lands the edit",
+              update_work_flags("bash", {"command": cmd}, "", True, True, True)
+              == (True, False, False))
+    # A revert that failed discarded nothing.
+    check("failed revert leaves flags alone",
+          update_work_flags("bash", {"command": "git checkout -- ."},
+                            "[exit 1]\nerror: pathspec did not match", True, True, True)
+          == (True, True, True))
+    # Restoring stashed work is not a revert: the edit is back in the tree.
+    _, me, _ = update_work_flags("bash", {"command": "git stash pop"}, "", True, True, True)
+    check("git stash pop keeps made_edit", me is True)
 
 
 
@@ -274,27 +313,6 @@ def test_nudge_for_no_calls():
     kind8, nudge8 = nudge_for_no_calls("Let me look at the failing test first.",
                                        hit_cap=False, **base)
     check("dangling-intent preamble is not nudged here", kind8 is None and nudge8 is None)
-
-
-def test_is_readonly_bash():
-    ro = ["ls -la /app", "grep -rn foo src | head -20", "cat a.py; wc -l a.py",
-          "git log --oneline -5 && git diff HEAD~1", "find . -name '*.py' 2>/dev/null",
-          "cd /app && grep foo bar.py", "sed -n '1,20p' file.py",
-          "git status", "echo hi 2>&1", "stat /app/out.npy || ls /app"]
-    for c in ro:
-        check(f"read-only: {c}", is_readonly_bash(c))
-    action = ["git merge branch2 --no-edit", "apt-get install -y git",
-              "mkdir -p /app/repo && cd /app/repo && git init",
-              "python3 find_dist.py", "make test", "pip install numpy",
-              "echo x > /app/out.txt", "sed -i 's/a/b/' f.py",
-              "git fetch /app/b.bundle HEAD:branch1", "tar xf a.tar",
-              "cp a b", "rm -f x", "./run.sh", "curl -o f http://x",
-              "git checkout branch1"]
-    for c in action:
-        check(f"action: {c}", not is_readonly_bash(c))
-    # Unknown commands are conservatively ACTION (never harass ops with the gate).
-    check("unknown head is action", not is_readonly_bash("frobnicate --all"))
-    check("empty command is read-only", is_readonly_bash(""))
 
 
 def test_landing_nudge():
@@ -809,13 +827,14 @@ if __name__ == "__main__":
     test_reject_escalation()
     test_reject_loop_signature_resets_on_change()
     test_bash_result_verifies()
+    test_only_executing_commands_verify()
     test_edit_failed_to_land()
     test_done_rejection()
     test_update_work_flags()
+    test_revert_unlands_edits()
     test_loop_guard()
     test_loop_guard_resets_on_landed_edit()
     test_nudge_for_no_calls()
-    test_is_readonly_bash()
     test_landing_nudge()
     test_extend_step_cap()
     test_thrash_guard()

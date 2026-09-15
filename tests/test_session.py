@@ -1,11 +1,16 @@
 """Unit tests for session persistence (session.py) — save/load round-trip + isolation.
 
+The store itself (CHAD_SESSION_DIR) is pointed at a per-test tmp dir by conftest.
+
 Run: `uv run python tests/test_session.py`
 """
 import json
 import os
+import pathlib
 import tempfile
 import time
+
+import pytest
 
 from chad import session
 
@@ -22,11 +27,16 @@ def check(name, cond, detail=""):
         raise AssertionError(f"{name}  {detail}")
 
 
+def _proj(tmp_path, name):
+    """A real project dir to key sessions on. A str, because it lands in JSON as `cwd`."""
+    d = tmp_path / name
+    d.mkdir()
+    return str(d)
+
+
 def test_session(tmp_path):
-    # tmp_path is pytest's per-test temp dir fixture; the __main__ runner passes its own.
-    session.SESS_DIR = os.path.join(tmp_path, "sessions")
-    a = tempfile.mkdtemp(prefix="proj_a_")
-    b = tempfile.mkdtemp(prefix="proj_b_")
+    a = _proj(tmp_path, "proj_a")
+    b = _proj(tmp_path, "proj_b")
 
     # nothing saved yet
     check("load empty -> None", session.load_session(a) is None)
@@ -58,8 +68,7 @@ def test_session(tmp_path):
 def test_session_perms_0600(tmp_path):
     # The conversation store records full tool args/results, so it must never be
     # world-readable: save_session creates it 0600 (os.replace preserves the mode).
-    session.SESS_DIR = os.path.join(tmp_path, "sessions")
-    a = tempfile.mkdtemp(prefix="proj_perms_")
+    a = _proj(tmp_path, "proj_perms")
     msgs = [{"role": "user", "content": "secret bash command"}]
     p = session.save_session(a, msgs, {})
     check("perms save returns path", bool(p) and os.path.isfile(p))
@@ -72,8 +81,7 @@ def test_session_perms_0600(tmp_path):
 def test_mint_list_and_fork(tmp_path):
     # Multiple sessions per cwd; resume of an old session forks (new file) and leaves the
     # original byte-for-byte untouched — the entire branching feature.
-    session.SESS_DIR = os.path.join(tmp_path, "sessions")
-    a = tempfile.mkdtemp(prefix="proj_fork_")
+    a = _proj(tmp_path, "proj_fork")
 
     check("minted id shape", session.new_session_id().count("-") == 2)
 
@@ -104,8 +112,7 @@ def test_mint_list_and_fork(tmp_path):
 
 
 def test_prune_keeps_newest(tmp_path):
-    session.SESS_DIR = os.path.join(tmp_path, "sessions")
-    a = tempfile.mkdtemp(prefix="proj_prune_")
+    a = _proj(tmp_path, "proj_prune")
     for i in range(session.RETAIN + 5):
         session.save_session(a, [{"role": "user", "content": f"t{i}"}], {},
                              session_id=f"20260101-0000{i:02d}-{i:04x}")
@@ -118,9 +125,8 @@ def test_prune_keeps_newest(tmp_path):
 
 def test_adopt_legacy(tmp_path):
     # A pre-043 single-slot <cwdhash>.json is adopted as one session on first listing.
-    session.SESS_DIR = os.path.join(tmp_path, "sessions")
-    a = tempfile.mkdtemp(prefix="proj_legacy_")
-    os.makedirs(session.SESS_DIR, exist_ok=True)
+    a = _proj(tmp_path, "proj_legacy")
+    os.makedirs(session.sessions_root(), exist_ok=True)
     legacy = session._legacy_path(a)
     with open(legacy, "w") as f:
         json.dump({"cwd": a, "updated": time.time(), "meta": {},
@@ -135,9 +141,51 @@ def test_adopt_legacy(tmp_path):
     check("adopt is once-only", len(session.list_sessions(a)) == 1)
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="root writes through directory permissions")
+def test_adopt_legacy_keeps_the_source_when_the_copy_fails(tmp_path):
+    """The legacy file is the only copy of that conversation. If the adopted session
+    cannot be written, deleting it destroys the user's transcript; keeping it means the
+    next listing simply tries again."""
+    a = _proj(tmp_path, "proj_legacy_unwritable")
+    os.makedirs(session.sessions_root(), exist_ok=True)
+    legacy = session._legacy_path(a)
+    with open(legacy, "w") as f:
+        json.dump({"cwd": a, "updated": time.time(), "meta": {},
+                   "messages": [{"role": "user", "content": "the only copy"}]}, f)
+    # The adopted copy is written into the project's session directory; a read-only one
+    # makes that write fail for real.
+    store = session._dir(a)
+    os.mkdir(store)
+    os.chmod(store, 0o500)
+    try:
+        items = session.list_sessions(a)
+    finally:
+        os.chmod(store, 0o700)
+    check("nothing adopted", items == [], items)
+    check("legacy file survives a failed write", os.path.isfile(legacy))
+    check("and it still parses", json.load(open(legacy))["messages"][0]["content"]
+          == "the only copy")
+
+
+def test_adopt_legacy_sets_an_unparseable_file_aside(tmp_path):
+    """A legacy file that will not parse is unreadable to us, not worthless to the user:
+    rename it rather than delete it — and renaming also ends the adoption attempt, which
+    would otherwise repeat on every listing."""
+    a = _proj(tmp_path, "proj_legacy_corrupt")
+    os.makedirs(session.sessions_root(), exist_ok=True)
+    legacy = session._legacy_path(a)
+    with open(legacy, "w") as f:
+        f.write("{ this is not json")
+
+    check("corrupt legacy lists as nothing", session.list_sessions(a) == [])
+    check("corrupt legacy moved aside", os.path.isfile(legacy + ".corrupt"))
+    check("original gone", not os.path.isfile(legacy))
+    check("its bytes are intact",
+          open(legacy + ".corrupt").read() == "{ this is not json")
+
+
 def test_index_0600_and_corrupt_tolerated(tmp_path):
-    session.SESS_DIR = os.path.join(tmp_path, "sessions")
-    a = tempfile.mkdtemp(prefix="proj_idx_")
+    a = _proj(tmp_path, "proj_idx")
     session.save_session(a, [{"role": "user", "content": "hi"}], {},
                          session_id="20260101-000000-abcd")
     ip = session._index_path(a)
@@ -152,13 +200,49 @@ def test_index_0600_and_corrupt_tolerated(tmp_path):
     check("rebuilt from files", items[0]["session_id"] == "20260101-000000-abcd")
 
 
+def test_persisted_copy_masks_known_prefix_secrets(tmp_path):
+    # A credential echoed into a tool result or a tool-call argument must not reach disk:
+    # the file outlives the session and is replayed on resume. A git sha must survive,
+    # prose is never touched, and the in-memory transcript keeps the real values.
+    a = _proj(tmp_path, "proj_redact")
+    tok = "abcdefghijklmnopqrstuvwxyz0123456789ABCD"  # 40 chars
+    sha = "a3f9c1e2b4d6071829abcdef0123456789abcdef"
+    call = "<tool_call>\n" + json.dumps({"name": "bash", "arguments": {
+        "command": "curl -H 'Authorization: Bearer " + tok + "' https://example.com"}}) \
+        + "\n</tool_call>"
+    msgs = [{"role": "user", "content": "the token is Bearer " + tok},
+            {"role": "assistant", "content": call},
+            {"role": "tool", "name": "bash", "content": "Authorization: Bearer " + tok + "\n"},
+            {"role": "tool", "name": "bash", "content": "commit " + sha + "\n"},
+            {"role": "assistant", "content": "done; it was Bearer " + tok}]
+    before = json.loads(json.dumps(msgs))
+    session.save_session(a, msgs, {}, session_id="20260101-000000-5ec2")
+
+    masked = [msgs[0],
+              {**msgs[1], "content": call.replace(tok, "<redacted:40>")},
+              {**msgs[2], "content": "Authorization: Bearer <redacted:40>\n"},
+              msgs[3],
+              msgs[4]]
+    got = session.load_session(a)["messages"]
+    check("tool result + tool-call args masked; sha and prose untouched", got == masked, got)
+    check("in-memory transcript untouched", msgs == before)
+
+    # resuming forks: the masked transcript saved again is byte-stable (the mask is idempotent)
+    session.save_session(a, got, {}, session_id="20260101-000100-5ec2")
+    check("re-save of a masked transcript is stable",
+          session.load_session(a)["messages"] == masked)
+
+
 if __name__ == "__main__":
-    with tempfile.TemporaryDirectory() as home:
-        test_session(home)
-        test_session_perms_0600(home)
-        test_mint_list_and_fork(home)
-        test_prune_keeps_newest(home)
-        test_adopt_legacy(home)
-        test_index_0600_and_corrupt_tolerated(home)
+    for test in (test_session, test_session_perms_0600, test_mint_list_and_fork,
+                 test_prune_keeps_newest, test_adopt_legacy,
+                 test_adopt_legacy_keeps_the_source_when_the_copy_fails,
+                 test_adopt_legacy_sets_an_unparseable_file_aside,
+                 test_index_0600_and_corrupt_tolerated,
+                 test_persisted_copy_masks_known_prefix_secrets):
+        # Same isolation conftest gives each test under pytest.
+        with tempfile.TemporaryDirectory() as home, pytest.MonkeyPatch.context() as mp:
+            mp.setenv("CHAD_SESSION_DIR", os.path.join(home, "sessions"))
+            test(pathlib.Path(home))
     print(f"\n{PASS} passed, {FAIL} failed")
     raise SystemExit(1 if FAIL else 0)

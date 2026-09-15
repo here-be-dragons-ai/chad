@@ -22,10 +22,13 @@ import signal
 import subprocess
 import threading
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Callable, Mapping, Optional, Sequence, TypedDict, Union
 
 from . import config, levers, seatbelt, spill, syntaxgate
 from .ignore import IGNORE_DIRS  # noqa: F401 — re-exported for agent.expand_mentions
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 
 def _rel(path: str) -> str:
@@ -36,15 +39,36 @@ def _rel(path: str) -> str:
 
 
 # The only writable area in plan mode: plan files land here, nothing else may be
-# touched. See the plan-mode gate in agent.run_turn.
+# touched. See guardrails.plan_mode_verdict.
 PLANS_DIR = "plans"
 
 
 def _under_plans(path: str) -> bool:
-    """True if `path` resolves inside ./plans/ (the only writable area in plan mode)."""
-    root = os.path.abspath(PLANS_DIR)
-    p = os.path.abspath(path)
+    """True if `path` resolves inside ./plans/ (the only writable area in plan mode).
+
+    The target's symlinks are resolved but `plans` itself is not: the root is the real
+    cwd joined with `plans`, so a `plans` entry that is a symlink (a cloned repo can ship
+    one), or a link inside it, cannot carry the write somewhere else."""
+    root = os.path.join(os.path.realpath(os.getcwd()), PLANS_DIR)
+    p = os.path.realpath(path)
     return p == root or p.startswith(root + os.sep)
+
+
+def outside_workspace(path: str, root: str | None = None) -> bool:
+    """True when `path`'s REAL location (symlinks resolved) is not under the workspace
+    root, or is under its .git/hooks.
+
+    `write`/`edit` run in-process, outside the bash seatbelt, and open whatever path
+    the model hands them — so this is the only containment check they have. Callers
+    escalate to the confirm prompt on True; they never hard-deny, because writing to
+    ~/.chad, a temp dir or a sibling repo is a legitimate thing to be asked for.
+    .git/hooks is inside the root but counts as outside: a hook file is code the next
+    git command runs, with no diff to review."""
+    root = os.path.realpath(root or os.getcwd())
+    p = os.path.realpath(path)
+    inside = p == root or p.startswith(root + os.sep)
+    hooks = os.path.join(root, ".git", "hooks")
+    return (not inside) or p == hooks or p.startswith(hooks + os.sep)
 
 
 def _kill_group(p):
@@ -60,14 +84,34 @@ def _kill_group(p):
 
 
 # Environment variable names shaped like credentials, dropped from spawned shell
-# children. Name-pattern only: values are never inspected (a value test would
-# itself be a secret-handling liability), and the pattern is anchored at the end
-# so AWS_SECRET_ACCESS_KEY, GITHUB_TOKEN, and DB_PASSWORD match while PATH,
-# TOKENIZERS_PARALLELISM, and friends pass through. CHAD_NO_ENV_GUARD opts out
-# for a session whose commands legitimately need a credential.
+# children. A DENYLIST here, where mcp.py uses an allowlist for the servers it
+# spawns, because the two children need opposite things: an arbitrary shell command
+# is the user's own toolbox and breaks without their real environment (PATH, HOME,
+# proxy settings, language runtimes), while an MCP server needs a dozen variables and
+# nothing else. So bash keeps everything except what looks like a secret.
+# The patterns are anchored — at the end for suffixes, at both ends for whole names —
+# so AWS_SECRET_ACCESS_KEY, GITHUB_TOKEN, SSH_AUTH_SOCK and DB_PASSWORD match while
+# PATH, TOKENIZERS_PARALLELISM, PYTHONPATH and a HOMEBREW_KEYRING_PATH pass through.
+# CHAD_NO_ENV_GUARD opts out for a session whose commands legitimately need a
+# credential (a deploy, a gh push) — a stripped variable is absent, never corrupted,
+# so the command fails with a clear "not set" rather than a confusing auth error.
 _ENV_SECRET_RE = re.compile(
-    r"(?i)(TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?|API_?KEY|"
-    r"ACCESS_KEY(_ID)?|SECRET_KEY|PRIVATE_KEY)$")
+    r"(?i)((TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?|API_?KEY|"
+    r"ACCESS_KEY(_ID)?|SECRET_KEY|PRIVATE_KEY)$"
+    r"|_(KEY|DSN|PAT|AUTH|TOKEN_FILE)$"
+    r"|^(SSH_AUTH_SOCK|DATABASE_URL|AWS_PROFILE)$)")
+
+
+def _is_credential_url(name: str, value: str) -> bool:
+    """True for a `*_URL` whose value carries userinfo (`scheme://user:pass@host`).
+
+    The one place the guard looks at a value instead of a name: a connection string
+    hides its password in plain sight, and the name (REDIS_URL, MONGO_URL) gives no
+    hint. A URL with no `@` before the host is just an address and stays."""
+    if not name.upper().endswith("_URL"):
+        return False
+    i = value.find("://")
+    return i >= 0 and "@" in value[i + 3:].split("/", 1)[0]
 
 
 def _bash_env() -> dict | None:
@@ -77,11 +121,14 @@ def _bash_env() -> dict | None:
     clear absence, not a corrupted value."""
     if config.flag("CHAD_NO_ENV_GUARD"):
         return None
-    return {k: v for k, v in os.environ.items() if not _ENV_SECRET_RE.search(k)}
+    return {k: v for k, v in os.environ.items()
+            if not _ENV_SECRET_RE.search(k) and not _is_credential_url(k, v)}
 
 
-def tool_bash(command: str, timeout: int = 120, should_stop=None) -> str:
-    argv = seatbelt.wrap_argv(command)
+def tool_bash(command: str, timeout: int = 120, should_stop=None,
+              wrap: Callable[[str], Optional[list[str]]] = seatbelt.wrap_argv) -> str:
+    # `wrap` confines the command: the sandboxed argv to spawn, or None for a plain shell.
+    argv = wrap(command)
     try:
         # errors="replace": text mode decodes strictly by default, so binary bytes in the
         # output (hexdump, `cat` on an archive) killed the reader thread mid-communicate —
@@ -252,7 +299,12 @@ def _bash_headtail(s: str, spill: bool = True) -> str:
         clip_note = (f"\n[… {removed} chars clipped from over-long lines "
                      f"(each capped at {BASH_LINE_CHARS} chars){where} …]")
     s = clipped
-    if len(s) + len(clip_note) <= BASH_MAX_CHARS:
+    # The body alone decides whether to truncate; the clip note is metadata ABOUT the
+    # body, not part of its budget. Counting it pushed bodies in the narrow band just
+    # under the cap into the truncation branch below, where HEAD + TAIL already covers
+    # the whole body — so `omitted` came out negative and the head and tail slices
+    # overlapped, printing the middle twice under a notice claiming it was dropped.
+    if len(s) <= BASH_MAX_CHARS:
         return s + clip_note
     omitted = len(s) - BASH_HEAD_CHARS - BASH_TAIL_CHARS
     if path is None and spill:
@@ -277,15 +329,19 @@ def _bash_headtail(s: str, spill: bool = True) -> str:
 
 
 def tool_write(path: str, content: str) -> str:
+    # UTF-8 explicitly, never the locale encoding: a container with no locale set
+    # (LANG unset -> ASCII on some runtimes) would otherwise fail to write any source
+    # file with a non-ASCII character in it, and the source tree's encoding has nothing
+    # to do with the machine chad happens to run on.
     before = None
     if os.path.exists(path):
         try:
-            with open(path, errors="replace") as f:
+            with open(path, encoding="utf-8", errors="replace") as f:
                 before = f.read()
         except OSError:
             pass
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(content)
     result = f"[wrote {len(content)} bytes to {_rel(path)}]"
     warn = syntaxgate.check_syntax(path, before)
@@ -421,10 +477,10 @@ def _nearest_resolved(lines: list[str], resolved: list[str | None],
     unless some line resolved, so the final `("", ...)` is unreachable in practice."""
     for j in range(i - 1, -1, -1):
         if resolved[j] is not None:
-            return resolved[j], True, lines[j].strip()  # type: ignore[return-value]
+            return resolved[j], True, lines[j].strip()  # type: ignore[return-value]  # SAFETY: checked non-None
     for j in range(i + 1, len(lines)):
         if resolved[j] is not None:
-            return resolved[j], False, lines[j].strip()  # type: ignore[return-value]
+            return resolved[j], False, lines[j].strip()  # type: ignore[return-value]  # SAFETY: checked non-None
     return "", False, ""
 
 
@@ -557,7 +613,7 @@ def _landed_hint(block: str) -> str:
 def _apply_edit(path: str, before: str, after: str, note: str) -> str:
     if after == before:
         return "[no-op edit: the replacement leaves the file unchanged]"
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(after)
     result = f"[edited {_rel(path)}{note}]"
     warn = syntaxgate.check_syntax(path, before)
@@ -569,8 +625,16 @@ def _apply_edit(path: str, before: str, after: str, note: str) -> str:
 def tool_edit(path: str, old: str, new: str) -> str:
     if not os.path.exists(path):
         return f"[no such file: {path}]"
-    with open(path) as f:
-        data = f.read()
+    # Strict UTF-8, and a clear refusal when that fails. `errors="replace"` would be
+    # worse than an error here: the replacement characters come back in `data`, and the
+    # rewrite below would then persist them — an edit to one line silently corrupting
+    # every non-UTF-8 byte in the rest of the file.
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = f.read()
+    except UnicodeDecodeError:
+        return (f"[cannot edit {_rel(path)}: not UTF-8 text; use bash for binary or "
+                "legacy-encoded files]")
     if old == new:
         return ("[no-op edit: old and new are identical; change the content or stop]"
                 + _indent_hint(data, old))
@@ -795,7 +859,7 @@ def alias_to_bash(name: str, args):
     argument can be found — an alias with nothing to read is left alone so it takes the
     normal unknown-tool repair path instead of running a nonsense command.
     """
-    if name not in READ_ALIASES or not isinstance(args, dict):
+    if name not in READ_ALIASES or not is_json_object(args):
         return name, args
     # Fall back ONLY when nothing actually answers to the name. An MCP server is free to
     # expose a tool called `read`, and that server's tool must win over this shim —
@@ -851,7 +915,31 @@ MUTATING = {"bash", "write", "edit"}
 # unknown-tool churn at the end of a task.
 TERMINAL = {"done", "finish", "stop"}
 
-SCHEMAS: list[dict[str, Any]] = [
+# What a tool call's arguments are before validation, and what the trajectory record
+# carries after: whatever json.loads (or the XML/hybrid parsers) produced, nested.
+# Read-only containers on purpose — Mapping/Sequence are covariant, so a dict[str, int]
+# literal already IS a JsonValue and nothing needs a cast; validate.py narrows it field
+# by field with isinstance, which is where the JSON boundary is decided.
+JsonValue = Union[None, bool, int, float, str, Sequence["JsonValue"], Mapping[str, "JsonValue"]]
+
+
+def is_json_object(value: JsonValue) -> "TypeIs[dict[str, JsonValue]]":
+    """A JSON object: the only shape a tool call's arguments can dispatch as."""
+    return isinstance(value, dict)
+
+
+class FunctionSchema(TypedDict):
+    name: str
+    description: str
+    parameters: dict[str, JsonValue]      # JSON Schema, as sent to the model
+
+
+class ToolSchema(TypedDict):
+    type: str                             # always "function"
+    function: FunctionSchema
+
+
+SCHEMAS: list[ToolSchema] = [
     {
         "type": "function",
         "function": {

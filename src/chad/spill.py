@@ -25,6 +25,8 @@ import re
 import shutil
 import time
 
+from . import config
+
 # How many files of each kind a session dir keeps, newest-first. `bash` and `result`
 # fire a handful of times per turn; a single compaction pass can trim dozens of tool
 # results at once (measured: ~6 per compacted session, with a long tail), so `compact`
@@ -49,7 +51,7 @@ def base_dir() -> str:
     """Root under which every session's spill dir lives. Resolved fresh each call
     (the eval harness repoints HOME per task). Never under cwd: a stray file would
     pollute the project's git status and fail the plan-mode untouched-tree check."""
-    return os.environ.get("CHAD_SPILL_DIR") or os.path.join(
+    return config.env_str("CHAD_SPILL_DIR") or os.path.join(
         os.path.expanduser("~"), ".cache", "chad", "spill")
 
 
@@ -92,7 +94,7 @@ def _entries(d: str):
     return out
 
 
-def _prune(d: str) -> None:
+def _prune(d: str, max_bytes: int = MAX_DIR_BYTES) -> None:
     """Enforce both budgets, oldest-first: the per-kind file count, then the
     dir-wide byte total. Never raises."""
     entries = _entries(d)
@@ -114,7 +116,7 @@ def _prune(d: str) -> None:
     # and a single oversized body must degrade the budget, not vanish from under its
     # own pointer.
     for e in live[:-1]:
-        if total <= MAX_DIR_BYTES:
+        if total <= max_bytes:
             break
         doomed.append(e)
         total -= sizes[e]
@@ -125,7 +127,7 @@ def _prune(d: str) -> None:
             pass
 
 
-def write(text: str, kind: str = "bash") -> str | None:
+def write(text: str, kind: str = "bash", max_dir_bytes: int = MAX_DIR_BYTES) -> str | None:
     """Write `text` to a fresh 0600 spill file and return its absolute path, or None
     if the write failed — spilling is best-effort, and a disk error must not turn a
     successful tool call into a broken result."""
@@ -138,9 +140,9 @@ def write(text: str, kind: str = "bash") -> str | None:
             _sweep_stale(os.path.dirname(d))
         path = os.path.join(d, f"{kind}-{next(_IDS)}.log")
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w", errors="replace") as f:
+        with os.fdopen(fd, "w", encoding="utf-8", errors="replace") as f:
             f.write(text)
-        _prune(d)
+        _prune(d, max_dir_bytes)
         return os.path.abspath(path)
     except OSError:
         return None

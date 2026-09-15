@@ -16,6 +16,7 @@ working unchanged.
 import json
 import re
 
+from .tools import JsonValue, is_json_object
 from .validate import (  # VALIDATE: single source of truth in validate.py
     VALIDATE,
     _known_tools,
@@ -94,10 +95,10 @@ def _parse_params(body: str) -> dict:
     """Parse `<parameter=key>value</parameter>` blocks out of `body` into an args dict,
     with the same int-coercion as the XML dialect. Shared by the `<function=…>` and the
     hybrid `{"name":…}`+`<parameter>` parsers."""
-    args: dict[str, object] = {}
+    args: dict[str, JsonValue] = {}
     for pm in _XML_PARAM_RE.finditer(body):
         key = pm.group(1).strip()
-        val: object
+        val: JsonValue
         if key in _TEXT_PARAMS and "\n" in pm.group(2):
             # Multi-line text value: the first line's indentation is content. A
             # single-line value keeps the legacy full strip — models emit inline
@@ -105,9 +106,8 @@ def _parse_params(body: str) -> dict:
             # are what the whitespace-flexible matcher already handles well.
             val = _FRAME_RE.sub("", pm.group(2))
         else:
-            val = pm.group(2).strip()
-            if key in _INT_PARAMS and val.lstrip("-").isdigit():
-                val = int(val)
+            text = pm.group(2).strip()
+            val = int(text) if key in _INT_PARAMS and text.lstrip("-").isdigit() else text
         args[key] = val
     return args
 
@@ -212,7 +212,7 @@ def parse_tool_calls(text: str):
         args = obj.get("arguments", obj.get("parameters", {}))
         if isinstance(args, str):  # whole arguments value double-stringified
             args = repair_json(args) or args
-        if not isinstance(args, dict):
+        if not is_json_object(args):
             args = {}
         calls.append((salvage_tool_name(str(name)), args))
     return calls

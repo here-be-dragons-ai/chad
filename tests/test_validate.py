@@ -7,7 +7,6 @@ field-level error — never silently drops or silently dispatches garbage.
 Run: `uv run python tests/test_validate.py`
 """
 
-import os
 
 from chad import skills, tools
 from chad.validate import (
@@ -51,6 +50,40 @@ def test_repair():
         else:
             check(f"repair: {raw[:30]!r}", isinstance(got, dict) and got.get("name") == expect["name"],
                   f"got={got}")
+
+
+def test_repair_never_edits_string_contents():
+    # A string value is the model's payload (a shell command, file content) and must
+    # reach the tool byte-for-byte; the repairs may only edit the JSON around it. A
+    # regex repair that reached inside strings ran `x is null` instead of `x is None`.
+    cases = [
+        # (raw, key path into the result, exact expected value)
+        ('{"name": "bash", "arguments": {"command": "echo True; awk {print}"',
+         ("arguments", "command"), "echo True; awk {print}"),  # py const, unclosed
+        ('{"name": "write", "arguments": {"path": "a.py", "content": "x = None,}\\n"',
+         ("arguments", "content"), "x = None,}\n"),  # trailing comma inside a string
+        ('{"name": "bash", "arguments": {"command": "python -c \'assert x is None\' && ls"',
+         ("arguments", "command"), "python -c 'assert x is None' && ls"),
+        ('{name: "bash", arguments: {command: "grep foo: bar"}}',
+         ("arguments", "command"), "grep foo: bar"),  # bare keys around a `key:` value
+        ('{name: "bash", arguments: {command: "awk \'{k: v}\' f, x: y"}}',
+         ("arguments", "command"), "awk '{k: v}' f, x: y"),  # bare-key shape inside a string
+        ('{"c": "say \\"hi\\" None"', ("c",), 'say "hi" None'),  # escaped quotes
+        # The structure repairs still apply outside strings.
+        ('{"a": 1,}', ("a",), 1),
+        ('{"ok": True}', ("ok",), True),
+        ('{"v": [None, False,]}', ("v",), [None, False]),
+        ('{a: "x", b: 2}', ("b",), 2),
+        ('{"a": {"b": [1, 2', ("a", "b"), [1, 2]),
+        ('{"s": "it\'s True", "t": True,}', ("t",), True),
+    ]
+    for raw, path, expected in cases:
+        got = repair_json(raw)
+        val = got
+        for key in path:
+            val = val.get(key) if isinstance(val, dict) else None
+        check(f"repair keeps strings: {raw[:40]!r}", val == expected and type(val) is type(expected),
+              f"got={got!r}")
 
 
 # --- Stages 2+3: coercion (valid-but-loose calls should SUCCEED) -------------
@@ -172,8 +205,7 @@ def test_installed_skills_add_no_tool(tmp_path, monkeypatch):
     so installing one must not change the validator's view of the tool surface."""
     empty_home = tmp_path / "_home"
     empty_home.mkdir()
-    monkeypatch.setattr(os.path, "expanduser",
-                        lambda p: str(empty_home) if p == "~" or p.startswith("~/") else p)
+    monkeypatch.setenv("HOME", str(empty_home))
     proj = tmp_path / "proj"
     (proj / ".agents" / "skills" / "widgets").mkdir(parents=True)
     (proj / ".agents" / "skills" / "widgets" / "SKILL.md").write_text(
@@ -194,6 +226,7 @@ def test_installed_skills_add_no_tool(tmp_path, monkeypatch):
 
 if __name__ == "__main__":
     test_repair()
+    test_repair_never_edits_string_contents()
     test_coercion()
     test_validation()
     test_render()

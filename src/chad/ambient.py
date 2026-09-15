@@ -42,13 +42,20 @@ verification the model didn't perform.
 
 from __future__ import annotations
 
+import functools
 import os
 import re
 import shlex
 import shutil
 import subprocess
+import time
+from typing import TYPE_CHECKING, Callable
 
 from . import levers
+from .guardrails import _RUNNER_WRAPPER_RE
+
+if TYPE_CHECKING:
+    from .repomap import Tag
 
 # Appended ambient text is bounded so it can never bloat a result the clip cap
 # already sized (annotation happens after _clip_tool_result on purpose — a
@@ -56,6 +63,10 @@ from . import levers
 _LEDGER_MAX = 300
 _SKELETON_MAX = 220
 _SKELETON_MIN_DEFS = 3     # a 2-symbol file's structure is visible at a glance
+# The definition pointer's lookup runs between the model's tool call and its result, and
+# a cold whole-repo parse measured 17.5 s on an 11k-file repo. A decoration line gets a
+# second; past that the result goes back without it.
+_DEF_POINTER_BUDGET_S = 1.0
 _MANIFEST_PROBE_TIMEOUT = 1.5
 _MANIFEST_MAX_VERSIONS = 16
 
@@ -69,6 +80,7 @@ _wrote: list = []                # rel paths written whole (order kept, deduped)
 _last_run: dict | None = None    # {"call": int, "head": str, "exit": int}
 _baselines: dict = {}            # run key -> the run's outcome BEFORE any edit landed
 _skeleton_shown: set = set()     # abs paths whose skeleton line already rode a result
+_def_pointer_seen: dict[str, str] = {}  # identifier -> its pointer line, "" = none
 _manifest_cache: str | None = None
 
 
@@ -81,6 +93,7 @@ def reset() -> None:
     _wrote.clear()
     _last_run = None
     _skeleton_shown.clear()
+    _def_pointer_seen.clear()
     _manifest_cache = None
 
 
@@ -99,14 +112,6 @@ def _rel(path: str) -> str:
     except ValueError:
         return path
     return path if rel.startswith("..") else rel
-
-
-# Project-runner wrappers that carry the real program as their argument. Stripped
-# before the executing/trivial checks so `uv run pytest` records a pytest run —
-# ambient-only normalization; the verify gate's own regex is deliberately untouched
-# (changing what disarms the unverified-edit flag is a different, riskier change).
-_RUNNER_WRAPPER_RE = re.compile(
-    r"\b(?:uv|poetry|pipenv|pdm|hatch)\s+run\s+(?:python[0-9.]*\s+-m\s+)?")
 
 
 def _cmd_head(command: str) -> str:
@@ -182,6 +187,9 @@ def note_call(name: str, args: dict, result: str) -> None:
             return
         if result.startswith(("[timed out", "[interrupted", "[failed to launch")):
             return
+        # The verify gate's own normalization and predicates (`bash_result_verifies`), so
+        # `uv run pytest` records a pytest run and the ledger records exactly the
+        # commands that gate counts as runs — including ones that exited non-zero.
         bare = _RUNNER_WRAPPER_RE.sub("", cmd)
         if guardrails._is_trivial_check(bare) or not guardrails._is_executing_command(bare):
             return
@@ -276,20 +284,39 @@ def _skeleton_line(path: str) -> str:
     return line
 
 
-def _def_pointer(ident: str) -> str:
+def _tags_lookup(ident: str, should_stop: Callable[[], bool]) -> list[Tag]:
+    """Definitions of `ident` from the cwd's tags service. A miss is reported as-is:
+    it never re-walks the tree for files created since the service's walk."""
+    from . import repomap
+    return repomap.service()._find_defs(ident, should_stop=should_stop, refresh=False)
+
+
+def _def_pointer(ident: str,
+                 lookup: Callable[[str, Callable[[], bool]], list[Tag]] = _tags_lookup,
+                 budget_s: float = _DEF_POINTER_BUDGET_S) -> str:
     """`[file] this came back empty; 'x' is defined at rel:line` when a bash search that
     returned nothing named a symbol the tags cache knows — the definition answer
     delivered on the bash route. The wording is about the RESULT, not the grep: in
-    `rg X src/ | grep -v y` the grep matched fine and a later stage emptied it."""
-    from . import repomap
+    `rg X src/ | grep -v y` the grep matched fine and a later stage emptied it.
+
+    Memoized per identifier for the session, and bounded by `budget_s`: `lookup` is
+    asked to stop once it is spent, and a lookup cut short may have missed same-named
+    defs, so it answers nothing rather than a partial list."""
+    if ident in _def_pointer_seen:
+        return _def_pointer_seen[ident]
+    deadline = time.monotonic() + budget_s
     try:
-        hits = repomap.service()._find_defs(ident)
+        hits = lookup(ident, lambda: time.monotonic() > deadline)
     except Exception:  # noqa: BLE001
-        return ""
-    if not hits or len(hits) > 3:  # a pile of same-named defs is not an answer
-        return ""
-    where = " · ".join(f"{d.rel}:{d.line}" for d in hits)
-    return f"[file] this came back empty; `{ident}` is defined at {where}"
+        hits = []
+    if time.monotonic() > deadline:
+        hits = []
+    line = ""
+    if hits and len(hits) <= 3:  # a pile of same-named defs is not an answer
+        where = " · ".join(f"{d.rel}:{d.line}" for d in hits)
+        line = f"[file] this came back empty; `{ident}` is defined at {where}"
+    _def_pointer_seen[ident] = line
+    return line
 
 
 def _skeleton_suffix(name: str, args: dict, result: str, step=None) -> str:
@@ -579,22 +606,32 @@ _SEARCH_TOOLS = ("rg", "grep", "sed", "awk", "find", "jq")
 _VERSION_NUM_RE = re.compile(r"\d+\.\d+[\w.\-]*")
 
 
-def _probe_version(tool: str) -> str:
+def _run_for_output(argv: tuple[str, ...]) -> str:
+    """Everything a version probe printed: stdout, then stderr."""
+    p = subprocess.run(argv, capture_output=True, text=True,
+                       errors="replace", timeout=_MANIFEST_PROBE_TIMEOUT)
+    return (p.stdout or "") + (p.stderr or "")
+
+
+def _probe_version(tool: str,
+                   output: Callable[[tuple[str, ...]], str] = _run_for_output) -> str:
     args = _VERSION_ARGS.get(tool, ("--version",))
     try:
-        p = subprocess.run((tool,) + args, capture_output=True, text=True,
-                           errors="replace", timeout=_MANIFEST_PROBE_TIMEOUT)
+        text = output((tool,) + args)
     except (OSError, subprocess.SubprocessError):
         return ""
-    first = ((p.stdout or "") + (p.stderr or "")).strip().splitlines()
+    first = text.strip().splitlines()
     if not first:
         return ""
     m = _VERSION_NUM_RE.search(first[0])
     return m.group(0) if m else first[0][:24]
 
 
-def _build_manifest() -> str:
-    have = {t for t in _MANIFEST_TOOLS if shutil.which(t)}
+def _build_manifest(which: Callable[[str], str | None] = shutil.which,
+                    output: Callable[[tuple[str, ...]], str] = _run_for_output) -> str:
+    """The manifest body for this host: `which` locates a tool on PATH, and `output`
+    runs a version probe and returns what it printed."""
+    have = {t for t in _MANIFEST_TOOLS if which(t)}
     present = [t for t in _MANIFEST_TOOLS if t in have]
     absent = [t for t in _NOTABLE_ABSENT
               if not any(a in have for a in _ALIAS_FAMILY.get(t, (t,)))]
@@ -606,17 +643,18 @@ def _build_manifest() -> str:
         from concurrent.futures import ThreadPoolExecutor
         to_probe = present[:_MANIFEST_MAX_VERSIONS]
         with ThreadPoolExecutor(max_workers=8) as ex:
-            versions = list(ex.map(_probe_version, to_probe))
+            versions = list(ex.map(functools.partial(_probe_version, output=output),
+                                   to_probe))
         versioned = [f"{t} {v}" if v else t for t, v in zip(to_probe, versions)]
         versioned.extend(present[_MANIFEST_MAX_VERSIONS:])
         lines.append("- present: " + " · ".join(versioned))
     if absent:
         lines.append("- NOT installed: " + ", ".join(absent))
-    pkgs = [p for p in _PKG_MANAGERS if shutil.which(p)]
+    pkgs = [p for p in _PKG_MANAGERS if which(p)]
     if pkgs or "pip" in have or "pip3" in have:
         pip = ["pip"] if ("pip" in have or "pip3" in have) else []
         lines.append("- package managers: " + ", ".join(pkgs + pip))
-    search = [t for t in _SEARCH_TOOLS if shutil.which(t)]
+    search = [t for t in _SEARCH_TOOLS if which(t)]
     if search:
         line = "- search/text: " + " · ".join(search)
         gone = [t for t in _SEARCH_TOOLS if t not in search]
@@ -624,17 +662,18 @@ def _build_manifest() -> str:
     return "\n".join(lines)
 
 
-def env_manifest() -> str:
+def env_manifest(build: Callable[[], str] | None = None) -> str:
     """The manifest block body, built once per session (subprocess probes are not
     free) and never rebuilt — installs after session start are deliberately not
-    reflected; the header text says so. "" when the lever is off or nothing was
-    detected."""
+    reflected; the header text says so. `build` makes the body when the session has
+    none yet, the host probe (`_build_manifest`) unless given. "" when the lever is off
+    or nothing was detected."""
     global _manifest_cache
     if not levers.enabled("env_manifest"):
         return ""
     if _manifest_cache is None:
         try:
-            _manifest_cache = _build_manifest()
+            _manifest_cache = (build or _build_manifest)()
         except Exception:  # noqa: BLE001 - orientation is best-effort, never fatal
             _manifest_cache = ""
     return _manifest_cache

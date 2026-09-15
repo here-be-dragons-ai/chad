@@ -4,19 +4,48 @@ chad is a local, single-user, Apple-Silicon coding agent. It's a small project w
 sharp design constraint (prefill is the bill, the KV cache stays warm), so here's the
 honest map of what lands easily and what needs a conversation first.
 
+Working here with an agent? Start at [`AGENTS.md`](AGENTS.md); the per-module map is in
+[`docs/design.md#architecture-map`](docs/design.md#architecture-map).
+
 ## What lands easily
 
 Docs fixes, tests, bug fixes that come with a failing-test repro, portability and
 tooling improvements. The gate is fast and needs **no model weights**:
 
 ```bash
-uv run pytest -q            # unit gate: loads no model, runs in seconds
-uv run ruff check src tests # lint
-uv run mypy src/chad        # type check
+make gate
 ```
 
-All three run in CI (`.github/workflows/tests.yml`). A green `pytest` alone still fails the
-build if `ruff` or `mypy` is unhappy, so run all three before opening a PR.
+That runs four targets in order, and CI (`.github/workflows/tests.yml`) runs the same ones:
+
+- `make lint` runs `ruff check` over `src`, `tests` and `benchmarks`.
+- `make typecheck` runs `mypy` over `src/chad`.
+- `make slop` runs the vendored [anti-slop](https://github.com/TinyFrontier/anti-slop-py)
+  linter (`tools/anti_slop`, stdlib-only, needs Python 3.12 — `uv` fetches one) over the
+  same three trees. It rejects the escape hatches ruff and mypy permit by construction:
+  `Any`/`object` contracts, `dict[str, Any]`, string-name `getattr`, `mock.patch`, and any
+  `cast` or `# type: ignore[code]` without a `# SAFETY: <invariant>` comment. Findings
+  that predate the linter are recorded in `.anti-slop-baseline.json` and resurface when
+  their line is edited; `make slop-review` shows only what your branch added, with the
+  recipe for each.
+- `make test` runs `pytest -q`, which loads no model and finishes in seconds.
+
+A green `make test` alone still fails the build if `ruff`, `mypy` or anti-slop is unhappy,
+so run the whole gate before opening a PR.
+
+### Running the model-backed tests
+
+A few tests in `tests/test_engine.py` load a real model and compare its output byte for
+byte. They skip unless you set `CHAD_MODEL_TESTS=1`, and the first run downloads a 0.5B
+proxy model from Hugging Face:
+
+```bash
+CHAD_MODEL_TESTS=1 uv run pytest -q tests/test_engine.py
+```
+
+The hybrid-cache tests also need `CHAD_TEST_HYBRID_MODEL` set to a local qwen3_5 model
+directory, and skip without it. Their strict byte-equality checks need unquantized (bf16)
+weights.
 
 ## What needs a conversation first
 
@@ -54,3 +83,6 @@ Two areas corrupt more than the line you touched, so lean on the existing tests:
 
 ruff and mypy are the law. Match the surrounding comment density and naming, and write code
 that reads like the code already there.
+
+`build/` and `*.egg-info` are regenerable artifacts; delete them before a repo-wide grep or
+a local wheel build.

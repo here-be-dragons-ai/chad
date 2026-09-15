@@ -1,7 +1,40 @@
 # Configuration & reference
 
-*Extending chad (Agent Skills, MCP servers) and the full flag/env-var reference. For the
-basics, see the [README](../README.md).*
+*Steering chad (project instructions, Agent Skills, MCP servers, plan mode) and the full
+flag/env-var reference. For the basics, see the [README](../README.md).*
+
+## Project instructions (CLAUDE.md / AGENTS.md)
+
+Standing instructions for a project — conventions, the commands you want used, things not
+to touch — go in a markdown file at the root of that project. chad looks for exactly two
+names in the **working directory**, in this order:
+
+| Order | File        |
+| ----- | ----------- |
+| 1     | `CLAUDE.md` |
+| 2     | `AGENTS.md` |
+
+**The first one that exists wins, and that is the only one read.** `CLAUDE.md` shadows
+`AGENTS.md`; they are never merged, and a repo that carries both is only using the first.
+Only the working directory is searched — not parent directories, not `~` — so the file
+you get is the one belonging to the project you launched chad in.
+
+The first **4000 characters** are used and the rest is dropped silently, so put what
+matters at the top. The text is appended to the system prompt under a
+`# Project instructions (<filename>)` heading, below the cache boundary with the other
+per-project context (working directory, workspace listing). That placement is the whole
+cost story: the static half of the prompt stays byte-identical across projects and keeps
+its global checkpoint, while your instructions are part of the few-hundred-token project
+tail that is prefilled once and then restored from that project's own warm-start
+checkpoint — not re-sent on every turn.
+
+**`/init` writes one for you.** It orients itself with `bash`, reads whichever of
+`README` / `pyproject.toml` / `package.json` / `go.mod` / `Cargo.toml` / `Makefile` exist,
+and writes a concise `CLAUDE.md` — an overview, the main components, the *actual*
+build/run/test commands copied out of the config it read, and any conventions worth
+noting. If a `CLAUDE.md` is already there it reads and improves it rather than clobbering
+it. The file is an ordinary write, so it goes through the usual confirmation in `normal`
+mode.
 
 ## Agent Skills (agentskills.io)
 
@@ -170,6 +203,62 @@ cwd-keyed registry: the SDK's async event loop runs in a background thread (one
 inside the coroutine so a hung server can never wedge the agent. Wired into
 `tools.active_schemas`/`dispatch_for`/`is_mutating`, the validator (`validate.py`), and the
 agent loop (`agent.py`).
+
+## Plan mode
+
+`--plan`, or shift-tab round to `plan mode`, makes the session read-only with exactly one
+exception: `write` and `edit` are allowed when the path resolves inside **`./plans/`**.
+Every other mutating tool — `bash` included, so no commands run — is refused with a note
+telling the model to investigate read-only and write its plan instead. A write under
+`plans/` is the expected move, so it does not ask for confirmation; nothing else in plan
+mode gets the chance to. The gate resolves symlinks against the real working directory, so
+a `plans` entry that is itself a link cannot carry a write somewhere else.
+
+**What you get back is a file.** A change request is answered with one self-contained
+`plans/NNN-kebab-title.md` (continuing whatever number sequence is already there), holding
+everything an executor needs without the chat: context, file paths with current-state
+excerpts, numbered steps, verify commands, and what is out of scope. `./plans/` is created
+on that first write, and it is an ordinary directory in your repo — commit it or add it to
+`.gitignore`, chad does not care. A plain *question* asked in plan mode is answered in
+prose instead; it does not manufacture a plan file.
+
+**Handing the plan back.** When a plan-mode turn finishes having written a file, chad
+prints `plan ready → <path>` and waits. Type to steer (the plan turn continues), or press
+**ctrl-g** — or run **`/accept`** — to accept it: the context is cleared, the session drops
+back to the permission mode it had before plan mode, and a fresh turn starts with an
+instruction to read that file and execute each step, running the verification commands at
+the end. Accepting is the only handoff; a plan left un-accepted is just a file on disk.
+
+## Slash commands
+
+Typed in the TUI (`/` opens a completion menu listing these alongside every installed
+skill). Most are local to the harness and cost nothing in context; `/init` and `/accept`
+are the two that start a real turn.
+
+| Command | What it does |
+| ------- | ------------ |
+| `/help` | commands & keybindings |
+| `/init` | analyze the project, write `CLAUDE.md` (a real turn — the model does the work) |
+| `/skills` | list installed Agent Skills (run one with `/<name>`) |
+| `/mcp` | MCP server status |
+| `/mcp trust` | trust this project's `.mcp.json` servers |
+| `/mcp login` | authenticate an MCP server (OAuth) |
+| `/compact` | reclaim context now |
+| `/ctx` | where the context window is going, in tokens |
+| `/undo` | revert files to the last edit checkpoint |
+| `/restore` | list edit checkpoints; `/restore <hash>` reverts to one |
+| `/resume` | list recent sessions; `/resume <n>` forks one |
+| `/reset` | clear the conversation + KV cache |
+| `/clear` | clear the conversation + KV cache |
+| `/model` | show model + context window |
+| `/mode` | cycle permission mode |
+| `/speech` | toggle voice mode — all-local STT (Parakeet-on-MLX) + TTS (`say`) |
+| `/accept` | accept a pending plan and implement it |
+| `/exit` | quit chad |
+| `/quit` | quit chad |
+
+A builtin always wins a name clash with a skill, so `/<name>` reaches a skill only when no
+builtin owns that name.
 
 ## Context window (agentic coding needs room)
 
@@ -365,7 +454,7 @@ prefix KV cache on-device). `--backend llama` instead drives the *same* harness 
 remote **llama.cpp** server's raw `/completion` endpoint (token-id prompts). This is the
 arm used when chad runs inside a Linux benchmark container against a GGUF served on a GPU
 box, where MLX can't run. It's lossy relative to the in-process engine (the KV cache lives
-in the server, so warm-prefix checkpoints and cache-quarantine are no-ops) but keeps real
+in the server, so warm-prefix checkpoints are no-ops) but keeps real
 cache telemetry and passes `<think>` back verbatim, not a general "use a cloud model" path.
 
 ```bash
@@ -378,82 +467,6 @@ uv run chad --backend llama --base-url http://<host>:8081   # or CHAD_LLAMA_BASE
   model's vocab; required for a GGUF server (GGUF repos ship no tokenizer).
 - `--api-key-env NAME`: the *name* of the env var holding the API key (read from that
   var, never passed on the command line). Omit for a local endpoint that needs no key.
-
-### Serving the local model to a container (`chad serve`)
-
-`--backend llama` exists because a Linux container can't run MLX. The usual answer is to
-point it at a llama.cpp server holding a GGUF, but then the thing being measured is a
-different quantization of the model than the one people actually run. `chad serve` closes
-that gap: it speaks the *same* `/completion` protocol, backed by the local MLX engine and
-its real prefix cache, so the container drives **this** machine's model unchanged.
-
-```bash
-uv run chad serve --host 0.0.0.0 --port 8081     # on the Mac holding the weights
-# then, from the container (or another host):
-chad "…" --backend llama --base-url http://host.docker.internal:8081
-```
-
-- `--host` / `CHAD_SERVE_HOST`: bind address. Defaults to `127.0.0.1`; a container
-  reaching in over `host.docker.internal`, or any other machine, needs `0.0.0.0`.
-- `--port` / `CHAD_SERVE_PORT`: TCP port (default `8081`).
-- `CHAD_SERVE_API_KEY`: require `Authorization: Bearer <key>`. There is no auth by
-  default, which is why the default bind is loopback; set this whenever you widen it, and
-  give the client `--api-key-env`.
-
-The engine knobs are the same ones a local `chad` reads, and they mean the same thing
-here: the server is the local product, so `CHAD_MAX_CONTEXT`, `CHAD_KV_BITS`,
-`CHAD_KV_CACHE_MAX_GB` and the full sampler family (`CHAD_TEMP`, `CHAD_MIN_P`,
-`CHAD_TOP_P`, `CHAD_TOP_K`, `CHAD_PRESENCE_PENALTY`) all apply to the model it serves.
-They travel as one call, so the server and a local run cannot drift apart one setting at a
-time. A knob a request doesn't mention keeps the server's value; a request that sends one
-explicitly wins for that request only, so a client can A/B a sampler setting against a server
-without restarting it.
-
-`GET /props` reports the context window the server actually enforces, and clients should
-budget against it. That number is pinned at load and never moves, because clients read it
-once and size everything else against it. A prompt that doesn't fit is refused with `400`
-before anything is prefilled, and a `n_predict` larger than the room left beside the
-prompt is clamped to fit; overrunning the window is a Metal allocation the engine may not
-survive, and one client's bad budget shouldn't take down everyone else's session.
-
-The wall requests are admitted against is **live**, and can be tighter than the advertised
-window. The Metal budget is blind to other processes, so a container stack or a browser
-started after the server took physical pages the KV cache needs one-for-one; a prompt that
-fit at load may not fit now. `GET /health` reports both: `n_ctx` (advertised) and
-`safe_ctx` (what fits right now), plus `ctx_pressure` when they diverge, so you can see a
-tightened wall coming instead of meeting it as a `400`. `CHAD_CTX_SAFETY` tunes the
-headroom the estimate holds back (default 0.975).
-
-The endpoints, since a client is a contract:
-
-| Endpoint | Purpose |
-|---|---|
-| `POST /completion` | generation, token-id prompts in, SSE out; the final line carries the generated ids and real `timings` so the client's stats are exact. Dropping the connection cancels generation, as llama.cpp does |
-| `GET /props` | the context window the server enforces, plus which extensions it speaks |
-| `GET /health` | liveness, whether a generation is in flight, and `n_ctx` / `safe_ctx` / `ctx_pressure` |
-| `POST /cache/push`, `POST /cache/pop` | chad-only, cache quarantine |
-| `POST /warm` | chad-only, on-disk KV warm start |
-
-The last two are what a stock llama.cpp server can't do, and they exist because both ends
-are chad's. `/props` advertises them and the client feature-detects, so nothing changes when
-you point the same client at a real llama-server:
-
-- cache quarantine: a client brackets a sub-agent's excursion with a real engine
-  push/pop, so the excursion's prompt does not evict the main transcript's prefix and force
-  a re-prefill on the way back.
-- warm prefix: the on-disk KV warm-start of the stable system+tools prefix, which a
-  remote client can't do for itself because the checkpoint lives on the server's disk.
-
-Both are latency, never correctness: a client that doesn't speak them, or a call that fails,
-degrades to plain remote behavior.
-
-The engine holds **one** KV cache, so generation is serialized: one agent at a time.
-Concurrent clients queue rather than thrash the prefix (`/props` and `/health` stay
-lock-free so a monitor can poll during a long turn). Two caveats worth stating before you
-trust a number that comes out of this: scores are *not* comparable to a GGUF run (different
-quantization is the whole point of the exercise), and on a laptop the agent's own container
-workload competes with decode; on a wall-clock-timed benchmark, a task can fail on time
-rather than on capability. Pilot a handful of tasks before trusting a full sweep.
 
 ### Sampling & reasoning effort
 
@@ -488,8 +501,8 @@ CHAD_REASONING_EFFORT=low uv run chad  # template-level reasoning budget, where 
   [think-cap](#turn-budgets--think-cap) below, which force-closes a `<think>` run the model
   has already started.
 
-All five sampler settings are applied as one call, so every path that builds an engine,
-interactive, one-shot, and `chad serve`) honors the same set.
+All five sampler settings are applied as one call, so every path that builds an engine
+(interactive and one-shot) honors the same set.
 
 ### Turn budgets & think-cap
 
@@ -593,6 +606,11 @@ CHAD_DISABLE=all uv run chad                # the bare model + tool loop
 
 ### Safety & A/B opt-outs
 
+**One thing no permission mode waves through.** A `write`/`edit` whose real path is
+outside the working directory (or under `.git/hooks`) always asks, even in auto-accept
+and yolo; headless runs block it and tell the model why. The prompt names the resolved
+path, so a symlink out of the workspace shows where the write actually lands.
+
 These flip behavior off rather than tune it. The two safety opt-outs **weaken** chad's
 defenses. Leave them unset in normal use; they exist for measurement and edge cases.
 
@@ -641,9 +659,14 @@ CHAD_PROTECT_GIT=1          uv run chad  # also write-DENY .git inside the yolo 
   temp dirs, and caches; reads and network open. Only the spawned shell child is ever
   sandboxed. Set this only when the sandbox itself breaks a legitimate workflow.
 - `CHAD_NO_ENV_GUARD`: bash children normally get a **filtered** copy of the
-  environment: variable names shaped like credentials (`…_TOKEN`, `…_SECRET`,
-  `…_API_KEY`, …) are dropped, name-pattern only, values never read. Set this for a
-  session whose commands legitimately need a credential (e.g. `gh`, deploy scripts).
+  environment: variable names shaped like credentials are dropped — `…_TOKEN`,
+  `…_SECRET`, `…_PASSWORD`, `…_API_KEY`, `…_KEY`, `…_PAT`, `…_AUTH`, `…_DSN`,
+  `…_TOKEN_FILE`, plus `SSH_AUTH_SOCK`, `DATABASE_URL` and `AWS_PROFILE` by name. The
+  one value the guard reads is a `…_URL` carrying userinfo (`scheme://user:pass@host`),
+  dropped because the name gives no hint that it holds a password. Set this for a
+  session whose commands legitimately need a credential (e.g. `gh`, deploy scripts) — a
+  stripped variable is absent, never corrupted, so a command that needs one fails
+  clearly.
 - `CHAD_PROTECT_GIT`: an opt-in tier on top of the yolo sandbox: the workspace's
   `.git` (and a worktree's external gitdir) is write-DENIED, so an unreviewed command
   cannot destroy project history. The cost is real: every `.git`-writing git command
@@ -651,8 +674,8 @@ CHAD_PROTECT_GIT=1          uv run chad  # also write-DENY .git inside the yolo 
 - `CHAD_NO_SKILLS`: turns off [Agent Skill](#agent-skills-agentskillsio) discovery
   entirely, so no `/<skill>` command resolves. Skills no longer touch the system prompt,
   so this is no longer needed to keep your personal skills out of a benchmark; set it
-  when you want them unreachable from chad at all. Unlike the other `CHAD_NO_*` vars this
-  one wants a real truthy value (`1`/`true`/`yes`/`on`).
+  when you want them unreachable from chad at all. Like every other `CHAD_NO_*` flag it
+  reads as set or unset: any non-empty value, `0` included, turns discovery off.
 - `CHAD_NO_FASTPATH`: disables the fused-projection + compiled decode step installed
   at load for the dense `qwen3_5` hybrid (`mlx_fastpath.py`): the MLP `gate|up` concat, the
   GDN `in_proj` concat, and the compiled S=1 layer step. It is a silent no-op on any other
@@ -802,12 +825,18 @@ CHAD_SPILL_DIR=/tmp/spill           uv run chad  # where truncated tool output s
 CHAD_DUMP_RENDER=/tmp/prompt.txt    uv run chad  # dump the fully-rendered prompt each step
 CHAD_PREFILL_TRACE=/tmp/pf.jsonl    uv run chad  # per-step prefill/cache telemetry
 CHAD_CHECKPOINT_DIR=/tmp/ckpt       uv run chad  # relocate the shadow-git edit checkpoints
+CHAD_SESSION_DIR=/tmp/sessions      uv run chad  # relocate saved sessions (--continue/--resume)
 ```
 
 - `CHAD_CHECKPOINT_DIR`: where the shadow-git repositories backing `/undo` and
   `/restore` live (default `~/.chad/checkpoints`, keyed per workspace). It exists so a test
   or eval suite never writes real home state. Note this is *not* `~/.chad/history`, which is
-  the TUI's prompt-history file.
+  the TUI's prompt-history file. The store is private (mode `0700`), never snapshots
+  `.env*`, `*.pem`, `*.key` or SSH private keys, and a workspace's snapshots are swept
+  after 30 days without an edit.
+- `CHAD_SESSION_DIR`: where saved conversations live (default `~/.chad/sessions`, one
+  directory per project) for `--continue`, `--resume` and the TUI `/resume` picker. Like
+  `CHAD_CHECKPOINT_DIR`, it exists so a test or eval suite never touches real home state.
 
 ### Tree-sitter tags (ambient structure)
 
