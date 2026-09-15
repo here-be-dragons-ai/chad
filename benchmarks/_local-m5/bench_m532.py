@@ -371,6 +371,9 @@ def main(argv=None) -> int:
     ap.add_argument("--capture-bodies", action="store_true")
     ap.add_argument("--unverified", action="store_true")
     ap.add_argument("--runs", nargs="+", default=None)
+    # run._grid reads both directly as of #77 (they were getattr defaults before), and
+    # only smoke() overrides them — without these, `pi` and `chad` die in the first call.
+    ap.set_defaults(grid_name="grid", rep_label=0)
     a = ap.parse_args(argv)
     a.tasks = [x for x in a.tasks.split(",") if x.strip()]
     a.arms = [x for x in a.arms.split(",") if x.strip()]
